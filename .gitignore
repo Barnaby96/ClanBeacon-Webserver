@@ -7,3 +7,4 @@ __pycache__/
 !.env.example
 *.pyc
 uploads/dink_evidence/
+uploads/manual_evidence/

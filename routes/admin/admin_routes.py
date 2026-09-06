@@ -511,6 +511,7 @@ def dink_events():
 @admin_required
 def bingo_setup():
     competition_id = database.get_wom_competition_id()
+    evidence_codeword = ''
     competition = None
     teams = {}
     wom_player_ids = {}
@@ -601,32 +602,45 @@ def bingo_setup():
             competition = None
 
         elif action == 'import':
-            result = database.import_wom_competition(
-                competition_id,
-                teams,
-                wom_player_ids
-            )
+            evidence_codeword = request.form.get(
+                'evidence_codeword',
+                ''
+            ).strip()
 
-            if not result['imported']:
-                conflicts = result['conflicts']
-
+            if not evidence_codeword:
                 flash(
-                    'The competition could not be imported '
-                    'because some existing players are assigned '
-                    'to different teams.',
+                    'Please enter an evidence codeword before '
+                    'confirming the import.',
                     'danger'
                 )
             else:
-                flash(
-                    (
-                        'Competition imported successfully. '
-                        f"{result['teams_created']} teams created, "
-                        f"{result['players_created']} players created "
-                        f"and {result['players_reused']} existing "
-                        'players reused.'
-                    ),
-                    'success'
+                result = database.import_wom_competition(
+                    competition_id,
+                    teams,
+                    evidence_codeword,
+                    wom_player_ids
                 )
+
+                if not result['imported']:
+                    conflicts = result['conflicts']
+
+                    flash(
+                        'The competition could not be imported '
+                        'because some existing players are assigned '
+                        'to different teams.',
+                        'danger'
+                    )
+                else:
+                    flash(
+                        (
+                            'Competition imported successfully. '
+                            f"{result['teams_created']} teams created, "
+                            f"{result['players_created']} players created "
+                            f"and {result['players_reused']} existing "
+                            'players reused.'
+                        ),
+                        'success'
+                    )
 
     return render_template(
         'admin_templates/bingo_setup.html',
@@ -634,7 +648,8 @@ def bingo_setup():
         competition=competition,
         teams=teams,
         participant_count=participant_count,
-        conflicts=conflicts
+        conflicts=conflicts,
+        evidence_codeword=evidence_codeword
     )
 
 

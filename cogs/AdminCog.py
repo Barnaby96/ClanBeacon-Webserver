@@ -7,84 +7,54 @@ from discord import default_permissions, guild_only
 
 from routes import dink
 from utils import database, db_entities, scapify
-from utils.dink_evidence import resolve_dink_evidence_path
+from utils.manual_evidence_files import (
+    resolve_manual_evidence_path
+)
 from utils.spoofed_jsons import spoof_drop
 from utils.autocomplete import *
 from utils.send_webhook import send_webhook
 
 def _get_submission_summary(row):
-    event_type = row[3]
-    raw_payload = row[4]
+    trigger = str(
+        row.get(
+            "condition_trigger"
+        ) or ""
+    ).strip()
 
-    if not isinstance(raw_payload, dict):
-        return "Automatic submission"
+    if trigger:
+        summary = trigger.replace(
+            "_",
+            " "
+        ).title()
+    else:
+        summary = str(
+            row.get(
+                "tile_name"
+            ) or "This part of the tile"
+        ).strip()
 
-    extra = raw_payload.get(
-        "extra",
-        {}
+    amount = int(
+        row.get(
+            "amount",
+            1
+        ) or 1
     )
 
-    if not isinstance(extra, dict):
-        extra = {}
+    if amount > 1:
+        return f"{amount} x {summary}"
 
-    if event_type == "LOOT":
-        items = extra.get(
-            "items",
-            []
-        )
-
-        item_descriptions = []
-
-        if isinstance(items, list):
-            for item in items:
-                if not isinstance(item, dict):
-                    continue
-
-                item_name = item.get(
-                    "name"
-                )
-
-                if not item_name:
-                    continue
-
-                quantity = item.get(
-                    "quantity",
-                    1
-                )
-
-                if quantity == 1:
-                    item_descriptions.append(
-                        str(item_name)
-                    )
-                else:
-                    item_descriptions.append(
-                        f"{quantity} × {item_name}"
-                    )
-
-        if item_descriptions:
-            return ", ".join(
-                item_descriptions
-            )
-
-    elif event_type == "PET":
-        pet_name = extra.get(
-            "petName"
-        )
-
-        if pet_name:
-            return f"Pet: {pet_name}"
-
-    return "Automatic submission"
+    return summary
 
 
 def _get_submission_evidence_file(row):
-    event_id = int(
-        row[0]
+    evidence_id = int(
+        row["evidence_id"]
     )
 
-    absolute_path = resolve_dink_evidence_path(
-        event_id=event_id,
-        screenshot_path=row[5]
+    absolute_path = resolve_manual_evidence_path(
+        row.get(
+            "evidence_path"
+        )
     )
 
     if absolute_path is None:
@@ -95,7 +65,7 @@ def _get_submission_evidence_file(row):
     )[1].lower()
 
     filename = (
-        f"submission_{event_id}"
+        f"manual_evidence_{evidence_id}"
         f"{extension}"
     )
 
@@ -110,32 +80,92 @@ def _get_submission_evidence_file(row):
 def _build_submission_review_embed(
     row,
     evidence_filename=None
-    ):
-    event_id = row[0]
-    claimed_rsn = row[2]
-    received_at = row[6]
-    linked_player_name = row[10]
-    linked_team_name = row[11]
+):
+    evidence_id = int(
+        row["evidence_id"]
+    )
 
     player_name = (
-        linked_player_name
-        or claimed_rsn
+        row.get("credited_player_name")
         or "Unknown player"
     )
 
     team_name = (
-        linked_team_name
-        or "No team"
+        row.get("team_name")
+        or "Original team unavailable"
     )
 
-    if received_at is not None:
-        received_timestamp = int(
-            received_at.timestamp()
+    tile_name = (
+        row.get("tile_name")
+        or "Original tile unavailable"
+    )
+
+    trigger = str(
+        row.get(
+            "condition_trigger"
+        ) or ""
+    ).strip()
+
+    if trigger:
+        part_name = trigger.replace(
+            "_",
+            " "
+        ).title()
+    else:
+        part_name = "This part of the tile"
+
+    submitter_name = (
+        row.get("submitter_name")
+        or "Unknown submitter"
+    )
+
+    submitter_id = row.get(
+        "submitter_id"
+    )
+
+    credited_discord_user_id = row.get(
+        "credited_discord_user_id"
+    )
+
+    submitted_for_self = (
+        credited_discord_user_id is not None
+        and submitter_id is not None
+        and int(credited_discord_user_id)
+        == int(submitter_id)
+    )
+
+    if submitted_for_self:
+        submitted_by_text = submitter_name
+    else:
+        submitted_by_text = (
+            f"{submitter_name} on behalf of "
+            f"{player_name}"
+        )
+
+    evidence_codeword = (
+        row.get(
+            "evidence_codeword_at_submission"
+        )
+        or "Not recorded"
+    )
+
+    notes = (
+        row.get("description")
+        or "None provided"
+    )
+
+    submitted_at = row.get(
+        "submitted_at"
+    )
+
+    if submitted_at is not None:
+        submitted_timestamp = int(
+            submitted_at.timestamp()
         )
 
         submitted_text = (
-            f"<t:{received_timestamp}:f>\n"
-            f"<t:{received_timestamp}:R>"
+            f"<t:{submitted_timestamp}:f>\n"
+            f"<t:{submitted_timestamp}:R>"
         )
     else:
         submitted_text = "Unknown"
@@ -160,6 +190,47 @@ def _build_submission_review_embed(
     )
 
     embed.add_field(
+        name="Amount",
+        value=str(
+            row.get(
+                "amount",
+                1
+            )
+        ),
+        inline=True
+    )
+
+    embed.add_field(
+        name="Tile",
+        value=tile_name,
+        inline=False
+    )
+
+    embed.add_field(
+        name="Part",
+        value=part_name,
+        inline=False
+    )
+
+    embed.add_field(
+        name="Submitted by",
+        value=submitted_by_text,
+        inline=False
+    )
+
+    embed.add_field(
+        name="Evidence codeword",
+        value=evidence_codeword,
+        inline=False
+    )
+
+    embed.add_field(
+        name="Notes",
+        value=notes,
+        inline=False
+    )
+
+    embed.add_field(
         name="Submitted",
         value=submitted_text,
         inline=False
@@ -181,12 +252,30 @@ def _build_submission_review_embed(
 
     embed.set_footer(
         text=(
-            "Automatically recorded"
-            f" | Submission #{event_id}"
+            "Manual evidence"
+            f" | Submission #{evidence_id}"
         )
     )
 
     return embed
+
+
+def _is_bingo_organiser(member):
+    organiser_role_id = os.getenv(
+        "BINGO_ORGANISER_ROLE_ID"
+    )
+
+    if organiser_role_id is None:
+        return False
+
+    return any(
+        str(role.id) == organiser_role_id
+        for role in getattr(
+            member,
+            "roles",
+            []
+        )
+    )
 
 
 async def _check_submission_reviewer(
@@ -206,15 +295,8 @@ async def _check_submission_reviewer(
         )
         return False
 
-    permissions = getattr(
-        interaction.user,
-        "guild_permissions",
-        None
-    )
-
-    if (
-        permissions is None
-        or not permissions.manage_webhooks
+    if not _is_bingo_organiser(
+        interaction.user
     ):
         await interaction.response.send_message(
             (
@@ -234,11 +316,11 @@ class SubmissionReviewSelect(
     def __init__(
         self,
         review_rows,
-        selected_event_id,
+        selected_evidence_id,
         reviewer_id
     ):
         self.review_rows = {
-            int(row[0]): row
+            int(row["evidence_id"]): row
             for row in review_rows
         }
 
@@ -249,19 +331,18 @@ class SubmissionReviewSelect(
         options = []
 
         for row in review_rows[:25]:
-            event_id = int(
-                row[0]
+            evidence_id = int(
+                row["evidence_id"]
             )
 
             player_name = (
-                row[10]
-                or row[2]
+                row.get("credited_player_name")
                 or "Unknown player"
             )
 
             team_name = (
-                row[11]
-                or "No team"
+                row.get("team_name")
+                or "Original team unavailable"
             )
 
             submission_summary = (
@@ -282,11 +363,11 @@ class SubmissionReviewSelect(
             options.append(
                 discord.SelectOption(
                     label=label,
-                    value=str(event_id),
+                    value=str(evidence_id),
                     description=description,
                     default=(
-                        event_id
-                        == selected_event_id
+                        evidence_id
+                        == selected_evidence_id
                     )
                 )
             )
@@ -310,12 +391,12 @@ class SubmissionReviewSelect(
         ):
             return
 
-        event_id = int(
+        evidence_id = int(
             self.values[0]
         )
 
         row = self.review_rows.get(
-            event_id
+            evidence_id
         )
 
         if row is None:
@@ -332,7 +413,7 @@ class SubmissionReviewSelect(
             review_rows=list(
                 self.review_rows.values()
             ),
-            selected_event_id=event_id,
+            selected_evidence_id=evidence_id,
             reviewer_id=self.reviewer_id
         )
 
@@ -367,15 +448,15 @@ class SubmissionRejectionModal(
 ):
     def __init__(
         self,
-        event_id,
+        evidence_id,
         reviewer_id
     ):
         super().__init__(
             title="Not Accepting Submission"
         )
 
-        self.event_id = int(
-            event_id
+        self.evidence_id = int(
+            evidence_id
         )
 
         self.reviewer_id = int(
@@ -409,8 +490,8 @@ class SubmissionRejectionModal(
             return
 
         result = (
-            database.reject_pending_dink_event(
-                event_id=self.event_id,
+            database.reject_pending_manual_evidence(
+                evidence_id=self.evidence_id,
                 review_source="DISCORD",
                 reviewer_id=(
                     interaction.user.id
@@ -438,13 +519,21 @@ class SubmissionRejectionModal(
             )
             return
 
-        if result["status"] in (
-            "EVENT_NOT_FOUND",
-            "DUPLICATE_EVENT"
-        ):
+        if result["status"] == "EVIDENCE_NOT_FOUND":
             message = (
                 "This submission is no "
                 "longer available."
+            )
+        elif (
+            result["status"]
+            == "EARLIER_PENDING_EVIDENCE"
+        ):
+            message = result.get(
+                "message",
+                (
+                    "An earlier submission for this tile "
+                    "must be reviewed first."
+                )
             )
         else:
             message = (
@@ -460,13 +549,65 @@ class SubmissionRejectionModal(
         )
 
 
+class SubmissionLostMvpConfirmationView(
+    discord.ui.View
+):
+    def __init__(
+        self,
+        review_view
+    ):
+        super().__init__(
+            timeout=300
+        )
+
+        self.review_view = review_view
+
+    @discord.ui.button(
+        label="No - accept without MVP",
+        style=discord.ButtonStyle.secondary
+    )
+    async def accept_without_mvp(
+        self,
+        button,
+        interaction
+    ):
+        if not await self.review_view._check_reviewer(
+            interaction
+        ):
+            return
+
+        await self.review_view._accept_selected(
+            interaction=interaction,
+            award_lost_mvp=False
+        )
+
+    @discord.ui.button(
+        label="Yes - award MVP",
+        style=discord.ButtonStyle.success
+    )
+    async def accept_with_mvp(
+        self,
+        button,
+        interaction
+    ):
+        if not await self.review_view._check_reviewer(
+            interaction
+        ):
+            return
+
+        await self.review_view._accept_selected(
+            interaction=interaction,
+            award_lost_mvp=True
+        )
+
+
 class SubmissionReviewView(
     discord.ui.View
 ):
     def __init__(
         self,
         review_rows,
-        selected_event_id,
+        selected_evidence_id,
         reviewer_id
     ):
         super().__init__(
@@ -474,8 +615,8 @@ class SubmissionReviewView(
         )
 
         self.review_rows = review_rows
-        self.selected_event_id = int(
-            selected_event_id
+        self.selected_evidence_id = int(
+            selected_evidence_id
         )
         self.reviewer_id = int(
             reviewer_id
@@ -484,8 +625,8 @@ class SubmissionReviewView(
         self.add_item(
             SubmissionReviewSelect(
                 review_rows=review_rows,
-                selected_event_id=(
-                    self.selected_event_id
+                selected_evidence_id=(
+                    self.selected_evidence_id
                 ),
                 reviewer_id=(
                     self.reviewer_id
@@ -500,6 +641,161 @@ class SubmissionReviewView(
         return await _check_submission_reviewer(
             interaction=interaction,
             reviewer_id=self.reviewer_id
+        )
+
+    async def _accept_selected(
+        self,
+        interaction,
+        award_lost_mvp=False
+    ):
+        try:
+            result = (
+                database.accept_pending_manual_evidence(
+                    evidence_id=(
+                        self.selected_evidence_id
+                    ),
+                    review_source="DISCORD",
+                    reviewer_id=(
+                        interaction.user.id
+                    ),
+                    reviewer_name=(
+                        interaction.user.display_name
+                    ),
+                    award_lost_mvp=award_lost_mvp
+                )
+            )
+        except ValueError:
+            await interaction.response.edit_message(
+                content=(
+                    "This submission could not be "
+                    "accepted. It may no longer be "
+                    "eligible for review."
+                ),
+                embed=None,
+                view=None,
+                attachments=[]
+            )
+            return
+
+        status = result.get(
+            "status"
+        )
+
+        if status == "ACCEPTED":
+            if result.get(
+                "audit_only",
+                False
+            ):
+                result_text = (
+                    "✅ **Submission accepted**\n\n"
+                    "Accepted for audit only because the "
+                    "tile changed after this submission was "
+                    "made. No points were awarded."
+                )
+
+            else:
+                if result.get(
+                    "late_review",
+                    False
+                ):
+                    result_text = (
+                        "✅ **Submission accepted**\n\n"
+                        "The tile had already completed before "
+                        "this submission was reviewed."
+                    )
+                else:
+                    result_text = (
+                        "✅ **Submission accepted**"
+                    )
+
+                lost_mvp = float(
+                    result.get(
+                        "lost_mvp_contribution",
+                        0
+                    )
+                    or 0
+                )
+
+                late_review_points = float(
+                    result.get(
+                        "late_review_points",
+                        0
+                    )
+                    or 0
+                )
+
+                if late_review_points > 0:
+                    result_text += (
+                        "\n\n"
+                        f"{late_review_points:g} discretionary "
+                        "MVP points were awarded."
+                    )
+
+                elif lost_mvp > 0:
+                    result_text += (
+                        "\n\nNo discretionary MVP points "
+                        "were awarded."
+                    )
+
+            await interaction.response.edit_message(
+                content=(
+                    f"{result_text}\n\n"
+                    f"Reviewed by "
+                    f"{interaction.user.display_name}."
+                ),
+                embed=None,
+                view=None,
+                attachments=[]
+            )
+            return
+
+        if status == "EVIDENCE_NOT_FOUND":
+            message = (
+                "This submission is no "
+                "longer available."
+            )
+
+        elif status == "INVALID_STATUS":
+            message = (
+                "This submission has already "
+                "been reviewed."
+            )
+
+        elif status == "EARLIER_PENDING_EVIDENCE":
+            message = result.get(
+                "message",
+                (
+                    "An earlier submission for this tile "
+                    "must be reviewed first."
+                )
+            )
+
+        elif status in (
+            "MISSING_FROZEN_CONTEXT",
+            "TILE_NOT_FOUND",
+            "TILE_CHANGED",
+            "SUBMITTED_AFTER_COMPLETION",
+            "POTENTIAL_UNAVAILABLE"
+        ):
+            message = result.get(
+                "message",
+                (
+                    "This submission cannot currently "
+                    "be accepted."
+                )
+            )
+
+        else:
+            message = (
+                "This submission could not "
+                "be accepted."
+            )
+
+        await interaction.response.edit_message(
+            content=message,
+            embed=None,
+            view=None,
+            attachments=[]
         )
 
     @discord.ui.button(
@@ -518,124 +814,66 @@ class SubmissionReviewView(
         ):
             return
 
-        event = database.get_dink_event_by_id(
-            self.selected_event_id
-        )
-
-        if event is None:
-            await interaction.response.edit_message(
-                content=(
-                    "This submission is no "
-                    "longer available."
-                ),
-                embed=None,
-                view=None
-            )
-            return
-
-        if event[2] is not None:
-            await interaction.response.edit_message(
-                content=(
-                    "This submission cannot "
-                    "be reviewed."
-                ),
-                embed=None,
-                view=None
-            )
-            return
-
-        if event[10] != "PENDING_IDENTITY":
-            await interaction.response.edit_message(
-                content=(
-                    "This submission has already "
-                    "been reviewed."
-                ),
-                embed=None,
-                view=None
-            )
-            return
-
-        identity = (
-            database.get_dink_identity_by_hash(
-                event[3]
-            )
-        )
-
-        if (
-            identity is None
-            or identity[3] != "LINKED"
-            or identity[1] is None
-        ):
-            await interaction.response.edit_message(
-                content=(
-                    "This submission is not "
-                    "ready for review yet."
-                ),
-                embed=None,
-                view=None
-            )
-            return
-
         try:
-            event_progress = (
-                dink.get_dink_event_progress(
-                    event[7]
+            preflight = (
+                database
+                .get_manual_evidence_lost_mvp_preflight(
+                    self.selected_evidence_id
                 )
             )
-
-            result = (
-                database.process_dink_event_progress(
-                    event_id=(
-                        self.selected_event_id
-                    ),
-                    player_id=identity[1],
-                    event_progress=event_progress,
-                    review_source="DISCORD",
-                    reviewer_id=(
-                        interaction.user.id
-                    ),
-                    reviewer_name=(
-                        interaction.user.display_name
-                    )
-                )
-            )
-
         except ValueError:
             await interaction.response.edit_message(
                 content=(
-                    "This submission could not "
-                    "be accepted. It may have "
-                    "already been reviewed."
+                    "DanBot could not safely determine whether "
+                    "discretionary MVP is available. The "
+                    "submission has not been accepted."
                 ),
-                embed=None,
                 view=None
             )
             return
 
-        if result["status"] == "IGNORED":
-            dink.cleanup_ignored_dink_event(
-                self.selected_event_id
+        if preflight.get(
+            "lost_mvp_available",
+            False
+        ):
+            lost_mvp_contribution = float(
+                preflight.get(
+                    "maximum_lost_mvp_contribution",
+                    0
+                )
+                or 0
             )
 
-            result_text = (
-                "✅ **Submission accepted**\n\n"
-                "It did not match any active "
-                "bingo progress."
+            lost_mvp_points = float(
+                preflight.get(
+                    "maximum_lost_mvp_points",
+                    0
+                )
+                or 0
             )
 
-        else:
-            result_text = (
-                "✅ **Submission accepted**"
+            await interaction.response.edit_message(
+                content=(
+                    "⚠️ **Discretionary MVP available**\n\n"
+                    "Some otherwise-valid contribution cannot "
+                    "receive normal MVP credit because of tile "
+                    "completion.\n\n"
+                    f"This submission can receive up to "
+                    f"**{lost_mvp_points:g} MVP points** "
+                    f"({lost_mvp_contribution * 100:g}% of the "
+                    "tile's personal credit).\n\n"
+                    "Award these discretionary MVP points when "
+                    "accepting the submission?"
+                ),
+                view=SubmissionLostMvpConfirmationView(
+                    review_view=self
+                )
             )
+            return
 
-        await interaction.response.edit_message(
-            content=(
-                f"{result_text}\n\n"
-                f"Reviewed by "
-                f"{interaction.user.display_name}."
-            ),
-            embed=None,
-            view=None
+        await self._accept_selected(
+            interaction=interaction,
+            award_lost_mvp=False
         )
 
     @discord.ui.button(
@@ -655,7 +893,7 @@ class SubmissionReviewView(
             return
 
         modal = SubmissionRejectionModal(
-            event_id=self.selected_event_id,
+            evidence_id=self.selected_evidence_id,
             reviewer_id=self.reviewer_id
         )
 
@@ -676,27 +914,31 @@ class AdminCog(commands.Cog):
         name="submission",
         description="Review bingo submissions"
     )
-    @default_permissions(
-        manage_webhooks=True
-    )
     @guild_only()
     async def review_submission(
         self,
         ctx: discord.ApplicationContext
     ):
+
+        if not _is_bingo_organiser(
+            ctx.author
+        ):
+            await ctx.respond(
+                (
+                    "Only bingo organisers can "
+                    "review submissions."
+                ),
+                ephemeral=True
+            )
+            return
+
         await ctx.defer(
             ephemeral=True
         )
 
-        review_rows = [
-            row
-            for row
-            in database.get_pending_dink_event_review_rows()
-            if (
-                row[7] == "LINKED"
-                and row[9] is not None
-            )
-        ]
+        review_rows = (
+            database.get_pending_manual_evidence_review_rows()
+        )
 
         if not review_rows:
             await ctx.respond(
@@ -712,8 +954,8 @@ class AdminCog(commands.Cog):
 
         view = SubmissionReviewView(
             review_rows=review_rows,
-            selected_event_id=int(
-                selected_row[0]
+            selected_evidence_id=int(
+                selected_row["evidence_id"]
             ),
             reviewer_id=ctx.author.id
         )

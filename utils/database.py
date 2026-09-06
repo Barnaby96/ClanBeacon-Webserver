@@ -217,6 +217,21 @@ def ensure_schema():
         ''')
 
         cursor.execute('''
+            ALTER TABLE partial_completions
+            DROP CONSTRAINT IF EXISTS
+                partial_completions_player_id_fkey
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE partial_completions
+            ADD CONSTRAINT
+                partial_completions_player_id_fkey
+            FOREIGN KEY (player_id)
+            REFERENCES players(player_id)
+            ON DELETE SET NULL
+        ''')
+
+        cursor.execute('''
             CREATE UNIQUE INDEX IF NOT EXISTS
                 idx_partial_completions_player_team_tile
             ON partial_completions (
@@ -224,6 +239,13 @@ def ensure_schema():
                 team_id,
                 tile_id
             )
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE completed_tiles
+            ADD COLUMN IF NOT EXISTS completed_at
+                TIMESTAMPTZ NOT NULL
+                DEFAULT CURRENT_TIMESTAMP
         ''')
 
         cursor.execute('''
@@ -251,8 +273,14 @@ def ensure_schema():
             CREATE TABLE IF NOT EXISTS bingo_config (
                 config_id SMALLINT PRIMARY KEY
                     CHECK (config_id = 1),
-                wom_competition_id BIGINT
+                wom_competition_id BIGINT,
+                evidence_codeword TEXT
             )
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE bingo_config
+            ADD COLUMN IF NOT EXISTS evidence_codeword TEXT
         ''')
 
         cursor.execute('''
@@ -369,6 +397,180 @@ def ensure_schema():
         ''')
 
         cursor.execute('''
+            CREATE TABLE IF NOT EXISTS manual_evidence (
+                evidence_id BIGSERIAL PRIMARY KEY,
+                player_id INTEGER,
+                credited_player_name TEXT,
+                team_id INTEGER,
+                tile_id INTEGER,
+                condition_id INTEGER,
+                amount BIGINT NOT NULL DEFAULT 1,
+                tile_points_at_submission REAL,
+                banked_total_at_submission NUMERIC(18,12),
+                description TEXT,
+                evidence_path TEXT NOT NULL,
+                evidence_sha256 TEXT NOT NULL,
+                submission_source TEXT NOT NULL,
+                submitter_id BIGINT NOT NULL,
+                submitter_name TEXT NOT NULL,
+                discord_guild_id BIGINT,
+                discord_channel_id BIGINT,
+                discord_message_id BIGINT,
+                evidence_author_id BIGINT,
+                evidence_author_name TEXT,
+                status TEXT NOT NULL DEFAULT 'PENDING',
+                submitted_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (player_id)
+                    REFERENCES players(player_id)
+                    ON DELETE SET NULL,
+                FOREIGN KEY (team_id)
+                    REFERENCES teams(team_id)
+                    ON DELETE SET NULL,
+                FOREIGN KEY (tile_id)
+                    REFERENCES tiles(tile_id)
+                    ON DELETE SET NULL,
+                FOREIGN KEY (condition_id)
+                    REFERENCES tile_conditions(condition_id)
+                    ON DELETE SET NULL,
+                CHECK (amount > 0),
+                CHECK (
+                    submission_source IN (
+                        'DISCORD',
+                        'WEB'
+                    )
+                ),
+                CHECK (
+                    status IN (
+                        'PENDING',
+                        'ACCEPTED',
+                        'REJECTED'
+                    )
+                )
+            )
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE manual_evidence
+            ADD COLUMN IF NOT EXISTS
+                credited_player_name TEXT
+        ''')
+
+        # Backfill older evidence only where the original player
+        # still exists. Never guess a deleted player's identity.
+        cursor.execute('''
+            UPDATE manual_evidence AS e
+            SET credited_player_name = p.player_name
+            FROM players AS p
+            WHERE e.credited_player_name IS NULL
+              AND e.player_id = p.player_id
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE manual_evidence
+            ADD COLUMN IF NOT EXISTS
+                tile_points_at_submission REAL
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE manual_evidence
+            ADD COLUMN IF NOT EXISTS
+                banked_total_at_submission NUMERIC(18,12)
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE manual_evidence
+            ADD COLUMN IF NOT EXISTS
+                evidence_codeword_at_submission TEXT
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS
+                manual_evidence_path_snapshots (
+                    evidence_id BIGINT NOT NULL,
+                    completion_path INTEGER NOT NULL,
+                    route_mode TEXT NOT NULL,
+                    route_target BIGINT,
+                    require_unique BOOLEAN NOT NULL
+                        DEFAULT FALSE,
+                    PRIMARY KEY (
+                        evidence_id,
+                        completion_path
+                    ),
+                    FOREIGN KEY (evidence_id)
+                        REFERENCES manual_evidence(evidence_id)
+                        ON DELETE CASCADE,
+                    CHECK (completion_path >= 1),
+                    CHECK (
+                        route_mode IN (
+                            'ALL',
+                            'SUM',
+                            'N_OF'
+                        )
+                    ),
+                    CHECK (
+                        (
+                            route_mode = 'ALL'
+                            AND route_target IS NULL
+                        )
+                        OR
+                        (
+                            route_mode IN ('SUM', 'N_OF')
+                            AND route_target > 0
+                        )
+                    ),
+                    CHECK (
+                        route_mode = 'N_OF'
+                        OR require_unique = FALSE
+                    )
+                )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS
+                manual_evidence_condition_snapshots (
+                    evidence_id BIGINT NOT NULL,
+                    condition_id INTEGER NOT NULL,
+                    completion_path INTEGER NOT NULL,
+                    condition_type TEXT NOT NULL,
+                    condition_trigger TEXT,
+                    target BIGINT NOT NULL,
+                    progress BIGINT NOT NULL,
+                    selected_condition BOOLEAN NOT NULL
+                        DEFAULT FALSE,
+                    PRIMARY KEY (
+                        evidence_id,
+                        condition_id
+                    ),
+                    FOREIGN KEY (evidence_id)
+                        REFERENCES manual_evidence(evidence_id)
+                        ON DELETE CASCADE,
+                    CHECK (completion_path >= 1),
+                    CHECK (target > 0),
+                    CHECK (progress >= 0),
+                    CHECK (
+                        condition_type IN (
+                            'KILLCOUNT',
+                            'EXPERIENCE',
+                            'METRIC',
+                            'DROP',
+                            'PET',
+                            'MANUAL'
+                        )
+                    )
+                )
+        ''')
+
+        cursor.execute('''
+            CREATE UNIQUE INDEX IF NOT EXISTS
+                idx_manual_evidence_snapshot_selected_condition
+            ON manual_evidence_condition_snapshots (
+                evidence_id
+            )
+            WHERE selected_condition = TRUE
+        ''')
+
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS dink_auth_audit (
                 audit_id BIGSERIAL PRIMARY KEY,
                 failure_reason TEXT NOT NULL,
@@ -440,6 +642,155 @@ def ensure_schema():
         ''')
 
         cursor.execute('''
+            CREATE TABLE IF NOT EXISTS manual_evidence_progress (
+                progress_id BIGSERIAL PRIMARY KEY,
+                evidence_id BIGINT NOT NULL UNIQUE,
+                condition_id INTEGER,
+                tile_id INTEGER,
+                completion_path INTEGER NOT NULL,
+                amount BIGINT NOT NULL,
+                raw_progress BIGINT NOT NULL,
+                route_progress NUMERIC(18, 12) NOT NULL,
+                actual_contribution NUMERIC(18, 12) NOT NULL
+                    DEFAULT 0,
+                completion_remainder NUMERIC(18, 12) NOT NULL
+                    DEFAULT 0,
+                normal_player_credit NUMERIC(18, 12) NOT NULL
+                    DEFAULT 0,
+                potential_contribution NUMERIC(18, 12) NOT NULL
+                    DEFAULT 0,
+                lost_mvp_contribution NUMERIC(18, 12) NOT NULL
+                    DEFAULT 0,
+                banked_total NUMERIC(18, 12) NOT NULL,
+                ready BOOLEAN NOT NULL,
+                completed BOOLEAN NOT NULL,
+                processed_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (evidence_id)
+                    REFERENCES manual_evidence(evidence_id)
+                    ON DELETE CASCADE,
+                FOREIGN KEY (condition_id)
+                    REFERENCES tile_conditions(condition_id)
+                    ON DELETE SET NULL,
+                FOREIGN KEY (tile_id)
+                    REFERENCES tiles(tile_id)
+                    ON DELETE SET NULL,
+                CHECK (amount > 0)
+            )
+        ''')
+
+        cursor.execute('''
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name =
+                          'manual_evidence_progress'
+                      AND column_name = 'credited'
+                )
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name =
+                          'manual_evidence_progress'
+                      AND column_name =
+                          'actual_contribution'
+                )
+                THEN
+                    ALTER TABLE manual_evidence_progress
+                    RENAME COLUMN credited
+                    TO actual_contribution;
+                END IF;
+            END
+            $$;
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE manual_evidence_progress
+            ADD COLUMN IF NOT EXISTS
+                completion_remainder NUMERIC(18, 12)
+                NOT NULL DEFAULT 0
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE manual_evidence_progress
+            ADD COLUMN IF NOT EXISTS
+                normal_player_credit NUMERIC(18, 12)
+                NOT NULL DEFAULT 0
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE manual_evidence_progress
+            ADD COLUMN IF NOT EXISTS
+                potential_contribution NUMERIC(18, 12)
+                NOT NULL DEFAULT 0
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE manual_evidence_progress
+            ADD COLUMN IF NOT EXISTS
+                lost_mvp_contribution NUMERIC(18, 12)
+                NOT NULL DEFAULT 0
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS player_tile_credits (
+                credit_id BIGSERIAL PRIMARY KEY,
+                player_id INTEGER NOT NULL,
+                team_id INTEGER NOT NULL,
+                tile_id INTEGER NOT NULL,
+                contribution NUMERIC(18, 12) NOT NULL,
+                points_awarded NUMERIC(18, 12) NOT NULL,
+                credit_type TEXT NOT NULL,
+                evidence_id BIGINT,
+                awarded_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP,
+                CHECK (
+                    contribution > 0
+                    AND contribution <= 1
+                ),
+                CHECK (points_awarded >= 0),
+                CHECK (
+                    credit_type IN (
+                        'TILE_COMPLETION',
+                        'LATE_REVIEW'
+                    )
+                ),
+                CHECK (
+                    (
+                        credit_type = 'TILE_COMPLETION'
+                        AND evidence_id IS NULL
+                    )
+                    OR
+                    (
+                        credit_type = 'LATE_REVIEW'
+                        AND evidence_id IS NOT NULL
+                    )
+                )
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE UNIQUE INDEX IF NOT EXISTS
+                idx_player_tile_credits_evidence
+            ON player_tile_credits (evidence_id)
+            WHERE evidence_id IS NOT NULL
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS
+                idx_player_tile_credits_player_tile
+            ON player_tile_credits (
+                player_id,
+                team_id,
+                tile_id
+            )
+        ''')
+
+        cursor.execute('''
             CREATE INDEX IF NOT EXISTS idx_dink_events_fingerprint
             ON dink_events (
                 event_fingerprint,
@@ -486,6 +837,57 @@ def set_wom_competition_id(competition_id):
             DO UPDATE SET
                 wom_competition_id = EXCLUDED.wom_competition_id
         ''', (competition_id,))
+        conn.commit()
+
+
+def get_evidence_codeword():
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT evidence_codeword
+            FROM bingo_config
+            WHERE config_id = 1
+            '''
+        )
+
+        row = cursor.fetchone()
+
+    if row is None:
+        return None
+
+    return row[0]
+
+
+def set_evidence_codeword(evidence_codeword):
+    evidence_codeword = str(
+        evidence_codeword
+    ).strip()
+
+    if not evidence_codeword:
+        raise ValueError(
+            "Evidence codeword cannot be blank."
+        )
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            INSERT INTO bingo_config (
+                config_id,
+                evidence_codeword
+            )
+            VALUES (1, %s)
+            ON CONFLICT (config_id)
+            DO UPDATE SET
+                evidence_codeword =
+                    EXCLUDED.evidence_codeword
+            ''',
+            (evidence_codeword,)
+        )
+
         conn.commit()
 
 
@@ -909,8 +1311,18 @@ def set_wom_last_processed_gain(
 def import_wom_competition(
     competition_id,
     teams,
+    evidence_codeword,
     wom_player_ids=None
 ):
+    evidence_codeword = str(
+        evidence_codeword
+    ).strip()
+
+    if not evidence_codeword:
+        raise ValueError(
+            "Evidence codeword cannot be blank."
+        )
+
     if wom_player_ids is None:
         wom_player_ids = {}
     with connect() as conn:
@@ -1211,14 +1623,21 @@ def import_wom_competition(
             '''
             INSERT INTO bingo_config (
                 config_id,
-                wom_competition_id
+                wom_competition_id,
+                evidence_codeword
             )
-            VALUES (1, %s)
+            VALUES (1, %s, %s)
             ON CONFLICT (config_id)
             DO UPDATE SET
-                wom_competition_id = EXCLUDED.wom_competition_id
+                wom_competition_id =
+                    EXCLUDED.wom_competition_id,
+                evidence_codeword =
+                    EXCLUDED.evidence_codeword
             ''',
-            (competition_id,)
+            (
+                competition_id,
+                evidence_codeword
+            )
         )
 
         conn.commit()
@@ -2481,7 +2900,8 @@ def _record_staff_review_decision(
             review_source,
             reviewer_id,
             reviewer_name,
-            reason
+            reason,
+            decided_at
         )
         VALUES (
             %s,
@@ -2490,7 +2910,8 @@ def _record_staff_review_decision(
             %s,
             %s,
             %s,
-            %s
+            %s,
+            clock_timestamp()
         )
         RETURNING decision_id
         ''',
@@ -2506,6 +2927,2816 @@ def _record_staff_review_decision(
     )
 
     return cursor.fetchone()[0]
+
+
+def add_manual_evidence(
+    player_id,
+    condition_id,
+    amount,
+    evidence_path,
+    evidence_sha256,
+    submission_source,
+    submitter_id,
+    submitter_name,
+    description=None,
+    discord_guild_id=None,
+    discord_channel_id=None,
+    discord_message_id=None,
+    evidence_author_id=None,
+    evidence_author_name=None
+):
+    amount = int(amount)
+
+    if amount < 1:
+        raise ValueError(
+            "Manual evidence amount must be greater than 0."
+        )
+
+    submission_source = str(
+        submission_source
+    ).strip().upper()
+
+    if submission_source not in {
+        "DISCORD",
+        "WEB"
+    }:
+        raise ValueError(
+            "Manual evidence submission source must be "
+            "DISCORD or WEB."
+        )
+
+    if submitter_id is None:
+        raise ValueError(
+            "Manual evidence submitter ID is required."
+        )
+
+    submitter_name = str(
+        submitter_name
+    ).strip()
+
+    if not submitter_name:
+        raise ValueError(
+            "Manual evidence submitter name is required."
+        )
+
+    evidence_path = str(
+        evidence_path
+    ).strip()
+
+    if not evidence_path:
+        raise ValueError(
+            "Manual evidence path is required."
+        )
+
+    evidence_sha256 = str(
+        evidence_sha256
+    ).strip()
+
+    if not evidence_sha256:
+        raise ValueError(
+            "Manual evidence hash is required."
+        )
+
+    if description is not None:
+        description = str(
+            description
+        ).strip()
+
+        if not description:
+            description = None
+
+    if evidence_author_name is not None:
+        evidence_author_name = str(
+            evidence_author_name
+        ).strip()
+
+        if not evidence_author_name:
+            evidence_author_name = None
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT evidence_codeword
+            FROM bingo_config
+            WHERE config_id = 1
+            FOR SHARE
+            '''
+        )
+
+        codeword_row = cursor.fetchone()
+
+        evidence_codeword_at_submission = (
+            None
+            if (
+                codeword_row is None
+                or codeword_row[0] is None
+                or not str(codeword_row[0]).strip()
+            )
+            else str(codeword_row[0]).strip()
+        )
+
+
+        cursor.execute(
+            '''
+            SELECT
+                team_id,
+                player_name
+            FROM players
+            WHERE player_id = %s
+            FOR UPDATE
+            ''',
+            (player_id,)
+        )
+
+        player = cursor.fetchone()
+
+        if player is None:
+            raise ValueError(
+                f"Player {player_id} does not exist."
+            )
+
+        team_id = player[0]
+
+        credited_player_name = str(
+            player[1]
+        ).strip()
+
+        if team_id is None:
+            raise ValueError(
+                f"Player {player_id} is not on a team."
+            )
+
+        # First identify the tile, then lock it before reading
+        # any progress used by the submission snapshot.
+        cursor.execute(
+            '''
+            SELECT tile_id
+            FROM tile_conditions
+            WHERE condition_id = %s
+            ''',
+            (condition_id,)
+        )
+
+        condition_tile = cursor.fetchone()
+
+        if condition_tile is None:
+            raise ValueError(
+                f"Condition {condition_id} does not exist."
+            )
+
+        tile_id = int(condition_tile[0])
+
+        # Use the same tile-level serialisation as automatic
+        # progress so the saved condition progress and banked
+        # contribution represent one coherent moment.
+        cursor.execute(
+            '''
+            SELECT tile_id
+            FROM tiles
+            WHERE tile_id = %s
+            FOR UPDATE
+            ''',
+            (tile_id,)
+        )
+
+        if cursor.fetchone() is None:
+            raise ValueError(
+                f"Tile {tile_id} does not exist."
+            )
+
+        # Re-read the selected condition only after acquiring
+        # the tile lock. The earlier lookup was solely to find
+        # which tile needed locking.
+        cursor.execute(
+            '''
+            SELECT
+                c.tile_id,
+                c.condition_type,
+                c.completion_path,
+                c.target,
+                COALESCE(p.progress, 0)
+            FROM tile_conditions c
+            LEFT JOIN tile_condition_progress p
+              ON p.condition_id = c.condition_id
+             AND p.team_id = %s
+            WHERE c.condition_id = %s
+            ''',
+            (
+                team_id,
+                condition_id
+            )
+        )
+
+        condition = cursor.fetchone()
+
+        if condition is None:
+            raise ValueError(
+                f"Condition {condition_id} does not exist."
+            )
+
+        tile_id = condition[0]
+
+        condition_type = str(
+            condition[1]
+        ).strip().upper()
+
+        completion_path = int(condition[2])
+        condition_target = int(condition[3])
+        condition_progress = int(condition[4])
+
+        if condition_type in {
+            "KILLCOUNT",
+            "EXPERIENCE"
+        }:
+            raise ValueError(
+                "Manual evidence cannot be submitted for "
+                "KILLCOUNT or EXPERIENCE conditions."
+            )
+
+        cursor.execute(
+            '''
+            SELECT 1
+            FROM completed_tiles
+            WHERE team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                team_id,
+                tile_id
+            )
+        )
+
+        if cursor.fetchone() is not None:
+            raise ValueError(
+                "Manual evidence cannot be submitted because "
+                "this tile is already complete."
+            )
+
+        path_state = _evaluate_completion_path(
+            cursor=cursor,
+            team_id=team_id,
+            tile_id=tile_id,
+            completion_path=completion_path
+        )
+
+        route_mode = path_state["route_mode"]
+
+        if route_mode == "ALL":
+            if condition_progress >= condition_target:
+                raise ValueError(
+                    "Manual evidence cannot be submitted because "
+                    "this part of the tile is already complete."
+                )
+
+        elif route_mode == "SUM":
+            if path_state["ready"]:
+                raise ValueError(
+                    "Manual evidence cannot be submitted because "
+                    "this completion route is already complete."
+                )
+
+        elif route_mode == "N_OF":
+            if path_state["ready"]:
+                raise ValueError(
+                    "Manual evidence cannot be submitted because "
+                    "this completion route is already complete."
+                )
+
+            if (
+                path_state.get("require_unique", False)
+                and condition_progress > 0
+            ):
+                raise ValueError(
+                    "Manual evidence cannot be submitted because "
+                    "this unique part of the tile has already "
+                    "contributed."
+                )
+
+        cursor.execute(
+            '''
+            SELECT tile_points
+            FROM tiles
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        tile = cursor.fetchone()
+
+        if tile is None:
+            raise ValueError(
+                f"Tile {tile_id} does not exist."
+            )
+
+        if tile[0] is None:
+            raise ValueError(
+                f"Tile {tile_id} has no point value."
+            )
+
+        tile_points_at_submission = float(tile[0])
+
+        cursor.execute(
+            '''
+            SELECT COALESCE(
+                SUM(partial_completion),
+                0
+            )
+            FROM partial_completions
+            WHERE team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                team_id,
+                tile_id
+            )
+        )
+
+        banked_total_at_submission = round(
+            float(cursor.fetchone()[0]),
+            12
+        )
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM manual_evidence
+            WHERE team_id = %s
+              AND tile_id = %s
+              AND status = 'PENDING'
+            ''',
+            (
+                team_id,
+                tile_id
+            )
+        )
+
+        earlier_pending_evidence_count = int(
+            cursor.fetchone()[0]
+        )
+
+        has_earlier_pending_evidence = (
+            earlier_pending_evidence_count > 0
+        )
+
+        if has_earlier_pending_evidence:
+            pending_warning = (
+                "Another submission for this tile is already "
+                "waiting for review. If that earlier submission "
+                "is accepted, it may reduce or remove the MVP "
+                "points available for this submission. This will "
+                "not affect the team's tile points."
+            )
+        else:
+            pending_warning = None
+
+        cursor.execute(
+            '''
+            INSERT INTO manual_evidence (
+                player_id,
+                credited_player_name,
+                team_id,
+                tile_id,
+                condition_id,
+                amount,
+                tile_points_at_submission,
+                banked_total_at_submission,
+                evidence_codeword_at_submission,
+                description,
+                evidence_path,
+                evidence_sha256,
+                submission_source,
+                submitter_id,
+                submitter_name,
+                discord_guild_id,
+                discord_channel_id,
+                discord_message_id,
+                evidence_author_id,
+                evidence_author_name,
+                submitted_at
+            )
+            VALUES (
+                %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s,
+                %s, %s,
+                clock_timestamp()
+            )
+            RETURNING evidence_id
+            ''',
+            (
+                player_id,
+                credited_player_name,
+                team_id,
+                tile_id,
+                condition_id,
+                amount,
+                tile_points_at_submission,
+                banked_total_at_submission,
+                evidence_codeword_at_submission,
+                description,
+                evidence_path,
+                evidence_sha256,
+                submission_source,
+                submitter_id,
+                submitter_name,
+                discord_guild_id,
+                discord_channel_id,
+                discord_message_id,
+                evidence_author_id,
+                evidence_author_name
+            )
+        )
+
+        evidence_id = cursor.fetchone()[0]
+
+        cursor.execute(
+            '''
+            INSERT INTO manual_evidence_path_snapshots (
+                evidence_id,
+                completion_path,
+                route_mode,
+                route_target,
+                require_unique
+            )
+            SELECT
+                %s,
+                completion_path,
+                route_mode,
+                route_target,
+                require_unique
+            FROM tile_completion_paths
+            WHERE tile_id = %s
+            ORDER BY completion_path
+            ''',
+            (
+                evidence_id,
+                tile_id
+            )
+        )
+
+        if cursor.rowcount < 1:
+            raise ValueError(
+                f"Tile {tile_id} has no completion paths."
+            )
+
+        cursor.execute(
+            '''
+            INSERT INTO manual_evidence_condition_snapshots (
+                evidence_id,
+                condition_id,
+                completion_path,
+                condition_type,
+                condition_trigger,
+                target,
+                progress,
+                selected_condition
+            )
+            SELECT
+                %s,
+                c.condition_id,
+                c.completion_path,
+                c.condition_type,
+                c.condition_trigger,
+                c.target,
+                COALESCE(p.progress, 0),
+                c.condition_id = %s
+            FROM tile_conditions c
+            LEFT JOIN tile_condition_progress p
+              ON p.condition_id = c.condition_id
+             AND p.team_id = %s
+            WHERE c.tile_id = %s
+            ORDER BY
+                c.completion_path,
+                c.condition_id
+            ''',
+            (
+                evidence_id,
+                condition_id,
+                team_id,
+                tile_id
+            )
+        )
+
+        if cursor.rowcount < 1:
+            raise ValueError(
+                f"Tile {tile_id} has no conditions."
+            )
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM manual_evidence_condition_snapshots
+            WHERE evidence_id = %s
+              AND selected_condition = TRUE
+            ''',
+            (evidence_id,)
+        )
+
+        selected_count = cursor.fetchone()[0]
+
+        if selected_count != 1:
+            raise ValueError(
+                "Manual evidence snapshot must contain "
+                "exactly one selected condition."
+            )
+
+        conn.commit()
+
+    return {
+        "evidence_id": evidence_id,
+        "status": "PENDING",
+        "player_id": player_id,
+        "team_id": team_id,
+        "tile_id": tile_id,
+        "condition_id": condition_id,
+        "amount": amount,
+        "tile_points_at_submission":
+            tile_points_at_submission,
+        "banked_total_at_submission":
+            banked_total_at_submission,
+        "has_earlier_pending_evidence":
+            has_earlier_pending_evidence,
+        "earlier_pending_evidence_count":
+            earlier_pending_evidence_count,
+        "pending_warning": pending_warning
+    }
+
+
+def _evaluate_manual_evidence_snapshot_route(
+    cursor,
+    evidence_id,
+    amount,
+    progress_adjustments=None
+):
+    amount = int(amount)
+
+    if amount < 1:
+        raise ValueError(
+            "Manual evidence amount must be greater than 0."
+        )
+
+    cursor.execute(
+        '''
+        SELECT
+            condition_id,
+            completion_path
+        FROM manual_evidence_condition_snapshots
+        WHERE evidence_id = %s
+          AND selected_condition = TRUE
+        ''',
+        (evidence_id,)
+    )
+
+    selected_condition = cursor.fetchone()
+
+    if selected_condition is None:
+        raise ValueError(
+            "Manual evidence condition snapshot is missing."
+        )
+
+    condition_id = int(selected_condition[0])
+    completion_path = int(selected_condition[1])
+
+    cursor.execute(
+        '''
+        SELECT
+            route_mode,
+            route_target,
+            require_unique
+        FROM manual_evidence_path_snapshots
+        WHERE evidence_id = %s
+          AND completion_path = %s
+        ''',
+        (
+            evidence_id,
+            completion_path
+        )
+    )
+
+    path = cursor.fetchone()
+
+    if path is None:
+        raise ValueError(
+            "Manual evidence path snapshot is missing."
+        )
+
+    route_mode = str(path[0])
+    route_target = (
+        None
+        if path[1] is None
+        else int(path[1])
+    )
+    require_unique = bool(path[2])
+
+    cursor.execute(
+        '''
+        SELECT
+            condition_id,
+            target,
+            progress
+        FROM manual_evidence_condition_snapshots
+        WHERE evidence_id = %s
+          AND completion_path = %s
+        ORDER BY condition_id
+        ''',
+        (
+            evidence_id,
+            completion_path
+        )
+    )
+
+    condition_rows = cursor.fetchall()
+
+    if not condition_rows:
+        raise ValueError(
+            "Manual evidence path snapshot has no conditions."
+        )
+
+    targets = {}
+    progress = {}
+
+    for (
+        snapshot_condition_id,
+        target,
+        saved_progress
+    ) in condition_rows:
+        snapshot_condition_id = int(
+            snapshot_condition_id
+        )
+
+        targets[snapshot_condition_id] = int(target)
+        progress[snapshot_condition_id] = int(
+            saved_progress
+        )
+
+    if condition_id not in progress:
+        raise ValueError(
+            "Selected manual evidence condition is not in "
+            "its saved completion path."
+        )
+
+    # Earlier manual submissions can be replayed here before
+    # evaluating this submission. Adjustments for conditions on
+    # other completion paths do not affect this route.
+    if progress_adjustments is not None:
+        for (
+            adjusted_condition_id,
+            adjustment
+        ) in progress_adjustments.items():
+            adjusted_condition_id = int(
+                adjusted_condition_id
+            )
+            adjustment = int(adjustment)
+
+            if adjustment < 0:
+                raise ValueError(
+                    "Snapshot progress adjustment cannot "
+                    "be negative."
+                )
+
+            if adjusted_condition_id not in progress:
+                continue
+
+            progress[adjusted_condition_id] += adjustment
+
+    def evaluate_route(progress_values):
+        if route_mode == "ALL":
+            completed_conditions = sum(
+                1
+                for snapshot_condition_id in progress_values
+                if (
+                    progress_values[snapshot_condition_id]
+                    >= targets[snapshot_condition_id]
+                )
+            )
+
+            progress_fraction = sum(
+                min(
+                    progress_values[snapshot_condition_id]
+                    / targets[snapshot_condition_id],
+                    1.0
+                )
+                for snapshot_condition_id in progress_values
+            ) / len(progress_values)
+
+            return {
+                "current": completed_conditions,
+                "target": len(progress_values),
+                "progress_fraction": round(
+                    progress_fraction,
+                    12
+                ),
+                "ready": (
+                    completed_conditions
+                    == len(progress_values)
+                )
+            }
+
+        if route_mode == "SUM":
+            current = sum(
+                progress_values.values()
+            )
+
+            return {
+                "current": current,
+                "target": route_target,
+                "progress_fraction": round(
+                    min(
+                        current / route_target,
+                        1.0
+                    ),
+                    12
+                ),
+                "ready": current >= route_target
+            }
+
+        if route_mode == "N_OF":
+            if require_unique:
+                current = sum(
+                    1
+                    for value in progress_values.values()
+                    if value > 0
+                )
+            else:
+                current = sum(
+                    progress_values.values()
+                )
+
+            return {
+                "current": current,
+                "target": route_target,
+                "progress_fraction": round(
+                    min(
+                        current / route_target,
+                        1.0
+                    ),
+                    12
+                ),
+                "ready": current >= route_target
+            }
+
+        raise ValueError(
+            f"Unsupported snapshot route mode: "
+            f"{route_mode}"
+        )
+
+    before = evaluate_route(progress)
+
+    progress[condition_id] += amount
+
+    after = evaluate_route(progress)
+
+    route_contribution = round(
+        max(
+            0.0,
+            after["progress_fraction"]
+            - before["progress_fraction"]
+        ),
+        12
+    )
+
+    return {
+        "condition_id": condition_id,
+        "completion_path": completion_path,
+        "route_mode": route_mode,
+        "route_target": route_target,
+        "require_unique": require_unique,
+        "amount": amount,
+        "raw_progress": progress[condition_id],
+        "before": before,
+        "after": after,
+        "route_contribution": route_contribution
+    }
+
+
+def _calculate_manual_evidence_potential_contribution(
+    cursor,
+    evidence_id
+):
+    cursor.execute(
+        '''
+        SELECT
+            team_id,
+            tile_id,
+            amount,
+            submitted_at,
+            banked_total_at_submission
+        FROM manual_evidence
+        WHERE evidence_id = %s
+        ''',
+        (evidence_id,)
+    )
+
+    evidence = cursor.fetchone()
+
+    if evidence is None:
+        raise ValueError(
+            f"Manual evidence {evidence_id} does not exist."
+        )
+
+    (
+        team_id,
+        tile_id,
+        amount,
+        submitted_at,
+        banked_total_at_submission
+    ) = evidence
+
+    if team_id is None or tile_id is None:
+        return {
+            "available": False,
+            "reason": "MISSING_FROZEN_CONTEXT",
+            "message": (
+                "The original team or tile for this submission "
+                "no longer exists, so its potential contribution "
+                "cannot be calculated reliably."
+            )
+        }
+
+    if banked_total_at_submission is None:
+        return {
+            "available": False,
+            "reason": "UNKNOWN_BANKED_TOTAL",
+            "message": (
+                "This submission predates banked-contribution "
+                "snapshots, so its potential contribution cannot "
+                "be reconstructed reliably."
+            )
+        }
+
+    banked_total_at_submission = round(
+        float(banked_total_at_submission),
+        12
+    )
+
+    # Find earlier submissions for the same team/tile which
+    # were still unresolved when this submission took its
+    # snapshot, but were later accepted.
+    #
+    # If an earlier submission had already been accepted before
+    # this one was submitted, its progress and contribution are
+    # already represented in this submission's frozen state and
+    # must not be replayed.
+    cursor.execute(
+        '''
+        SELECT
+            earlier.evidence_id,
+            earlier.amount,
+            selected.condition_id,
+            progress.potential_contribution
+        FROM manual_evidence AS earlier
+        JOIN staff_review_decisions AS decision
+          ON decision.subject_type = 'MANUAL_EVIDENCE'
+         AND decision.subject_id = earlier.evidence_id
+         AND decision.decision = 'ACCEPT'
+        JOIN manual_evidence_progress AS progress
+          ON progress.evidence_id = earlier.evidence_id
+        JOIN manual_evidence_condition_snapshots AS selected
+          ON selected.evidence_id = earlier.evidence_id
+         AND selected.selected_condition = TRUE
+        WHERE earlier.team_id = %s
+          AND earlier.tile_id = %s
+          AND earlier.status = 'ACCEPTED'
+          AND (
+                earlier.submitted_at < %s
+                OR (
+                    earlier.submitted_at = %s
+                    AND earlier.evidence_id < %s
+                )
+              )
+          AND decision.decided_at > %s
+        ORDER BY
+            earlier.submitted_at,
+            earlier.evidence_id
+        ''',
+        (
+            team_id,
+            tile_id,
+            submitted_at,
+            submitted_at,
+            evidence_id,
+            submitted_at
+        )
+    )
+
+    earlier_rows = cursor.fetchall()
+
+    progress_adjustments = {}
+    replayed_evidence_ids = []
+    replayed_potential_contribution = 0.0
+
+    for (
+        earlier_evidence_id,
+        earlier_amount,
+        earlier_condition_id,
+        earlier_potential_contribution
+    ) in earlier_rows:
+        earlier_condition_id = int(
+            earlier_condition_id
+        )
+
+        progress_adjustments[
+            earlier_condition_id
+        ] = (
+            progress_adjustments.get(
+                earlier_condition_id,
+                0
+            )
+            + int(earlier_amount)
+        )
+
+        replayed_evidence_ids.append(
+            int(earlier_evidence_id)
+        )
+
+        replayed_potential_contribution = round(
+            replayed_potential_contribution
+            + float(earlier_potential_contribution),
+            12
+        )
+
+    snapshot_result = (
+        _evaluate_manual_evidence_snapshot_route(
+            cursor=cursor,
+            evidence_id=evidence_id,
+            amount=amount,
+            progress_adjustments=progress_adjustments
+        )
+    )
+
+    hypothetical_banked_before = round(
+        min(
+            1.0,
+            banked_total_at_submission
+            + replayed_potential_contribution
+        ),
+        12
+    )
+
+    remaining_personal_share = round(
+        max(
+            0.0,
+            1.0 - hypothetical_banked_before
+        ),
+        12
+    )
+
+    route_contribution = round(
+        float(
+            snapshot_result[
+                "route_contribution"
+            ]
+        ),
+        12
+    )
+
+    potential_contribution = round(
+        min(
+            route_contribution,
+            remaining_personal_share
+        ),
+        12
+    )
+
+    return {
+        "available": True,
+        "evidence_id": int(evidence_id),
+        "banked_total_at_submission":
+            banked_total_at_submission,
+        "replayed_evidence_ids":
+            replayed_evidence_ids,
+        "replayed_potential_contribution":
+            replayed_potential_contribution,
+        "progress_adjustments":
+            progress_adjustments,
+        "hypothetical_banked_before":
+            hypothetical_banked_before,
+        "remaining_personal_share":
+            remaining_personal_share,
+        "route_contribution":
+            route_contribution,
+        "potential_contribution":
+            potential_contribution,
+        "snapshot_route":
+            snapshot_result
+    }
+
+
+def _check_manual_evidence_live_compatibility(
+    cursor,
+    evidence_id,
+    tile_id
+):
+    cursor.execute(
+        '''
+        SELECT
+            condition_id,
+            completion_path,
+            condition_type,
+            condition_trigger,
+            target
+        FROM manual_evidence_condition_snapshots
+        WHERE evidence_id = %s
+          AND selected_condition = TRUE
+        ''',
+        (evidence_id,)
+    )
+
+    snapshot_condition = cursor.fetchone()
+
+    if snapshot_condition is None:
+        return {
+            "compatible": False,
+            "reason": "MISSING_CONDITION_SNAPSHOT",
+            "message": (
+                "The saved tile details for this submission "
+                "are incomplete, so it cannot be accepted "
+                "normally."
+            )
+        }
+
+    (
+        condition_id,
+        completion_path,
+        condition_type,
+        condition_trigger,
+        condition_target
+    ) = snapshot_condition
+
+    cursor.execute(
+        '''
+        SELECT
+            tile_id,
+            completion_path,
+            condition_type,
+            condition_trigger,
+            target
+        FROM tile_conditions
+        WHERE condition_id = %s
+        ''',
+        (condition_id,)
+    )
+
+    live_condition = cursor.fetchone()
+
+    if live_condition is None:
+        return {
+            "compatible": False,
+            "reason": "CONDITION_DELETED",
+            "message": (
+                "This tile changed after the submission was "
+                "made. The selected part no longer exists, "
+                "so it cannot be accepted normally."
+            )
+        }
+
+    (
+        live_tile_id,
+        live_completion_path,
+        live_condition_type,
+        live_condition_trigger,
+        live_condition_target
+    ) = live_condition
+
+    snapshot_condition_definition = (
+        int(tile_id),
+        int(completion_path),
+        str(condition_type),
+        condition_trigger,
+        int(condition_target)
+    )
+
+    live_condition_definition = (
+        int(live_tile_id),
+        int(live_completion_path),
+        str(live_condition_type),
+        live_condition_trigger,
+        int(live_condition_target)
+    )
+
+    if (
+        live_condition_definition
+        != snapshot_condition_definition
+    ):
+        return {
+            "compatible": False,
+            "reason": "CONDITION_CHANGED",
+            "message": (
+                "This tile changed after the submission was "
+                "made. The selected part is no longer the "
+                "same, so it cannot be accepted normally."
+            )
+        }
+
+    cursor.execute(
+        '''
+        SELECT
+            route_mode,
+            route_target,
+            require_unique
+        FROM manual_evidence_path_snapshots
+        WHERE evidence_id = %s
+          AND completion_path = %s
+        ''',
+        (
+            evidence_id,
+            completion_path
+        )
+    )
+
+    snapshot_path = cursor.fetchone()
+
+    if snapshot_path is None:
+        return {
+            "compatible": False,
+            "reason": "MISSING_PATH_SNAPSHOT",
+            "message": (
+                "The saved tile details for this submission "
+                "are incomplete, so it cannot be accepted "
+                "normally."
+            )
+        }
+
+    cursor.execute(
+        '''
+        SELECT
+            route_mode,
+            route_target,
+            require_unique
+        FROM tile_completion_paths
+        WHERE tile_id = %s
+          AND completion_path = %s
+        ''',
+        (
+            tile_id,
+            completion_path
+        )
+    )
+
+    live_path = cursor.fetchone()
+
+    if live_path is None:
+        return {
+            "compatible": False,
+            "reason": "PATH_DELETED",
+            "message": (
+                "This tile changed after the submission was "
+                "made. Its completion route no longer exists, "
+                "so it cannot be accepted normally."
+            )
+        }
+
+    snapshot_path_definition = (
+        str(snapshot_path[0]),
+        (
+            None
+            if snapshot_path[1] is None
+            else int(snapshot_path[1])
+        ),
+        bool(snapshot_path[2])
+    )
+
+    live_path_definition = (
+        str(live_path[0]),
+        (
+            None
+            if live_path[1] is None
+            else int(live_path[1])
+        ),
+        bool(live_path[2])
+    )
+
+    if live_path_definition != snapshot_path_definition:
+        return {
+            "compatible": False,
+            "reason": "PATH_CHANGED",
+            "message": (
+                "This tile changed after the submission was "
+                "made. Its completion route is no longer the "
+                "same, so it cannot be accepted normally."
+            )
+        }
+
+    return {
+        "compatible": True,
+        "condition_id": int(condition_id),
+        "completion_path": int(completion_path),
+        "condition_type": str(condition_type),
+        "condition_trigger": condition_trigger,
+        "target": int(condition_target),
+        "route_mode": str(snapshot_path[0]),
+        "route_target": (
+            None
+            if snapshot_path[1] is None
+            else int(snapshot_path[1])
+        ),
+        "require_unique": bool(snapshot_path[2])
+    }
+
+
+def _get_earlier_pending_manual_evidence(
+    cursor,
+    evidence_id,
+    team_id,
+    tile_id,
+    submitted_at,
+    for_update=True
+):
+    query = '''
+        SELECT evidence_id
+        FROM manual_evidence
+        WHERE team_id = %s
+          AND tile_id = %s
+          AND status = 'PENDING'
+          AND (
+              submitted_at < %s
+              OR (
+                  submitted_at = %s
+                  AND evidence_id < %s
+              )
+          )
+        ORDER BY
+            submitted_at,
+            evidence_id
+        LIMIT 1
+    '''
+
+    if for_update:
+        query += ' FOR UPDATE'
+
+    cursor.execute(
+        query,
+        (
+            team_id,
+            tile_id,
+            submitted_at,
+            submitted_at,
+            evidence_id
+        )
+    )
+
+    earlier_evidence = cursor.fetchone()
+
+    if earlier_evidence is None:
+        return None
+
+    return int(earlier_evidence[0])
+
+
+def _get_player_team_tile_personal_credit_total(
+    cursor,
+    player_id,
+    team_id,
+    tile_id
+):
+    if player_id is None:
+        return 0.0
+
+    cursor.execute(
+        '''
+        SELECT COALESCE(
+            SUM(contribution),
+            0
+        )
+        FROM player_tile_credits
+        WHERE player_id = %s
+          AND team_id = %s
+          AND tile_id = %s
+        ''',
+        (
+            player_id,
+            team_id,
+            tile_id
+        )
+    )
+
+    finalised_credit = float(
+        cursor.fetchone()[0]
+    )
+
+    cursor.execute(
+        '''
+        SELECT COALESCE(
+            SUM(partial_completion),
+            0
+        )
+        FROM partial_completions
+        WHERE player_id = %s
+          AND team_id = %s
+          AND tile_id = %s
+        ''',
+        (
+            player_id,
+            team_id,
+            tile_id
+        )
+    )
+
+    banked_credit = float(
+        cursor.fetchone()[0]
+    )
+
+    return round(
+        min(
+            1.0,
+            finalised_credit + banked_credit
+        ),
+        12
+    )
+
+
+
+def get_manual_evidence_lost_mvp_preflight(evidence_id):
+    """
+    Return a read-only preview of whether accepting pending manual
+    evidence could offer discretionary lost MVP credit.
+
+    This preview does not lock or modify bingo state.
+    accept_pending_manual_evidence() remains authoritative and
+    re-checks the live state when the organiser makes a decision.
+    """
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                player_id,
+                team_id,
+                tile_id,
+                amount,
+                tile_points_at_submission,
+                status,
+                submitted_at
+            FROM manual_evidence
+            WHERE evidence_id = %s
+            ''',
+            (evidence_id,)
+        )
+
+        evidence = cursor.fetchone()
+
+        if evidence is None:
+            return {
+                "status": "EVIDENCE_NOT_FOUND",
+                "lost_mvp_available": False
+            }
+
+        (
+            player_id,
+            team_id,
+            tile_id,
+            amount,
+            tile_points_at_submission,
+            status,
+            submitted_at
+        ) = evidence
+
+        if status != "PENDING":
+            return {
+                "status": "INVALID_STATUS",
+                "current_status": status,
+                "lost_mvp_available": False
+            }
+
+        if team_id is None or tile_id is None:
+            return {
+                "status": "MISSING_FROZEN_CONTEXT",
+                "lost_mvp_available": False
+            }
+
+        earlier_evidence_id = (
+            _get_earlier_pending_manual_evidence(
+                cursor=cursor,
+                evidence_id=evidence_id,
+                team_id=team_id,
+                tile_id=tile_id,
+                submitted_at=submitted_at,
+                for_update=False
+            )
+        )
+
+        if earlier_evidence_id is not None:
+            return {
+                "status": "EARLIER_PENDING_EVIDENCE",
+                "earlier_evidence_id":
+                    earlier_evidence_id,
+                "lost_mvp_available": False
+            }
+
+        player_exists = False
+
+        if player_id is not None:
+            cursor.execute(
+                '''
+                SELECT 1
+                FROM players
+                WHERE player_id = %s
+                ''',
+                (player_id,)
+            )
+
+            player_exists = (
+                cursor.fetchone() is not None
+            )
+
+        cursor.execute(
+            '''
+            SELECT 1
+            FROM tiles
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        if cursor.fetchone() is None:
+            return {
+                "status": "TILE_NOT_FOUND",
+                "lost_mvp_available": False
+            }
+
+        cursor.execute(
+            '''
+            SELECT completed_at
+            FROM completed_tiles
+            WHERE team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                team_id,
+                tile_id
+            )
+        )
+
+        completed_tile = cursor.fetchone()
+
+        completed_at = (
+            None
+            if completed_tile is None
+            else completed_tile[0]
+        )
+
+        compatibility = (
+            _check_manual_evidence_live_compatibility(
+                cursor=cursor,
+                evidence_id=evidence_id,
+                tile_id=tile_id
+            )
+        )
+
+        if not compatibility["compatible"]:
+            return {
+                "status": "TILE_CHANGED",
+                "reason": compatibility["reason"],
+                "message": compatibility["message"],
+                "lost_mvp_available": False
+            }
+
+        potential = (
+            _calculate_manual_evidence_potential_contribution(
+                cursor=cursor,
+                evidence_id=evidence_id
+            )
+        )
+
+        if not potential["available"]:
+            return {
+                "status": "POTENTIAL_UNAVAILABLE",
+                "reason": potential["reason"],
+                "message": potential["message"],
+                "lost_mvp_available": False
+            }
+
+        potential_contribution = round(
+            float(
+                potential["potential_contribution"]
+            ),
+            12
+        )
+
+        if completed_at is not None:
+            if submitted_at > completed_at:
+                return {
+                    "status": "SUBMITTED_AFTER_COMPLETION",
+                    "completed_at": completed_at,
+                    "lost_mvp_available": False
+                }
+
+            lost_mvp_contribution = (
+                potential_contribution
+            )
+
+            existing_personal_credit = 0.0
+            remaining_personal_credit = 0.0
+
+            if player_exists:
+                existing_personal_credit = (
+                    _get_player_team_tile_personal_credit_total(
+                        cursor=cursor,
+                        player_id=player_id,
+                        team_id=team_id,
+                        tile_id=tile_id
+                    )
+                )
+
+                remaining_personal_credit = round(
+                    max(
+                        0.0,
+                        1.0 - existing_personal_credit
+                    ),
+                    12
+                )
+
+            maximum_lost_mvp_contribution = round(
+                min(
+                    lost_mvp_contribution,
+                    remaining_personal_credit
+                ),
+                12
+            )
+
+            if (
+                not player_exists
+                or maximum_lost_mvp_contribution <= 0
+                or tile_points_at_submission is None
+            ):
+                return {
+                    "status": "READY",
+                    "lost_mvp_available": False,
+                    "tile_already_completed": True,
+                    "would_complete_tile": False,
+                    "potential_contribution":
+                        potential_contribution,
+                    "predicted_actual_contribution": 0.0,
+                    "lost_mvp_contribution":
+                        lost_mvp_contribution,
+                    "existing_personal_credit":
+                        existing_personal_credit,
+                    "remaining_personal_credit":
+                        remaining_personal_credit,
+                    "maximum_lost_mvp_contribution": 0.0,
+                    "maximum_lost_mvp_points": 0.0
+                }
+
+            maximum_lost_mvp_points = round(
+                maximum_lost_mvp_contribution
+                * float(tile_points_at_submission),
+                12
+            )
+
+            return {
+                "status": "READY",
+                "lost_mvp_available": True,
+                "tile_already_completed": True,
+                "would_complete_tile": False,
+                "potential_contribution":
+                    potential_contribution,
+                "predicted_actual_contribution": 0.0,
+                "lost_mvp_contribution":
+                    lost_mvp_contribution,
+                "existing_personal_credit":
+                    existing_personal_credit,
+                "remaining_personal_credit":
+                    remaining_personal_credit,
+                "maximum_lost_mvp_contribution":
+                    maximum_lost_mvp_contribution,
+                "maximum_lost_mvp_points":
+                    maximum_lost_mvp_points
+            }
+
+        condition_id = int(
+            compatibility["condition_id"]
+        )
+
+        completion_path = int(
+            compatibility["completion_path"]
+        )
+
+        cursor.execute(
+            '''
+            SELECT
+                c.condition_id,
+                c.target,
+                COALESCE(p.progress, 0)
+            FROM tile_conditions c
+            LEFT JOIN tile_condition_progress p
+              ON p.condition_id = c.condition_id
+             AND p.team_id = %s
+            WHERE c.tile_id = %s
+              AND c.completion_path = %s
+            ORDER BY c.condition_id
+            ''',
+            (
+                team_id,
+                tile_id,
+                completion_path
+            )
+        )
+
+        conditions = cursor.fetchall()
+
+        before = _evaluate_completion_path_conditions(
+            route_mode=compatibility["route_mode"],
+            route_target=compatibility["route_target"],
+            require_unique=compatibility["require_unique"],
+            conditions=conditions
+        )
+
+        hypothetical_conditions = []
+
+        for (
+            live_condition_id,
+            target,
+            progress
+        ) in conditions:
+            hypothetical_progress = int(progress)
+
+            if int(live_condition_id) == condition_id:
+                hypothetical_progress += int(amount)
+
+            hypothetical_conditions.append(
+                (
+                    live_condition_id,
+                    target,
+                    hypothetical_progress
+                )
+            )
+
+        after = _evaluate_completion_path_conditions(
+            route_mode=compatibility["route_mode"],
+            route_target=compatibility["route_target"],
+            require_unique=compatibility["require_unique"],
+            conditions=hypothetical_conditions
+        )
+
+        route_progress_delta = round(
+            max(
+                0.0,
+                after["progress_fraction"]
+                - before["progress_fraction"]
+            ),
+            12
+        )
+
+        cursor.execute(
+            '''
+            SELECT COALESCE(
+                SUM(partial_completion),
+                0
+            )
+            FROM partial_completions
+            WHERE team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                team_id,
+                tile_id
+            )
+        )
+
+        banked_before = float(
+            cursor.fetchone()[0]
+        )
+
+        remaining_team_contribution = round(
+            max(
+                0.0,
+                1.0 - banked_before
+            ),
+            12
+        )
+
+        actual_contribution = round(
+            min(
+                remaining_team_contribution,
+                route_progress_delta
+            ),
+            12
+        )
+
+        would_complete_tile = bool(
+            after["ready"]
+        )
+
+        if would_complete_tile:
+            lost_mvp_contribution = round(
+                max(
+                    0.0,
+                    potential_contribution
+                    - actual_contribution
+                ),
+                12
+            )
+        else:
+            lost_mvp_contribution = 0.0
+
+        existing_personal_credit = 0.0
+        predicted_personal_credit = 0.0
+        remaining_personal_credit = 0.0
+        completion_remainder = 0.0
+
+        if player_exists:
+            existing_personal_credit = (
+                _get_player_team_tile_personal_credit_total(
+                    cursor=cursor,
+                    player_id=player_id,
+                    team_id=team_id,
+                    tile_id=tile_id
+                )
+            )
+
+            if would_complete_tile:
+                banked_after = round(
+                    min(
+                        1.0,
+                        banked_before
+                        + actual_contribution
+                    ),
+                    12
+                )
+
+                completion_remainder = round(
+                    max(
+                        0.0,
+                        1.0 - banked_after
+                    ),
+                    12
+                )
+
+                predicted_personal_credit = round(
+                    min(
+                        1.0,
+                        existing_personal_credit
+                        + actual_contribution
+                        + completion_remainder
+                    ),
+                    12
+                )
+            else:
+                predicted_personal_credit = round(
+                    min(
+                        1.0,
+                        existing_personal_credit
+                        + actual_contribution
+                    ),
+                    12
+                )
+
+            remaining_personal_credit = round(
+                max(
+                    0.0,
+                    1.0 - predicted_personal_credit
+                ),
+                12
+            )
+
+        maximum_lost_mvp_contribution = round(
+            min(
+                lost_mvp_contribution,
+                remaining_personal_credit
+            ),
+            12
+        )
+
+        lost_mvp_available = bool(
+            would_complete_tile
+            and player_exists
+            and maximum_lost_mvp_contribution > 0
+            and tile_points_at_submission is not None
+        )
+
+        maximum_lost_mvp_points = 0.0
+
+        if lost_mvp_available:
+            maximum_lost_mvp_points = round(
+                maximum_lost_mvp_contribution
+                * float(tile_points_at_submission),
+                12
+            )
+
+        return {
+            "status": "READY",
+            "lost_mvp_available":
+                lost_mvp_available,
+            "tile_already_completed": False,
+            "would_complete_tile":
+                would_complete_tile,
+            "potential_contribution":
+                potential_contribution,
+            "route_progress_delta":
+                route_progress_delta,
+            "predicted_actual_contribution":
+                actual_contribution,
+            "completion_remainder":
+                completion_remainder,
+            "lost_mvp_contribution":
+                lost_mvp_contribution,
+            "existing_personal_credit":
+                existing_personal_credit,
+            "predicted_personal_credit":
+                predicted_personal_credit,
+            "remaining_personal_credit":
+                remaining_personal_credit,
+            "maximum_lost_mvp_contribution":
+                maximum_lost_mvp_contribution,
+            "maximum_lost_mvp_points":
+                maximum_lost_mvp_points
+        }
+
+
+def accept_pending_manual_evidence(
+    evidence_id,
+    review_source,
+    reviewer_id,
+    reviewer_name,
+    award_lost_mvp=False
+):
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        # Lock the submission itself first. This serialises two
+        # staff members attempting to review the same evidence.
+        cursor.execute(
+            '''
+            SELECT
+                player_id,
+                credited_player_name,
+                team_id,
+                tile_id,
+                amount,
+                tile_points_at_submission,
+                status,
+                submitted_at
+            FROM manual_evidence
+            WHERE evidence_id = %s
+            FOR UPDATE
+            ''',
+            (evidence_id,)
+        )
+
+        evidence = cursor.fetchone()
+
+        if evidence is None:
+            return {
+                "status": "EVIDENCE_NOT_FOUND"
+            }
+
+        (
+            player_id,
+            credited_player_name,
+            team_id,
+            tile_id,
+            amount,
+            tile_points_at_submission,
+            status,
+            submitted_at
+        ) = evidence
+
+        if status != "PENDING":
+            return {
+                "status": "INVALID_STATUS",
+                "current_status": status
+            }
+
+        if team_id is None or tile_id is None:
+            return {
+                "status": "MISSING_FROZEN_CONTEXT",
+                "message": (
+                    "The original team or tile for this "
+                    "submission no longer exists, so it cannot "
+                    "be accepted normally."
+                )
+            }
+
+        # Manual submissions for the same team/tile must be
+        # reviewed in their original submission order.
+        earlier_evidence_id = (
+            _get_earlier_pending_manual_evidence(
+                cursor=cursor,
+                evidence_id=evidence_id,
+                team_id=team_id,
+                tile_id=tile_id,
+                submitted_at=submitted_at
+            )
+        )
+
+        if earlier_evidence_id is not None:
+            return {
+                "status": "EARLIER_PENDING_EVIDENCE",
+                "earlier_evidence_id": earlier_evidence_id,
+                "message": (
+                    "An earlier submission for this tile is "
+                    "still waiting for review. Review that "
+                    "submission first."
+                )
+            }
+
+        # If the credited player still exists, hold their row
+        # for the remainder of the review. Moving teams does not
+        # change the frozen team this evidence belongs to.
+        player_exists = False
+
+        if player_id is not None:
+            cursor.execute(
+                '''
+                SELECT player_id
+                FROM players
+                WHERE player_id = %s
+                FOR UPDATE
+                ''',
+                (player_id,)
+            )
+
+            player_exists = (
+                cursor.fetchone() is not None
+            )
+
+        # Use the same tile-level serialisation as automatic
+        # progress.
+        cursor.execute(
+            '''
+            SELECT tile_id
+            FROM tiles
+            WHERE tile_id = %s
+            FOR UPDATE
+            ''',
+            (tile_id,)
+        )
+
+        if cursor.fetchone() is None:
+            return {
+                "status": "TILE_NOT_FOUND",
+                "message": (
+                    "The tile for this submission no longer "
+                    "exists, so it cannot be accepted normally."
+                )
+            }
+
+        cursor.execute(
+            '''
+            SELECT completed_at
+            FROM completed_tiles
+            WHERE team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                team_id,
+                tile_id
+            )
+        )
+
+        completed_tile = cursor.fetchone()
+
+        completed_at = (
+            None
+            if completed_tile is None
+            else completed_tile[0]
+        )
+
+        compatibility = (
+            _check_manual_evidence_live_compatibility(
+                cursor=cursor,
+                evidence_id=evidence_id,
+                tile_id=tile_id
+            )
+        )
+
+        if not compatibility["compatible"]:
+            # An incompatible edit still blocks normal scoring.
+            # However, if the tile completed after this evidence
+            # was submitted, staff may accept the evidence for
+            # audit purposes only.
+            if completed_at is None:
+                return {
+                    "status": "TILE_CHANGED",
+                    "reason": compatibility["reason"],
+                    "message": compatibility["message"]
+                }
+
+            if submitted_at > completed_at:
+                return {
+                    "status": "SUBMITTED_AFTER_COMPLETION",
+                    "completed_at": completed_at,
+                    "message": (
+                        "This submission was made after the tile "
+                        "had already completed, so it cannot be "
+                        "accepted."
+                    )
+                }
+
+            cursor.execute(
+                '''
+                UPDATE manual_evidence
+                SET status = 'ACCEPTED'
+                WHERE evidence_id = %s
+                ''',
+                (evidence_id,)
+            )
+
+            decision_id = _record_staff_review_decision(
+                cursor=cursor,
+                subject_type="MANUAL_EVIDENCE",
+                subject_id=evidence_id,
+                decision="ACCEPT",
+                review_source=review_source,
+                reviewer_id=reviewer_id,
+                reviewer_name=reviewer_name,
+                reason=(
+                    "Accepted for audit only because the tile "
+                    "changed after this submission was made. "
+                    "No points were awarded."
+                )
+            )
+
+            conn.commit()
+
+            return {
+                "status": "ACCEPTED",
+                "decision_id": decision_id,
+                "evidence_id": evidence_id,
+                "player_id": (
+                    player_id
+                    if player_exists
+                    else None
+                ),
+                "credited_player_name":
+                    credited_player_name,
+                "team_id": team_id,
+                "tile_id": tile_id,
+                "amount": int(amount),
+                "audit_only": True,
+                "tile_changed": True,
+                "compatibility_reason":
+                    compatibility["reason"],
+                "completed_at": completed_at,
+                "submitted_before_completion": True,
+                "actual_contribution": 0.0,
+                "completion_remainder": 0.0,
+                "normal_player_credit": 0.0,
+                "potential_contribution": 0.0,
+                "lost_mvp_contribution": 0.0,
+                "award_lost_mvp_requested":
+                    bool(award_lost_mvp),
+                "late_review_contribution": 0.0,
+                "late_review_points": 0.0,
+                "player_deleted": not player_exists
+            }
+
+        potential = (
+            _calculate_manual_evidence_potential_contribution(
+                cursor=cursor,
+                evidence_id=evidence_id
+            )
+        )
+
+        if not potential["available"]:
+            return {
+                "status": "POTENTIAL_UNAVAILABLE",
+                "reason": potential["reason"],
+                "message": potential["message"]
+            }
+
+        if completed_at is not None:
+            submitted_before_completion = (
+                submitted_at <= completed_at
+            )
+
+            if not submitted_before_completion:
+                return {
+                    "status": "SUBMITTED_AFTER_COMPLETION",
+                    "completed_at": completed_at,
+                    "message": (
+                        "This submission was made after the tile "
+                        "had already completed, so it cannot be "
+                        "accepted."
+                    )
+                }
+
+            condition_id = int(
+                compatibility["condition_id"]
+            )
+
+            completion_path = int(
+                compatibility["completion_path"]
+            )
+
+            current_route = _evaluate_completion_path(
+                cursor=cursor,
+                team_id=team_id,
+                tile_id=tile_id,
+                completion_path=completion_path
+            )
+
+            cursor.execute(
+                '''
+                SELECT COALESCE(progress, 0)
+                FROM tile_condition_progress
+                WHERE team_id = %s
+                  AND condition_id = %s
+                ''',
+                (
+                    team_id,
+                    condition_id
+                )
+            )
+
+            raw_progress_row = cursor.fetchone()
+
+            current_raw_progress = (
+                0
+                if raw_progress_row is None
+                else int(raw_progress_row[0])
+            )
+
+            potential_contribution = round(
+                float(
+                    potential[
+                        "potential_contribution"
+                    ]
+                ),
+                12
+            )
+
+            # The tile is already complete, so this evidence
+            # cannot add any further live team contribution.
+            actual_contribution = 0.0
+
+            lost_mvp_contribution = round(
+                max(
+                    0.0,
+                    potential_contribution
+                    - actual_contribution
+                ),
+                12
+            )
+
+            existing_personal_credit = 0.0
+            remaining_personal_credit = 0.0
+            late_review_contribution = 0.0
+            late_review_points = 0.0
+
+            if player_exists:
+                existing_personal_credit = (
+                    _get_player_team_tile_personal_credit_total(
+                        cursor=cursor,
+                        player_id=player_id,
+                        team_id=team_id,
+                        tile_id=tile_id
+                    )
+                )
+
+                remaining_personal_credit = round(
+                    max(
+                        0.0,
+                        1.0 - existing_personal_credit
+                    ),
+                    12
+                )
+
+            # Lost MVP is never automatic. Staff must explicitly
+            # opt in, and the award is still capped so this player
+            # cannot exceed 100% personal credit for this team/tile.
+            if (
+                award_lost_mvp
+                and player_exists
+                and lost_mvp_contribution > 0
+                and remaining_personal_credit > 0
+            ):
+                late_review_contribution = round(
+                    min(
+                        lost_mvp_contribution,
+                        remaining_personal_credit
+                    ),
+                    12
+                )
+
+                if tile_points_at_submission is None:
+                    return {
+                        "status": "POTENTIAL_UNAVAILABLE",
+                        "reason": "UNKNOWN_TILE_POINTS",
+                        "message": (
+                            "The tile's point value at submission "
+                            "is unavailable, so discretionary MVP "
+                            "cannot be awarded reliably."
+                        )
+                    }
+
+                late_review_points = round(
+                    late_review_contribution
+                    * float(tile_points_at_submission),
+                    12
+                )
+
+                cursor.execute(
+                    '''
+                    UPDATE players
+                    SET player_points =
+                        COALESCE(player_points, 0) + %s
+                    WHERE player_id = %s
+                    RETURNING player_id
+                    ''',
+                    (
+                        late_review_points,
+                        player_id
+                    )
+                )
+
+                if cursor.fetchone() is None:
+                    raise ValueError(
+                        "The credited player disappeared during "
+                        "late-review processing."
+                    )
+
+                cursor.execute(
+                    '''
+                    INSERT INTO player_tile_credits (
+                        player_id,
+                        team_id,
+                        tile_id,
+                        contribution,
+                        points_awarded,
+                        credit_type,
+                        evidence_id,
+                        awarded_at
+                    )
+                    VALUES (
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        'LATE_REVIEW',
+                        %s,
+                        clock_timestamp()
+                    )
+                    ''',
+                    (
+                        player_id,
+                        team_id,
+                        tile_id,
+                        late_review_contribution,
+                        late_review_points,
+                        evidence_id
+                    )
+                )
+
+            cursor.execute(
+                '''
+                INSERT INTO manual_evidence_progress (
+                    evidence_id,
+                    condition_id,
+                    tile_id,
+                    completion_path,
+                    amount,
+                    raw_progress,
+                    route_progress,
+                    actual_contribution,
+                    completion_remainder,
+                    normal_player_credit,
+                    potential_contribution,
+                    lost_mvp_contribution,
+                    banked_total,
+                    ready,
+                    completed,
+                    processed_at
+                )
+                VALUES (
+                    %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s,
+                    clock_timestamp()
+                )
+                ''',
+                (
+                    evidence_id,
+                    condition_id,
+                    tile_id,
+                    completion_path,
+                    amount,
+                    current_raw_progress,
+                    current_route["progress_fraction"],
+                    0.0,
+                    0.0,
+                    0.0,
+                    potential_contribution,
+                    lost_mvp_contribution,
+                    1.0,
+                    current_route["ready"],
+                    True
+                )
+            )
+
+            cursor.execute(
+                '''
+                UPDATE manual_evidence
+                SET status = 'ACCEPTED'
+                WHERE evidence_id = %s
+                ''',
+                (evidence_id,)
+            )
+
+            decision_id = _record_staff_review_decision(
+                cursor=cursor,
+                subject_type="MANUAL_EVIDENCE",
+                subject_id=evidence_id,
+                decision="ACCEPT",
+                review_source=review_source,
+                reviewer_id=reviewer_id,
+                reviewer_name=reviewer_name
+            )
+
+            conn.commit()
+
+            return {
+                "status": "ACCEPTED",
+                "decision_id": decision_id,
+                "evidence_id": evidence_id,
+                "player_id": (
+                    player_id
+                    if player_exists
+                    else None
+                ),
+                "credited_player_name":
+                    credited_player_name,
+                "team_id": team_id,
+                "tile_id": tile_id,
+                "condition_id": condition_id,
+                "completion_path": completion_path,
+                "amount": int(amount),
+                "late_review": True,
+                "completed_at": completed_at,
+                "submitted_before_completion": True,
+                "actual_contribution": 0.0,
+                "completion_remainder": 0.0,
+                "normal_player_credit": 0.0,
+                "potential_contribution":
+                    potential_contribution,
+                "lost_mvp_contribution":
+                    lost_mvp_contribution,
+                "award_lost_mvp_requested":
+                    bool(award_lost_mvp),
+                "existing_personal_credit":
+                    existing_personal_credit,
+                "remaining_personal_credit":
+                    remaining_personal_credit,
+                "late_review_contribution":
+                    late_review_contribution,
+                "late_review_points":
+                    late_review_points,
+                "player_deleted": not player_exists,
+                "ready": bool(
+                    current_route["ready"]
+                ),
+                "completed": True
+            }
+
+        condition_id = int(
+            compatibility["condition_id"]
+        )
+
+        completion_path = int(
+            compatibility["completion_path"]
+        )
+
+        before = _evaluate_completion_path(
+            cursor=cursor,
+            team_id=team_id,
+            tile_id=tile_id,
+            completion_path=completion_path
+        )
+
+        raw_progress = _add_tile_condition_progress(
+            cursor=cursor,
+            team_id=team_id,
+            condition_id=condition_id,
+            amount=amount
+        )
+
+        after = _evaluate_completion_path(
+            cursor=cursor,
+            team_id=team_id,
+            tile_id=tile_id,
+            completion_path=completion_path
+        )
+
+        route_progress_delta = round(
+            max(
+                0.0,
+                after["progress_fraction"]
+                - before["progress_fraction"]
+            ),
+            12
+        )
+
+        # Deleted players still leave valid team contribution
+        # behind, but receive no personal MVP credit.
+        bank_player_id = (
+            player_id
+            if player_exists
+            else None
+        )
+
+        (
+            actual_contribution,
+            banked_total
+        ) = _bank_partial_contribution(
+            cursor=cursor,
+            player_id=bank_player_id,
+            team_id=team_id,
+            tile_id=tile_id,
+            requested_contribution=route_progress_delta
+        )
+
+        completion_details = None
+        completed = False
+
+        if after["ready"]:
+            completion_details = (
+                _complete_tile_with_contributions(
+                    cursor=cursor,
+                    team_id=team_id,
+                    tile_id=tile_id,
+                    finisher_player_id=(
+                        player_id
+                        if player_exists
+                        else None
+                    ),
+                    return_details=True,
+                    uncredited_finisher=(
+                        not player_exists
+                    )
+                )
+            )
+
+            completed = bool(
+                completion_details["completed"]
+            )
+
+        completion_remainder = 0.0
+
+        if (
+            completed
+            and player_exists
+            and completion_details is not None
+        ):
+            completion_remainder = round(
+                float(
+                    completion_details[
+                        "finisher_remainder"
+                    ]
+                ),
+                12
+            )
+
+        if player_exists:
+            normal_player_credit = round(
+                actual_contribution
+                + completion_remainder,
+                12
+            )
+        else:
+            normal_player_credit = 0.0
+
+        potential_contribution = round(
+            float(
+                potential[
+                    "potential_contribution"
+                ]
+            ),
+            12
+        )
+
+        # Lost MVP only exists when this review completes the
+        # tile and completion prevents the evidence from receiving
+        # all of the normal contribution it could have earned.
+        #
+        # If the tile remains incomplete, the queued evidence can
+        # still receive its full normal MVP contribution, even if
+        # automatic progress was added while it was waiting.
+        if completed:
+            lost_mvp_contribution = round(
+                max(
+                    0.0,
+                    potential_contribution
+                    - actual_contribution
+                ),
+                12
+            )
+        else:
+            lost_mvp_contribution = 0.0
+        existing_personal_credit = 0.0
+        remaining_personal_credit = 0.0
+        late_review_contribution = 0.0
+        late_review_points = 0.0
+
+        if player_exists:
+            existing_personal_credit = (
+                _get_player_team_tile_personal_credit_total(
+                    cursor=cursor,
+                    player_id=player_id,
+                    team_id=team_id,
+                    tile_id=tile_id
+                )
+            )
+
+            remaining_personal_credit = round(
+                max(
+                    0.0,
+                    1.0 - existing_personal_credit
+                ),
+                12
+            )
+
+        # Discretionary lost MVP is only possible when this
+        # review has completed the tile and therefore truncated
+        # otherwise-valid queued evidence.
+        if (
+            award_lost_mvp
+            and completed
+            and player_exists
+            and lost_mvp_contribution > 0
+            and remaining_personal_credit > 0
+        ):
+            late_review_contribution = round(
+                min(
+                    lost_mvp_contribution,
+                    remaining_personal_credit
+                ),
+                12
+            )
+
+            if tile_points_at_submission is None:
+                raise ValueError(
+                    "The tile's point value at submission is "
+                    "unavailable, so discretionary MVP cannot "
+                    "be awarded reliably."
+                )
+
+            late_review_points = round(
+                late_review_contribution
+                * float(tile_points_at_submission),
+                12
+            )
+
+            cursor.execute(
+                '''
+                UPDATE players
+                SET player_points =
+                    COALESCE(player_points, 0) + %s
+                WHERE player_id = %s
+                RETURNING player_id
+                ''',
+                (
+                    late_review_points,
+                    player_id
+                )
+            )
+
+            if cursor.fetchone() is None:
+                raise ValueError(
+                    "The credited player disappeared during "
+                    "late-review processing."
+                )
+
+            cursor.execute(
+                '''
+                INSERT INTO player_tile_credits (
+                    player_id,
+                    team_id,
+                    tile_id,
+                    contribution,
+                    points_awarded,
+                    credit_type,
+                    evidence_id,
+                    awarded_at
+                )
+                VALUES (
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    'LATE_REVIEW',
+                    %s,
+                    clock_timestamp()
+                )
+                ''',
+                (
+                    player_id,
+                    team_id,
+                    tile_id,
+                    late_review_contribution,
+                    late_review_points,
+                    evidence_id
+                )
+            )
+
+        cursor.execute(
+            '''
+            INSERT INTO manual_evidence_progress (
+                evidence_id,
+                condition_id,
+                tile_id,
+                completion_path,
+                amount,
+                raw_progress,
+                route_progress,
+                actual_contribution,
+                completion_remainder,
+                normal_player_credit,
+                potential_contribution,
+                lost_mvp_contribution,
+                banked_total,
+                ready,
+                completed,
+                processed_at
+            )
+            VALUES (
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s,
+                clock_timestamp()
+            )
+            ''',
+            (
+                evidence_id,
+                condition_id,
+                tile_id,
+                completion_path,
+                amount,
+                raw_progress,
+                after["progress_fraction"],
+                actual_contribution,
+                completion_remainder,
+                normal_player_credit,
+                potential_contribution,
+                lost_mvp_contribution,
+                banked_total,
+                after["ready"],
+                completed
+            )
+        )
+
+        cursor.execute(
+            '''
+            UPDATE manual_evidence
+            SET status = 'ACCEPTED'
+            WHERE evidence_id = %s
+            ''',
+            (evidence_id,)
+        )
+
+        decision_id = _record_staff_review_decision(
+            cursor=cursor,
+            subject_type="MANUAL_EVIDENCE",
+            subject_id=evidence_id,
+            decision="ACCEPT",
+            review_source=review_source,
+            reviewer_id=reviewer_id,
+            reviewer_name=reviewer_name
+        )
+
+        conn.commit()
+
+        return {
+            "status": "ACCEPTED",
+            "decision_id": decision_id,
+            "evidence_id": evidence_id,
+            "player_id": (
+                player_id
+                if player_exists
+                else None
+            ),
+            "credited_player_name":
+                credited_player_name,
+            "team_id": team_id,
+            "tile_id": tile_id,
+            "condition_id": condition_id,
+            "completion_path": completion_path,
+            "amount": int(amount),
+            "raw_progress": raw_progress,
+            "route_progress":
+                after["progress_fraction"],
+            "route_progress_delta":
+                route_progress_delta,
+            "actual_contribution":
+                actual_contribution,
+            "completion_remainder":
+                completion_remainder,
+            "normal_player_credit":
+                normal_player_credit,
+            "potential_contribution":
+                potential_contribution,
+            "lost_mvp_contribution":
+                lost_mvp_contribution,
+            "award_lost_mvp_requested":
+                bool(award_lost_mvp),
+            "existing_personal_credit":
+                existing_personal_credit,
+            "remaining_personal_credit":
+                remaining_personal_credit,
+            "late_review_contribution":
+                late_review_contribution,
+            "late_review_points":
+                late_review_points,
+            "banked_total": banked_total,
+            "ready": bool(after["ready"]),
+            "completed": completed,
+            "player_deleted": not player_exists
+        }
+
+
+def reject_pending_manual_evidence(
+    evidence_id,
+    review_source,
+    reviewer_id,
+    reviewer_name,
+    reason=None
+):
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                team_id,
+                tile_id,
+                status,
+                submitted_at
+            FROM manual_evidence
+            WHERE evidence_id = %s
+            FOR UPDATE
+            ''',
+            (evidence_id,)
+        )
+
+        evidence = cursor.fetchone()
+
+        if evidence is None:
+            return {
+                "status": "EVIDENCE_NOT_FOUND"
+            }
+
+        team_id = evidence[0]
+        tile_id = evidence[1]
+        status = evidence[2]
+        submitted_at = evidence[3]
+
+        if status != "PENDING":
+            return {
+                "status": "INVALID_STATUS",
+                "current_status": status
+            }
+
+        earlier_evidence_id = (
+            _get_earlier_pending_manual_evidence(
+                cursor=cursor,
+                evidence_id=evidence_id,
+                team_id=team_id,
+                tile_id=tile_id,
+                submitted_at=submitted_at
+            )
+        )
+
+        if earlier_evidence_id is not None:
+            return {
+                "status": "EARLIER_PENDING_EVIDENCE",
+                "earlier_evidence_id": earlier_evidence_id,
+                "message": (
+                    "An earlier submission for this tile is "
+                    "still waiting for review. Review that "
+                    "submission first."
+                )
+            }
+
+        cursor.execute(
+            '''
+            UPDATE manual_evidence
+            SET status = 'REJECTED'
+            WHERE evidence_id = %s
+            ''',
+            (evidence_id,)
+        )
+
+        decision_id = _record_staff_review_decision(
+            cursor=cursor,
+            subject_type="MANUAL_EVIDENCE",
+            subject_id=evidence_id,
+            decision="REJECT",
+            review_source=review_source,
+            reviewer_id=reviewer_id,
+            reviewer_name=reviewer_name,
+            reason=reason
+        )
+
+        conn.commit()
+
+        return {
+            "status": "REJECTED",
+            "decision_id": decision_id
+        }
 
 
 def get_staff_review_decision(
@@ -2611,6 +5842,121 @@ def reject_pending_dink_event(
             'status': 'REJECTED',
             'decision_id': decision_id
         }
+
+
+def get_pending_manual_evidence_review_rows(limit=25):
+    limit = int(limit)
+
+    if limit < 1 or limit > 25:
+        raise ValueError(
+            "Manual evidence review limit must be between "
+            "1 and 25."
+        )
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                evidence.evidence_id,
+                evidence.player_id,
+                evidence.credited_player_name,
+                evidence.team_id,
+                team.team_name,
+                evidence.tile_id,
+                tile.tile_name,
+                evidence.condition_id,
+
+                selected.completion_path,
+                selected.condition_type,
+                selected.condition_trigger,
+                selected.target,
+                selected.progress,
+
+                evidence.amount,
+                evidence.description,
+                evidence.evidence_path,
+                evidence.submission_source,
+                evidence.submitter_id,
+                evidence.submitter_name,
+
+                evidence.discord_guild_id,
+                evidence.discord_channel_id,
+                evidence.discord_message_id,
+
+                evidence.evidence_author_id,
+                evidence.evidence_author_name,
+
+                evidence.evidence_codeword_at_submission,
+                evidence.submitted_at,
+
+                player.discord_user_id
+
+            FROM manual_evidence AS evidence
+
+            LEFT JOIN manual_evidence_condition_snapshots
+                AS selected
+              ON selected.evidence_id =
+                    evidence.evidence_id
+             AND selected.selected_condition = TRUE
+
+            LEFT JOIN players AS player
+              ON player.player_id = evidence.player_id
+
+            LEFT JOIN teams AS team
+              ON team.team_id = evidence.team_id
+
+            LEFT JOIN tiles AS tile
+              ON tile.tile_id = evidence.tile_id
+
+            WHERE evidence.status = 'PENDING'
+
+            ORDER BY
+                evidence.submitted_at,
+                evidence.evidence_id
+
+            LIMIT %s
+            ''',
+            (limit,)
+        )
+
+        rows = cursor.fetchall()
+
+    columns = (
+        "evidence_id",
+        "player_id",
+        "credited_player_name",
+        "team_id",
+        "team_name",
+        "tile_id",
+        "tile_name",
+        "condition_id",
+        "completion_path",
+        "condition_type",
+        "condition_trigger",
+        "condition_target",
+        "condition_progress_at_submission",
+        "amount",
+        "description",
+        "evidence_path",
+        "submission_source",
+        "submitter_id",
+        "submitter_name",
+        "discord_guild_id",
+        "discord_channel_id",
+        "discord_message_id",
+        "evidence_author_id",
+        "evidence_author_name",
+        "evidence_codeword_at_submission",
+        "submitted_at",
+        "credited_discord_user_id"
+    )
+
+    return [
+        dict(zip(columns, row))
+        for row in rows
+    ]
 
 
 def get_pending_dink_event_review_rows():
@@ -3099,8 +6445,24 @@ def get_drop_whitelist_by_item_name(item_name):
 def add_completed_tile(tile_id, team_id):
     with connect() as conn:
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO completed_tiles (tile_id, team_id) VALUES (%s, %s)",
-                       (tile_id, team_id))
+        cursor.execute(
+            '''
+            INSERT INTO completed_tiles (
+                tile_id,
+                team_id,
+                completed_at
+            )
+            VALUES (
+                %s,
+                %s,
+                clock_timestamp()
+            )
+            ''',
+            (
+                tile_id,
+                team_id
+            )
+        )
 
 
 
@@ -4021,62 +7383,12 @@ def add_tile_condition_progress(
 
     return new_progress
 
-def _evaluate_completion_path(
-    cursor,
-    team_id,
-    tile_id,
-    completion_path
+def _evaluate_completion_path_conditions(
+    route_mode,
+    route_target,
+    require_unique,
+    conditions
 ):
-    cursor.execute(
-        '''
-        SELECT
-            route_mode,
-            route_target,
-            require_unique
-        FROM tile_completion_paths
-        WHERE tile_id = %s
-          AND completion_path = %s
-        ''',
-        (
-            tile_id,
-            completion_path
-        )
-    )
-
-    path = cursor.fetchone()
-
-    if path is None:
-        raise ValueError(
-            "Completion path does not exist."
-        )
-
-    route_mode = path[0]
-    route_target = path[1]
-    require_unique = bool(path[2])
-
-    cursor.execute(
-        '''
-        SELECT
-            c.condition_id,
-            c.target,
-            COALESCE(p.progress, 0)
-        FROM tile_conditions c
-        LEFT JOIN tile_condition_progress p
-          ON p.condition_id = c.condition_id
-         AND p.team_id = %s
-        WHERE c.tile_id = %s
-          AND c.completion_path = %s
-        ORDER BY c.condition_id
-        ''',
-        (
-            team_id,
-            tile_id,
-            completion_path
-        )
-    )
-
-    conditions = cursor.fetchall()
-
     if not conditions:
         raise ValueError(
             "Completion path has no conditions."
@@ -4163,6 +7475,258 @@ def _evaluate_completion_path(
     raise ValueError(
         f"Unsupported route mode: {route_mode}"
     )
+
+
+def _evaluate_completion_path(
+    cursor,
+    team_id,
+    tile_id,
+    completion_path
+):
+    cursor.execute(
+        '''
+        SELECT
+            route_mode,
+            route_target,
+            require_unique
+        FROM tile_completion_paths
+        WHERE tile_id = %s
+          AND completion_path = %s
+        ''',
+        (
+            tile_id,
+            completion_path
+        )
+    )
+
+    path = cursor.fetchone()
+
+    if path is None:
+        raise ValueError(
+            "Completion path does not exist."
+        )
+
+    route_mode = path[0]
+    route_target = path[1]
+    require_unique = bool(path[2])
+
+    cursor.execute(
+        '''
+        SELECT
+            c.condition_id,
+            c.target,
+            COALESCE(p.progress, 0)
+        FROM tile_conditions c
+        LEFT JOIN tile_condition_progress p
+          ON p.condition_id = c.condition_id
+         AND p.team_id = %s
+        WHERE c.tile_id = %s
+          AND c.completion_path = %s
+        ORDER BY c.condition_id
+        ''',
+        (
+            team_id,
+            tile_id,
+            completion_path
+        )
+    )
+
+    conditions = cursor.fetchall()
+
+    return _evaluate_completion_path_conditions(
+        route_mode=route_mode,
+        route_target=route_target,
+        require_unique=require_unique,
+        conditions=conditions
+    )
+
+
+def get_manual_evidence_submission_options(player_id):
+    """
+    Return the manual-evidence choices that are currently sensible
+    to show for a player.
+
+    This is a read-only convenience helper for participant-facing
+    interfaces. add_manual_evidence() remains the authoritative,
+    transaction-safe submission validator.
+    """
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                team_id,
+                player_name
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (player_id,)
+        )
+
+        player = cursor.fetchone()
+
+        if player is None:
+            raise ValueError(
+                f"Player {player_id} does not exist."
+            )
+
+        team_id = player[0]
+        player_name = player[1]
+
+        if team_id is None:
+            raise ValueError(
+                f"Player {player_id} is not on a team."
+            )
+
+        cursor.execute(
+            '''
+            SELECT
+                t.tile_id,
+                t.tile_name,
+                t.tile_points,
+                t.tile_rules,
+                c.condition_id,
+                c.completion_path,
+                c.condition_type,
+                c.condition_trigger,
+                c.target,
+                COALESCE(p.progress, 0)
+            FROM tiles t
+            JOIN tile_conditions c
+              ON c.tile_id = t.tile_id
+            LEFT JOIN tile_condition_progress p
+              ON p.condition_id = c.condition_id
+             AND p.team_id = %s
+            LEFT JOIN completed_tiles completed
+              ON completed.tile_id = t.tile_id
+             AND completed.team_id = %s
+            WHERE completed.tile_id IS NULL
+            ORDER BY
+                t.tile_id,
+                c.completion_path,
+                c.condition_id
+            ''',
+            (
+                team_id,
+                team_id
+            )
+        )
+
+        rows = cursor.fetchall()
+
+        manual_condition_types = {
+            "DROP",
+            "PET",
+            "METRIC",
+            "MANUAL"
+        }
+
+        path_states = {}
+        tile_options = {}
+
+        for row in rows:
+            (
+                tile_id,
+                tile_name,
+                tile_points,
+                tile_rules,
+                condition_id,
+                completion_path,
+                condition_type,
+                condition_trigger,
+                condition_target,
+                condition_progress
+            ) = row
+
+            condition_type = str(
+                condition_type
+            ).strip().upper()
+
+            if condition_type not in manual_condition_types:
+                continue
+
+            # add_manual_evidence() requires a point value, so there
+            # is no useful reason to offer a tile that cannot yet be
+            # submitted successfully.
+            if tile_points is None:
+                continue
+
+            path_key = (
+                int(tile_id),
+                int(completion_path)
+            )
+
+            if path_key not in path_states:
+                path_states[path_key] = (
+                    _evaluate_completion_path(
+                        cursor=cursor,
+                        team_id=team_id,
+                        tile_id=tile_id,
+                        completion_path=completion_path
+                    )
+                )
+
+            path_state = path_states[path_key]
+
+            if path_state["ready"]:
+                continue
+
+            route_mode = path_state["route_mode"]
+
+            if (
+                route_mode == "ALL"
+                and int(condition_progress)
+                >= int(condition_target)
+            ):
+                continue
+
+            if (
+                route_mode == "N_OF"
+                and path_state.get(
+                    "require_unique",
+                    False
+                )
+                and int(condition_progress) > 0
+            ):
+                continue
+
+            if tile_id not in tile_options:
+                tile_options[tile_id] = {
+                    "tile_id": int(tile_id),
+                    "tile_name": tile_name,
+                    "tile_points": float(
+                        tile_points
+                    ),
+                    "tile_rules": tile_rules,
+                    "conditions": []
+                }
+
+            tile_options[tile_id][
+                "conditions"
+            ].append(
+                {
+                    "condition_id":
+                        int(condition_id),
+                    "condition_type":
+                        condition_type,
+                    "condition_trigger":
+                        condition_trigger,
+                    "target":
+                        int(condition_target),
+                    "progress":
+                        int(condition_progress)
+                }
+            )
+
+        return {
+            "player_id": int(player_id),
+            "player_name": player_name,
+            "team_id": int(team_id),
+            "tiles": list(
+                tile_options.values()
+            )
+        }
 
 
 def evaluate_completion_path(
@@ -4594,8 +8158,11 @@ def _complete_tile_with_contributions(
     cursor,
     team_id,
     tile_id,
-    finisher_player_id=None
+    finisher_player_id=None,
+    return_details=False,
+    uncredited_finisher=False
 ):
+
     cursor.execute(
         '''
         SELECT tile_points
@@ -4620,9 +8187,14 @@ def _complete_tile_with_contributions(
         '''
         INSERT INTO completed_tiles (
             tile_id,
-            team_id
+            team_id,
+            completed_at
         )
-        VALUES (%s, %s)
+        VALUES (
+            %s,
+            %s,
+            clock_timestamp()
+        )
         ON CONFLICT (team_id, tile_id)
         DO NOTHING
         RETURNING completed_tile_pk
@@ -4634,6 +8206,17 @@ def _complete_tile_with_contributions(
     )
 
     if cursor.fetchone() is None:
+        if return_details:
+            return {
+                "completed": False,
+                "tile_points": tile_points,
+                "contributions": {},
+                "banked_total_before_finisher": 0.0,
+                "finisher_player_id": finisher_player_id,
+                "finisher_remainder": 0.0,
+                "finisher_contribution": 0.0
+            }
+
         return False
 
     cursor.execute(
@@ -4653,13 +8236,35 @@ def _complete_tile_with_contributions(
         )
     )
 
-    contributions = {
-        player_id: float(partial_completion)
-        for player_id, partial_completion
-        in cursor.fetchall()
-    }
+    contributions = {}
+    uncredited_contribution = 0.0
 
-    banked_total = sum(contributions.values())
+    for player_id, partial_completion in cursor.fetchall():
+        contribution = float(
+            partial_completion
+        )
+
+        if player_id is None:
+            uncredited_contribution += contribution
+            continue
+
+        contributions[player_id] = (
+            contributions.get(
+                player_id,
+                0.0
+            )
+            + contribution
+        )
+
+    uncredited_contribution = round(
+        uncredited_contribution,
+        12
+    )
+
+    banked_total = (
+        sum(contributions.values())
+        + uncredited_contribution
+    )
 
     if banked_total < 0:
         raise ValueError(
@@ -4674,12 +8279,25 @@ def _complete_tile_with_contributions(
 
     if banked_total > 1:
         scale = 1 / banked_total
+
         contributions = {
             player_id: contribution * scale
             for player_id, contribution
             in contributions.items()
         }
+
+        uncredited_contribution = (
+            uncredited_contribution * scale
+        )
+
         banked_total = 1.0
+
+    banked_total_before_finisher = round(
+        banked_total,
+        12
+    )
+
+    finisher_remainder = 0.0
 
     if finisher_player_id is not None:
         remaining = round(
@@ -4690,11 +8308,30 @@ def _complete_tile_with_contributions(
             12
         )
 
+        finisher_remainder = remaining
+
         contributions[finisher_player_id] = round(
             contributions.get(
                 finisher_player_id,
                 0.0
             )
+            + remaining,
+            12
+        )
+
+    elif uncredited_finisher:
+        remaining = round(
+            max(
+                0.0,
+                1.0 - banked_total
+            ),
+            12
+        )
+
+        finisher_remainder = remaining
+
+        uncredited_contribution = round(
+            uncredited_contribution
             + remaining,
             12
         )
@@ -4706,15 +8343,25 @@ def _complete_tile_with_contributions(
 
     elif banked_total != 1.0:
         scale = 1 / banked_total
+
         contributions = {
             player_id: contribution * scale
             for player_id, contribution
             in contributions.items()
         }
 
+        uncredited_contribution = (
+            uncredited_contribution * scale
+        )
+
     for player_id, contribution in contributions.items():
         if contribution <= 0:
             continue
+
+        points_awarded = round(
+            contribution * tile_points,
+            12
+        )
 
         cursor.execute(
             '''
@@ -4725,22 +8372,44 @@ def _complete_tile_with_contributions(
                 player_points =
                     COALESCE(player_points, 0) + %s
             WHERE player_id = %s
-              AND team_id = %s
             RETURNING player_id
             ''',
             (
                 contribution,
-                contribution * tile_points,
-                player_id,
-                team_id
+                points_awarded,
+                player_id
             )
         )
 
+        # A player may have moved teams since earning this
+        # contribution. They still receive the personal credit,
+        # recorded against the original team.
+        #
+        # If the player has since been deleted, their banked work
+        # still benefits the team but no personal credit is awarded.
         if cursor.fetchone() is None:
-            raise ValueError(
-                f"Player {player_id} is not on "
-                f"team {team_id}."
+            continue
+
+        cursor.execute(
+            '''
+            INSERT INTO player_tile_credits (
+                player_id,
+                team_id,
+                tile_id,
+                contribution,
+                points_awarded,
+                credit_type
             )
+            VALUES (%s, %s, %s, %s, %s, 'TILE_COMPLETION')
+            ''',
+            (
+                player_id,
+                team_id,
+                tile_id,
+                contribution,
+                points_awarded
+            )
+        )
 
     cursor.execute(
         '''
@@ -4771,6 +8440,41 @@ def _complete_tile_with_contributions(
             tile_id
         )
     )
+
+    if return_details:
+        final_contributions = {
+            int(player_id): round(
+                float(contribution),
+                12
+            )
+            for player_id, contribution
+            in contributions.items()
+            if contribution > 0
+        }
+
+        finisher_contribution = 0.0
+
+        if finisher_player_id is not None:
+            finisher_contribution = final_contributions.get(
+                int(finisher_player_id),
+                0.0
+            )
+
+        return {
+            "completed": True,
+            "tile_points": tile_points,
+            "contributions": final_contributions,
+            "uncredited_contribution": round(
+                uncredited_contribution,
+                12
+            ),
+            "banked_total_before_finisher":
+                banked_total_before_finisher,
+            "finisher_player_id": finisher_player_id,
+            "finisher_remainder": finisher_remainder,
+            "finisher_contribution":
+                finisher_contribution
+        }
 
     return True
 
@@ -5033,7 +8737,8 @@ def change_player_team(player_id, new_team_id):
         cursor.execute("UPDATE chats SET team_id = %s WHERE player_id = %s", (new_team_id, player_id,))
         cursor.execute("UPDATE drops SET team_id = %s WHERE player_id = %s", (new_team_id, player_id,))
         cursor.execute("UPDATE killcount SET team_id = %s WHERE player_id = %s", (new_team_id, player_id,))
-        cursor.execute("UPDATE partial_completions SET team_id = %s WHERE player_id = %s", (new_team_id, player_id,))
+        # Banked tile contribution stays with the team it was
+        # earned for, even if the player later changes teams.
         cursor.execute("UPDATE relevant_drops SET team_id = %s WHERE player_id = %s", (new_team_id, player_id,))
         cursor.execute("UPDATE players SET team_id = %s WHERE player_id = %s", (new_team_id, player_id,))
         cursor.execute("UPDATE manual_tile_progress SET team_id = %s WHERE player_id = %s", (new_team_id, player_id,))
@@ -5071,7 +8776,8 @@ def reset_tables():
         CREATE TABLE bingo_config (
             config_id SMALLINT PRIMARY KEY
                 CHECK (config_id = 1),
-            wom_competition_id BIGINT
+            wom_competition_id BIGINT,
+            evidence_codeword TEXT
         )
         ''')
 
@@ -5431,6 +9137,143 @@ def reset_tables():
         ''')
 
     cursor.execute('''
+        CREATE TABLE manual_evidence (
+            evidence_id BIGSERIAL PRIMARY KEY,
+            player_id INTEGER,
+            credited_player_name TEXT,
+            team_id INTEGER,
+            tile_id INTEGER,
+            condition_id INTEGER,
+            amount BIGINT NOT NULL DEFAULT 1,
+            tile_points_at_submission REAL,
+            banked_total_at_submission NUMERIC(18,12),
+            evidence_codeword_at_submission TEXT,
+            description TEXT,
+            evidence_path TEXT NOT NULL,
+            evidence_sha256 TEXT NOT NULL,
+            submission_source TEXT NOT NULL,
+            submitter_id BIGINT NOT NULL,
+            submitter_name TEXT NOT NULL,
+            discord_guild_id BIGINT,
+            discord_channel_id BIGINT,
+            discord_message_id BIGINT,
+            evidence_author_id BIGINT,
+            evidence_author_name TEXT,
+            status TEXT NOT NULL DEFAULT 'PENDING',
+            submitted_at TIMESTAMPTZ NOT NULL
+                DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (player_id)
+                REFERENCES players(player_id)
+                ON DELETE SET NULL,
+            FOREIGN KEY (team_id)
+                REFERENCES teams(team_id)
+                ON DELETE SET NULL,
+            FOREIGN KEY (tile_id)
+                REFERENCES tiles(tile_id)
+                ON DELETE SET NULL,
+            FOREIGN KEY (condition_id)
+                REFERENCES tile_conditions(condition_id)
+                ON DELETE SET NULL,
+            CHECK (amount > 0),
+            CHECK (
+                submission_source IN (
+                    'DISCORD',
+                    'WEB'
+                )
+            ),
+            CHECK (
+                status IN (
+                    'PENDING',
+                    'ACCEPTED',
+                    'REJECTED'
+                )
+            )
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE manual_evidence_path_snapshots (
+            evidence_id BIGINT NOT NULL,
+            completion_path INTEGER NOT NULL,
+            route_mode TEXT NOT NULL,
+            route_target BIGINT,
+            require_unique BOOLEAN NOT NULL DEFAULT FALSE,
+            PRIMARY KEY (
+                evidence_id,
+                completion_path
+            ),
+            FOREIGN KEY (evidence_id)
+                REFERENCES manual_evidence(evidence_id)
+                ON DELETE CASCADE,
+            CHECK (completion_path >= 1),
+            CHECK (
+                route_mode IN (
+                    'ALL',
+                    'SUM',
+                    'N_OF'
+                )
+            ),
+            CHECK (
+                (
+                    route_mode = 'ALL'
+                    AND route_target IS NULL
+                )
+                OR
+                (
+                    route_mode IN ('SUM', 'N_OF')
+                    AND route_target > 0
+                )
+            ),
+            CHECK (
+                route_mode = 'N_OF'
+                OR require_unique = FALSE
+            )
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE manual_evidence_condition_snapshots (
+            evidence_id BIGINT NOT NULL,
+            condition_id INTEGER NOT NULL,
+            completion_path INTEGER NOT NULL,
+            condition_type TEXT NOT NULL,
+            condition_trigger TEXT,
+            target BIGINT NOT NULL,
+            progress BIGINT NOT NULL,
+            selected_condition BOOLEAN NOT NULL DEFAULT FALSE,
+            PRIMARY KEY (
+                evidence_id,
+                condition_id
+            ),
+            FOREIGN KEY (evidence_id)
+                REFERENCES manual_evidence(evidence_id)
+                ON DELETE CASCADE,
+            CHECK (completion_path >= 1),
+            CHECK (target > 0),
+            CHECK (progress >= 0),
+            CHECK (
+                condition_type IN (
+                    'KILLCOUNT',
+                    'EXPERIENCE',
+                    'METRIC',
+                    'DROP',
+                    'PET',
+                    'MANUAL'
+                )
+            )
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE UNIQUE INDEX
+            idx_manual_evidence_snapshot_selected_condition
+        ON manual_evidence_condition_snapshots (
+            evidence_id
+        )
+        WHERE selected_condition = TRUE
+    ''')
+
+    cursor.execute('''
         CREATE TABLE dink_event_progress (
             progress_id BIGSERIAL PRIMARY KEY,
             event_id BIGINT NOT NULL,
@@ -5466,6 +9309,98 @@ def reset_tables():
     ''')
 
     cursor.execute('''
+        CREATE TABLE manual_evidence_progress (
+            progress_id BIGSERIAL PRIMARY KEY,
+            evidence_id BIGINT NOT NULL UNIQUE,
+            condition_id INTEGER,
+            tile_id INTEGER,
+            completion_path INTEGER NOT NULL,
+            amount BIGINT NOT NULL,
+            raw_progress BIGINT NOT NULL,
+            route_progress NUMERIC(18, 12) NOT NULL,
+            actual_contribution NUMERIC(18, 12) NOT NULL
+                DEFAULT 0,
+            completion_remainder NUMERIC(18, 12) NOT NULL
+                DEFAULT 0,
+            normal_player_credit NUMERIC(18, 12) NOT NULL
+                DEFAULT 0,
+            potential_contribution NUMERIC(18, 12) NOT NULL
+                DEFAULT 0,
+            lost_mvp_contribution NUMERIC(18, 12) NOT NULL
+                DEFAULT 0,
+            banked_total NUMERIC(18, 12) NOT NULL,
+            ready BOOLEAN NOT NULL,
+            completed BOOLEAN NOT NULL,
+            processed_at TIMESTAMPTZ NOT NULL
+                DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (evidence_id)
+                REFERENCES manual_evidence(evidence_id)
+                ON DELETE CASCADE,
+            FOREIGN KEY (condition_id)
+                REFERENCES tile_conditions(condition_id)
+                ON DELETE SET NULL,
+            FOREIGN KEY (tile_id)
+                REFERENCES tiles(tile_id)
+                ON DELETE SET NULL,
+            CHECK (amount > 0)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE player_tile_credits (
+            credit_id BIGSERIAL PRIMARY KEY,
+            player_id INTEGER NOT NULL,
+            team_id INTEGER NOT NULL,
+            tile_id INTEGER NOT NULL,
+            contribution NUMERIC(18, 12) NOT NULL,
+            points_awarded NUMERIC(18, 12) NOT NULL,
+            credit_type TEXT NOT NULL,
+            evidence_id BIGINT,
+            awarded_at TIMESTAMPTZ NOT NULL
+                DEFAULT CURRENT_TIMESTAMP,
+            CHECK (
+                contribution > 0
+                AND contribution <= 1
+            ),
+            CHECK (points_awarded >= 0),
+            CHECK (
+                credit_type IN (
+                    'TILE_COMPLETION',
+                    'LATE_REVIEW'
+                )
+            ),
+            CHECK (
+                (
+                    credit_type = 'TILE_COMPLETION'
+                    AND evidence_id IS NULL
+                )
+                OR
+                (
+                    credit_type = 'LATE_REVIEW'
+                    AND evidence_id IS NOT NULL
+                )
+            )
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE UNIQUE INDEX
+            idx_player_tile_credits_evidence
+        ON player_tile_credits (evidence_id)
+        WHERE evidence_id IS NOT NULL
+    ''')
+
+    cursor.execute('''
+        CREATE INDEX
+            idx_player_tile_credits_player_tile
+        ON player_tile_credits (
+            player_id,
+            team_id,
+            tile_id
+        )
+    ''')
+
+    cursor.execute('''
             CREATE TABLE drop_whitelist (
                 drop_name text PRIMARY KEY,
                 tile_id int,
@@ -5477,6 +9412,8 @@ def reset_tables():
                 team_id integer,
                 tile_id integer,
                 completed_tile_pk SERIAL PRIMARY KEY,
+                completed_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (tile_id) REFERENCES tiles(tile_id) ON DELETE CASCADE,
                 FOREIGN KEY (team_id) REFERENCES teams(team_id) ON DELETE CASCADE
             )
@@ -5537,7 +9474,7 @@ def reset_tables():
                 partial_completion_pk SERIAL PRIMARY KEY,
                 FOREIGN KEY(team_id) REFERENCES teams(team_id) ON DELETE CASCADE,
                 FOREIGN KEY(tile_id) REFERENCES tiles(tile_id) ON DELETE CASCADE,
-                FOREIGN KEY(player_id) REFERENCES players(player_id) ON DELETE CASCADE
+                FOREIGN KEY(player_id) REFERENCES players(player_id) ON DELETE SET NULL
             )
             ''')
 

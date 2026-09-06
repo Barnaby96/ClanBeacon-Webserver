@@ -98,6 +98,28 @@
                    name="action"
                    value="import">
 
+            <div style="margin-bottom: 20px;">
+                <label for="evidence_codeword"
+                       style="display: block; margin-bottom: 5px; color: #ccc;">
+                    Evidence Codeword:
+                </label>
+
+                <input type="text"
+                       id="evidence_codeword"
+                       name="evidence_codeword"
+                       value="{{ evidence_codeword or '' }}"
+                       required
+                       autocomplete="off"
+                       style="width: 100%; padding: 10px; border: 1px solid #444;
+                              border-radius: 5px; background-color: #333; color: #ccc;
+                              box-sizing: border-box;">
+
+                <p style="margin: 6px 0 0 0; color: #999; font-size: 14px;">
+                    Players submitting manual evidence must show this
+                    codeword clearly in their screenshot.
+                </p>
+            </div>
+
             <button type="submit"
                     style="width: 100%; padding: 10px;
                            background-color: #2f6b3a; color: #fff;

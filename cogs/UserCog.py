@@ -4,7 +4,14 @@ from collections import defaultdict
 import discord
 from discord.ext import commands
 
-from utils import bingo, database, db_entities, scapify
+from utils import (
+    bingo,
+    database,
+    db_entities,
+    manual_evidence_files,
+    scapify
+)
+
 from utils.autocomplete import player_names, team_names, tile_names, fuzzy_autocomplete
 
 from utils.wom import WiseOldManError, get_group_member
@@ -24,11 +31,891 @@ fend = ftext + "0m"
 
 
 
+class ManualEvidenceSubmissionState:
+    def __init__(
+        self,
+        submitter_id,
+        submitter_name,
+        player_id,
+        player_name,
+        screenshot,
+        evidence_codeword,
+        guild_id=None,
+        channel_id=None
+    ):
+        self.submitter_id = int(
+            submitter_id
+        )
+
+        self.submitter_name = str(
+            submitter_name
+        ).strip()
+
+        self.player_id = int(
+            player_id
+        )
+
+        self.player_name = str(
+            player_name
+        ).strip()
+
+        self.screenshot = screenshot
+
+        self.evidence_codeword = str(
+            evidence_codeword
+        ).strip()
+
+        self.guild_id = (
+            int(guild_id)
+            if guild_id is not None
+            else None
+        )
+
+        self.channel_id = (
+            int(channel_id)
+            if channel_id is not None
+            else None
+        )
+
+        self.tile_id = None
+        self.tile_name = None
+        self.condition_id = None
+        self.condition_label = None
+        self.submitted = False
+
+
+def _is_bingo_organiser(member):
+    organiser_role_id = os.getenv(
+        "BINGO_ORGANISER_ROLE_ID"
+    )
+
+    if organiser_role_id is None:
+        return False
+
+    return any(
+        str(role.id) == organiser_role_id
+        for role in getattr(member, "roles", [])
+    )
+
+
+def _truncate_discord_option_text(
+    value,
+    max_length=100
+):
+    text = str(
+        value or ''
+    ).strip()
+
+    if len(text) <= max_length:
+        return text
+
+    return (
+        text[:max_length - 3].rstrip()
+        + "..."
+    )
+
+
+def _get_manual_evidence_condition_label(
+    condition
+):
+    trigger = str(
+        condition.get(
+            "condition_trigger"
+        ) or ''
+    ).strip()
+
+    if trigger:
+        trigger = trigger.replace(
+            '_',
+            ' '
+        )
+
+        return _truncate_discord_option_text(
+            trigger.title()
+        )
+
+    return "This part of the tile"
+
+
+def _get_manual_evidence_condition_description(
+    condition
+):
+    progress = int(
+        condition.get(
+            "progress",
+            0
+        )
+    )
+
+    target = int(
+        condition.get(
+            "target",
+            1
+        )
+    )
+
+    return _truncate_discord_option_text(
+        f"Current progress: {progress} / {target}"
+    )
+
+
+def _get_manual_evidence_prompt_text(
+    state,
+    instruction
+):
+    return (
+        f"Submitting evidence for "
+        f"**{state.player_name}**.\n\n"
+        f"**Evidence codeword:** "
+        f"{state.evidence_codeword}\n"
+        "Make sure this codeword is clearly visible "
+        "in the screenshot.\n\n"
+        f"{instruction}"
+    )
+
+
+async def _check_manual_evidence_submitter(
+    interaction,
+    state
+):
+    if int(interaction.user.id) != state.submitter_id:
+        await interaction.response.send_message(
+            "Only the person who started this submission "
+            "can use these controls.",
+            ephemeral=True
+        )
+        return False
+
+    if state.submitted:
+        await interaction.response.send_message(
+            "This evidence has already been submitted.",
+            ephemeral=True
+        )
+        return False
+
+    return True
+
+
+def _get_manual_evidence_error_message(
+    error
+):
+    error_text = str(error).lower()
+
+    if (
+        "already complete" in error_text
+        or "already contributed" in error_text
+        or "completion route is already complete" in error_text
+    ):
+        return (
+            "The bingo progressed while you were completing "
+            "this submission, so this evidence can no longer "
+            "be submitted for that tile. Please check the "
+            "current board."
+        )
+
+    if (
+        "does not exist" in error_text
+        or "no completion paths" in error_text
+        or "no conditions" in error_text
+        or "no point value" in error_text
+        or "killcount or experience" in error_text
+    ):
+        return (
+            "The tile setup changed while you were completing "
+            "this submission. Please start again."
+        )
+
+    if "not on a team" in error_text:
+        return (
+            "The selected player is no longer on a bingo team."
+        )
+
+    return (
+        "DanBot could not submit this evidence. "
+        "Please check the current bingo progress and try again."
+    )
+
+
+class ManualEvidenceDetailsModal(
+    discord.ui.Modal
+):
+    def __init__(self, state):
+        super().__init__(
+            title="Evidence Details"
+        )
+
+        self.state = state
+
+        self.amount = discord.ui.InputText(
+            label="Amount",
+            style=discord.InputTextStyle.short,
+            value="1",
+            min_length=1,
+            max_length=12,
+            required=True
+        )
+
+        self.description = discord.ui.InputText(
+            label="Description or notes (optional)",
+            style=discord.InputTextStyle.long,
+            placeholder=(
+                "Add anything that may help staff "
+                "review the evidence."
+            ),
+            max_length=500,
+            required=False
+        )
+
+        self.add_item(
+            self.amount
+        )
+
+        self.add_item(
+            self.description
+        )
+
+    async def callback(
+        self,
+        interaction: discord.Interaction
+    ):
+        if not await _check_manual_evidence_submitter(
+            interaction,
+            self.state
+        ):
+            return
+
+        try:
+            amount = int(
+                self.amount.value.strip()
+            )
+        except (TypeError, ValueError):
+            await interaction.response.send_message(
+                "Amount must be a whole number greater than 0.",
+                ephemeral=True
+            )
+            return
+
+        if amount < 1:
+            await interaction.response.send_message(
+                "Amount must be a whole number greater than 0.",
+                ephemeral=True
+            )
+            return
+
+        current_codeword = (
+            database.get_evidence_codeword()
+        )
+
+        if (
+            current_codeword is None
+            or str(current_codeword).strip()
+            != self.state.evidence_codeword
+        ):
+            await interaction.response.send_message(
+                "The bingo evidence codeword changed while "
+                "you were completing this submission. "
+                "Please start again using the current codeword.",
+                ephemeral=True
+            )
+            return
+
+        description = (
+            self.description.value.strip()
+            if self.description.value
+            else None
+        )
+
+        evidence_path = None
+
+        try:
+            screenshot_bytes = await (
+                self.state.screenshot.read()
+            )
+
+            saved_file = (
+                manual_evidence_files
+                .save_manual_evidence_file(
+                    screenshot_bytes,
+                    self.state.screenshot.filename
+                )
+            )
+
+            evidence_path = saved_file[
+                "evidence_path"
+            ]
+
+            result = database.add_manual_evidence(
+                player_id=self.state.player_id,
+                condition_id=self.state.condition_id,
+                amount=amount,
+                evidence_path=evidence_path,
+                evidence_sha256=saved_file[
+                    "evidence_sha256"
+                ],
+                submission_source="DISCORD",
+                submitter_id=self.state.submitter_id,
+                submitter_name=(
+                    self.state.submitter_name
+                ),
+                description=description,
+                discord_guild_id=(
+                    self.state.guild_id
+                ),
+                discord_channel_id=(
+                    self.state.channel_id
+                ),
+                discord_message_id=None,
+                evidence_author_id=(
+                    self.state.submitter_id
+                ),
+                evidence_author_name=(
+                    self.state.submitter_name
+                )
+            )
+
+        except ValueError as error:
+            if evidence_path is not None:
+                manual_evidence_files.delete_manual_evidence_file(
+                    evidence_path
+                )
+
+            await interaction.response.send_message(
+                _get_manual_evidence_error_message(
+                    error
+                ),
+                ephemeral=True
+            )
+            return
+
+        except Exception as error:
+            if evidence_path is not None:
+                manual_evidence_files.delete_manual_evidence_file(
+                    evidence_path
+                )
+
+            print(
+                "Manual evidence submission failed:",
+                error
+            )
+
+            await interaction.response.send_message(
+                "Something went wrong while submitting your "
+                "evidence. Nothing was submitted. "
+                "Please try again.",
+                ephemeral=True
+            )
+            return
+
+        self.state.submitted = True
+
+        message = (
+            "✅ **Evidence submitted**\n\n"
+            f"Player: **{self.state.player_name}**\n"
+            f"Tile: **{self.state.tile_name}**\n"
+            f"Amount: **{amount}**\n\n"
+            "Your submission is now waiting for review."
+        )
+
+        if result.get("pending_warning"):
+            message += (
+                "\n\n⚠️ "
+                + result["pending_warning"]
+            )
+
+        await interaction.response.send_message(
+            message,
+            ephemeral=True
+        )
+
+
+class ManualEvidenceConditionSelect(
+    discord.ui.Select
+):
+    def __init__(
+        self,
+        state,
+        conditions
+    ):
+        self.state = state
+
+        self.conditions = {
+            int(condition["condition_id"]):
+                condition
+            for condition in conditions
+        }
+
+        options = []
+
+        for condition in conditions:
+            condition_id = int(
+                condition["condition_id"]
+            )
+
+            options.append(
+                discord.SelectOption(
+                    label=(
+                        _get_manual_evidence_condition_label(
+                            condition
+                        )
+                    ),
+                    value=str(condition_id),
+                    description=(
+                        _get_manual_evidence_condition_description(
+                            condition
+                        )
+                    )
+                )
+            )
+
+        super().__init__(
+            placeholder="Choose the part of the tile",
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+
+    async def callback(
+        self,
+        interaction: discord.Interaction
+    ):
+        if not await _check_manual_evidence_submitter(
+            interaction,
+            self.state
+        ):
+            return
+
+        condition_id = int(
+            self.values[0]
+        )
+
+        condition = self.conditions.get(
+            condition_id
+        )
+
+        if condition is None:
+            await interaction.response.send_message(
+                "That choice is no longer available. "
+                "Please start the submission again.",
+                ephemeral=True
+            )
+            return
+
+        self.state.condition_id = condition_id
+        self.state.condition_label = (
+            _get_manual_evidence_condition_label(
+                condition
+            )
+        )
+
+        await interaction.response.send_modal(
+            ManualEvidenceDetailsModal(
+                self.state
+            )
+        )
+
+
+class ManualEvidenceConditionView(
+    discord.ui.View
+):
+    def __init__(
+        self,
+        state,
+        conditions
+    ):
+        super().__init__(
+            timeout=900
+        )
+
+        self.add_item(
+            ManualEvidenceConditionSelect(
+                state=state,
+                conditions=conditions
+            )
+        )
+
+
+class ManualEvidenceTileSelect(
+    discord.ui.Select
+):
+    def __init__(
+        self,
+        state,
+        tiles
+    ):
+        self.state = state
+
+        self.tiles = {
+            int(tile["tile_id"]):
+                tile
+            for tile in tiles
+        }
+
+        options = []
+
+        for tile in tiles:
+            tile_id = int(
+                tile["tile_id"]
+            )
+
+            conditions = (
+                tile.get("conditions")
+                or []
+            )
+
+            available_count = len(
+                conditions
+            )
+
+            description = (
+                f"{available_count} available "
+                f"{'choice' if available_count == 1 else 'choices'}"
+            )
+
+            options.append(
+                discord.SelectOption(
+                    label=_truncate_discord_option_text(
+                        tile["tile_name"]
+                    ),
+                    value=str(tile_id),
+                    description=(
+                        _truncate_discord_option_text(
+                            description
+                        )
+                    )
+                )
+            )
+
+        super().__init__(
+            placeholder="Choose a tile",
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+
+    async def callback(
+        self,
+        interaction: discord.Interaction
+    ):
+        if not await _check_manual_evidence_submitter(
+            interaction,
+            self.state
+        ):
+            return
+
+        tile_id = int(
+            self.values[0]
+        )
+
+        tile = self.tiles.get(
+            tile_id
+        )
+
+        if tile is None:
+            await interaction.response.send_message(
+                "That tile is no longer available. "
+                "Please start the submission again.",
+                ephemeral=True
+            )
+            return
+
+        conditions = (
+            tile.get("conditions")
+            or []
+        )
+
+        if not conditions:
+            await interaction.response.send_message(
+                "That tile no longer has anything that can "
+                "be submitted manually. Please check the "
+                "current board.",
+                ephemeral=True
+            )
+            return
+
+        self.state.tile_id = tile_id
+        self.state.tile_name = str(
+            tile["tile_name"]
+        ).strip()
+
+        if len(conditions) == 1:
+            condition = conditions[0]
+
+            self.state.condition_id = int(
+                condition["condition_id"]
+            )
+
+            self.state.condition_label = (
+                _get_manual_evidence_condition_label(
+                    condition
+                )
+            )
+
+            await interaction.response.send_modal(
+                ManualEvidenceDetailsModal(
+                    self.state
+                )
+            )
+            return
+
+        if len(conditions) > 25:
+            await interaction.response.send_message(
+                "That tile currently has too many separate "
+                "evidence choices to show in Discord. "
+                "Please ask staff to review the tile setup.",
+                ephemeral=True
+            )
+            return
+
+        view = ManualEvidenceConditionView(
+            state=self.state,
+            conditions=conditions
+        )
+
+        await interaction.response.edit_message(
+            content=_get_manual_evidence_prompt_text(
+                self.state,
+                (
+                    f"You selected **{self.state.tile_name}**. "
+                    "Choose which part of the tile your "
+                    "screenshot proves."
+                )
+            ),
+            view=view
+        )
+
+
+class ManualEvidenceTileView(
+    discord.ui.View
+):
+    def __init__(
+        self,
+        state,
+        tiles
+    ):
+        super().__init__(
+            timeout=900
+        )
+
+        self.add_item(
+            ManualEvidenceTileSelect(
+                state=state,
+                tiles=tiles
+            )
+        )
+
 
 class UserCog(commands.Cog):
+    submit = discord.SlashCommandGroup(
+        "submit",
+        "Submit bingo evidence"
+    )
     def __init__(self, bot):
         self.bot = bot
     
+    @submit.command(
+        name="evidence",
+        description="Submit screenshot evidence for the bingo"
+    )
+    async def submit_evidence(
+        self,
+        ctx: discord.ApplicationContext,
+        screenshot: discord.Option(
+            discord.Attachment,
+            "Screenshot showing your bingo evidence"
+        ),
+        player: discord.Option(
+            str,
+            (
+                "Player to credit "
+                "(organisers only)"
+            ),
+            autocomplete=lambda ctx: fuzzy_autocomplete(
+                ctx,
+                player_names()
+            ),
+            default=None
+        )
+    ):
+        await ctx.defer(
+            ephemeral=True
+        )
+
+        evidence_codeword = (
+            database.get_evidence_codeword()
+        )
+
+        if (
+            evidence_codeword is None
+            or not str(evidence_codeword).strip()
+        ):
+            await ctx.respond(
+                "Manual evidence submissions are not "
+                "currently available because the bingo "
+                "evidence codeword has not been set.",
+                ephemeral=True
+            )
+            return
+
+        extension = os.path.splitext(
+            screenshot.filename or ''
+        )[1].lower()
+
+        if (
+            extension
+            not in manual_evidence_files
+            .ALLOWED_EVIDENCE_EXTENSIONS
+        ):
+            await ctx.respond(
+                "Evidence must be a PNG, JPG, JPEG, "
+                "or WebP image.",
+                ephemeral=True
+            )
+            return
+
+        is_organiser = _is_bingo_organiser(
+            ctx.author
+        )
+
+        if player is not None:
+            player = str(
+                player
+            ).strip()
+
+            if not is_organiser:
+                await ctx.respond(
+                    "Only bingo organisers can submit "
+                    "evidence on behalf of another player.",
+                    ephemeral=True
+                )
+                return
+
+            player_data = (
+                database.get_player_by_name(
+                    player
+                )
+            )
+
+            if player_data is None:
+                await ctx.respond(
+                    f"Unable to find the player "
+                    f"**{player}**.",
+                    ephemeral=True
+                )
+                return
+
+        else:
+            player_data = (
+                database
+                .get_player_by_discord_user_id(
+                    ctx.author.id
+                )
+            )
+
+            if player_data is None:
+                if is_organiser:
+                    await ctx.respond(
+                        "Your Discord account is not linked "
+                        "to a bingo player. Choose a player "
+                        "with the `player` option if you are "
+                        "submitting on their behalf.",
+                        ephemeral=True
+                    )
+                else:
+                    await ctx.respond(
+                        "Your Discord account is not "
+                        "registered. Use `/register` first.",
+                        ephemeral=True
+                    )
+
+                return
+
+        credited_player = db_entities.Player(
+            player_data
+        )
+
+        try:
+            submission_options = (
+                database
+                .get_manual_evidence_submission_options(
+                    credited_player.player_id
+                )
+            )
+        except ValueError:
+            await ctx.respond(
+                "That player is not currently able to "
+                "submit evidence for this bingo.",
+                ephemeral=True
+            )
+            return
+
+        tiles = (
+            submission_options.get("tiles")
+            or []
+        )
+
+        if not tiles:
+            await ctx.respond(
+                f"There are currently no incomplete tiles "
+                f"or tile parts that **"
+                f"{credited_player.player_name}** can submit "
+                f"manual evidence towards.",
+                ephemeral=True
+            )
+            return
+
+        if len(tiles) > 25:
+            await ctx.respond(
+                "There are currently too many eligible tiles "
+                "to show in Discord. Please ask staff to "
+                "review the bingo setup.",
+                ephemeral=True
+            )
+            return
+
+        state = ManualEvidenceSubmissionState(
+            submitter_id=ctx.author.id,
+            submitter_name=(
+                ctx.author.display_name
+            ),
+            player_id=(
+                credited_player.player_id
+            ),
+            player_name=(
+                credited_player.player_name
+            ),
+            screenshot=screenshot,
+            evidence_codeword=(
+                evidence_codeword
+            ),
+            guild_id=(
+                ctx.guild.id
+                if ctx.guild is not None
+                else None
+            ),
+            channel_id=(
+                ctx.channel.id
+                if ctx.channel is not None
+                else None
+            )
+        )
+
+        view = ManualEvidenceTileView(
+            state=state,
+            tiles=tiles
+        )
+
+        await ctx.respond(
+            _get_manual_evidence_prompt_text(
+                state,
+                (
+                    "Choose the tile that your "
+                    "screenshot provides evidence for."
+                )
+            ),
+            view=view,
+            ephemeral=True
+        )
+
     @discord.slash_command(
         name="register",
         description="Link your Discord account to your OSRS account"

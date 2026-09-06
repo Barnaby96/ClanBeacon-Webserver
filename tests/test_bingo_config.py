@@ -1,0 +1,294 @@
+import os
+import sys
+from pathlib import Path
+
+import pytest
+from dotenv import load_dotenv
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+load_dotenv(PROJECT_ROOT / ".env")
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from main import create_app
+import routes.admin.admin_routes as admin_routes_module
+from utils import database
+
+
+@pytest.fixture(autouse=True)
+def bingo_config_test_database():
+    if os.getenv("PGDATABASE") != "danbot_test":
+        pytest.fail(
+            "Bingo config tests must only run against "
+            "PGDATABASE=danbot_test"
+        )
+
+    database.reset_tables()
+    yield
+
+
+@pytest.fixture()
+def client():
+    app = create_app()
+    app.config["TESTING"] = True
+
+    with app.test_client() as test_client:
+        yield test_client
+
+
+def create_admin_user():
+    database.add_user(
+        "Bingo Setup Admin",
+        "bingo-setup-admin@example.test",
+        "test-password"
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            UPDATE users
+            SET is_admin = TRUE
+            WHERE email = %s
+            ''',
+            ("bingo-setup-admin@example.test",)
+        )
+
+
+def login_admin(client):
+    response = client.post(
+        "/login",
+        data={
+            "email": "bingo-setup-admin@example.test",
+            "password": "test-password"
+        }
+    )
+
+    assert response.status_code == 302
+
+
+def mock_wom_competition():
+    return {
+        "id": 123456,
+        "title": "Test Bingo Competition",
+        "type": "team",
+        "participations": [
+            {
+                "teamName": "Test Team",
+                "playerId": 987654,
+                "player": {
+                    "id": 987654,
+                    "displayName": "Test Player"
+                }
+            }
+        ]
+    }
+
+
+def test_evidence_codeword_can_be_saved_and_retrieved():
+    assert database.get_evidence_codeword() is None
+
+    database.set_evidence_codeword(
+        "  Blackout Sky  "
+    )
+
+    assert database.get_evidence_codeword() == (
+        "Blackout Sky"
+    )
+
+
+def test_evidence_codeword_refuses_blank_value():
+    with pytest.raises(
+        ValueError,
+        match="Evidence codeword cannot be blank."
+    ):
+        database.set_evidence_codeword(
+            "   "
+        )
+
+
+def test_bingo_config_fields_do_not_overwrite_each_other():
+    database.set_evidence_codeword(
+        "Blackout Sky"
+    )
+
+    database.set_wom_competition_id(
+        123456
+    )
+
+    assert database.get_evidence_codeword() == (
+        "Blackout Sky"
+    )
+    assert database.get_wom_competition_id() == 123456
+
+    database.set_evidence_codeword(
+        "New Bingo Code"
+    )
+
+    assert database.get_evidence_codeword() == (
+        "New Bingo Code"
+    )
+    assert database.get_wom_competition_id() == 123456
+
+
+def test_wom_import_saves_evidence_codeword():
+    result = database.import_wom_competition(
+        123456,
+        {},
+        "  Blackout Sky  "
+    )
+
+    assert result["imported"] is True
+    assert database.get_wom_competition_id() == 123456
+    assert database.get_evidence_codeword() == (
+        "Blackout Sky"
+    )
+
+
+def test_wom_import_refuses_blank_evidence_codeword():
+    with pytest.raises(
+        ValueError,
+        match="Evidence codeword cannot be blank."
+    ):
+        database.import_wom_competition(
+            123456,
+            {},
+            "   "
+        )
+
+    assert database.get_wom_competition_id() is None
+    assert database.get_evidence_codeword() is None
+
+
+def test_bingo_setup_refuses_import_without_codeword(
+    client,
+    monkeypatch
+):
+    create_admin_user()
+    login_admin(client)
+
+    monkeypatch.setattr(
+        admin_routes_module.wom,
+        "get_competition_details",
+        lambda competition_id: mock_wom_competition()
+    )
+
+    response = client.post(
+        "/admin/bingo_setup",
+        data={
+            "competition_id": "123456",
+            "action": "import",
+            "evidence_codeword": ""
+        },
+        follow_redirects=True
+    )
+
+    assert response.status_code == 200
+
+    page = response.get_data(
+        as_text=True
+    )
+
+    assert (
+        "Please enter an evidence codeword before "
+        "confirming the import."
+    ) in page
+
+    assert database.get_wom_competition_id() is None
+    assert database.get_evidence_codeword() is None
+
+    assert database.get_team_by_name(
+        "Test Team"
+    ) is None
+
+    assert database.get_player_by_name(
+        "Test Player"
+    ) is None
+
+
+def test_bingo_setup_import_saves_codeword(
+    client,
+    monkeypatch
+):
+    create_admin_user()
+    login_admin(client)
+
+    monkeypatch.setattr(
+        admin_routes_module.wom,
+        "get_competition_details",
+        lambda competition_id: mock_wom_competition()
+    )
+
+    response = client.post(
+        "/admin/bingo_setup",
+        data={
+            "competition_id": "123456",
+            "action": "import",
+            "evidence_codeword": "  Blackout Sky  "
+        },
+        follow_redirects=True
+    )
+
+    assert response.status_code == 200
+
+    page = response.get_data(
+        as_text=True
+    )
+
+    assert "Competition imported successfully." in page
+
+    assert database.get_wom_competition_id() == 123456
+
+    assert database.get_evidence_codeword() == (
+        "Blackout Sky"
+    )
+
+    assert database.get_team_by_name(
+        "Test Team"
+    ) is not None
+
+    assert database.get_player_by_name(
+        "Test Player"
+    ) is not None
+
+
+def test_bingo_setup_preview_shows_codeword_field(
+    client,
+    monkeypatch
+):
+    create_admin_user()
+    login_admin(client)
+
+    monkeypatch.setattr(
+        admin_routes_module.wom,
+        "get_competition_details",
+        lambda competition_id: mock_wom_competition()
+    )
+
+    response = client.post(
+        "/admin/bingo_setup",
+        data={
+            "competition_id": "123456"
+        }
+    )
+
+    assert response.status_code == 200
+
+    page = response.get_data(
+        as_text=True
+    )
+
+    assert "Test Bingo Competition" in page
+    assert "Test Team" in page
+    assert "Test Player" in page
+
+    assert 'name="evidence_codeword"' in page
+    assert "Evidence Codeword:" in page
+    assert "Confirm Import" in page
+
+    assert database.get_wom_competition_id() is None
+    assert database.get_evidence_codeword() is None
