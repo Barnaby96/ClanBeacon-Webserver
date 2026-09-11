@@ -1,125 +1,511 @@
+import os
 from collections import defaultdict
 
-from flask import render_template, Blueprint
+from flask import (
+    render_template,
+    Blueprint,
+    request,
+    flash,
+    redirect,
+    url_for,
+    send_file,
+    abort
+)
+from flask_login import current_user, login_required
 from utils import autocomplete, scapify, database, db_entities
+from utils.branding import BOT_NAME
+from utils.dink_evidence import resolve_dink_evidence_path
+from utils.manual_evidence_files import resolve_manual_evidence_path
+from utils.team_photo_files import resolve_team_photo_path
 
 user_routes = Blueprint("user_routes", __name__)
 
+
+@user_routes.route('/account', methods=['GET', 'POST'])
+@login_required
+def account():
+    player = None
+    team = None
+    link_code = None
+
+    if current_user.player_id is not None:
+        player_data = database.get_player_by_id(
+            current_user.player_id
+        )
+
+        if player_data is not None:
+            player = db_entities.Player(player_data)
+
+            team_data = database.get_team_by_id(
+                player.team_id
+            )
+
+            if team_data is not None:
+                team = db_entities.Team(team_data)
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'generate_link_code':
+            try:
+                link_code = (
+                    database.create_dashboard_link_code(
+                        current_user.id
+                    )
+                )
+            except ValueError as error:
+                flash(
+                    str(error),
+                    'danger'
+                )
+
+        elif action == 'change_password':
+            current_password = request.form.get(
+                'current_password',
+                ''
+            )
+            new_password = request.form.get(
+                'new_password',
+                ''
+            )
+            confirm_password = request.form.get(
+                'confirm_password',
+                ''
+            )
+
+            if (
+                not current_password
+                or not new_password
+                or not confirm_password
+            ):
+                flash(
+                    'Please complete all password fields.',
+                    'danger'
+                )
+                return redirect(
+                    url_for('user_routes.account')
+                )
+
+            if new_password != confirm_password:
+                flash(
+                    'The new passwords do not match.',
+                    'danger'
+                )
+                return redirect(
+                    url_for('user_routes.account')
+                )
+
+            try:
+                database.change_user_password(
+                    current_user.id,
+                    current_password,
+                    new_password
+                )
+            except ValueError as error:
+                flash(
+                    str(error),
+                    'danger'
+                )
+                return redirect(
+                    url_for('user_routes.account')
+                )
+
+            flash(
+                f'Your {BOT_NAME} password has been changed.',
+                'success'
+            )
+            return redirect(
+                url_for('user_routes.account')
+            )
+
+    discord_server_name = os.getenv(
+        'DISCORD_SERVER_NAME',
+        'your Discord server'
+    )
+
+    return render_template(
+        'user_templates/account.html',
+        player=player,
+        team=team,
+        link_code=link_code,
+        discord_server_name=discord_server_name
+    )
+
+
+@user_routes.route('/team')
+@login_required
+def team_landing():
+    viewer_player_id = current_user.player_id
+
+    if viewer_player_id is not None:
+        own_player_data = database.get_player_by_id(
+            viewer_player_id
+        )
+
+        if own_player_data is not None:
+            own_player = db_entities.Player(
+                own_player_data
+            )
+
+            own_team_data = database.get_team_by_id(
+                own_player.team_id
+            )
+
+            if own_team_data is not None:
+                own_team = db_entities.Team(
+                    own_team_data
+                )
+
+                return redirect(
+                    url_for(
+                        'user_routes.team',
+                        team_name=own_team.team_name
+                    )
+                )
+
+        if not current_user.is_admin:
+            flash(
+                'Your linked RuneScape account or team could not '
+                'be found. Please contact an organiser.',
+                'danger'
+            )
+            return redirect(
+                url_for('user_routes.account')
+            )
+
+    elif not current_user.is_admin:
+        return redirect(
+            url_for(
+                'user_routes.account',
+                link_required=1
+            )
+        )
+
+    teamnames = sorted(
+        (
+            db_entities.Team(team_row).team_name
+            for team_row in database.get_teams()
+        ),
+        key=str.lower
+    )
+
+    return render_template(
+        'user_templates/team_select.html',
+        teamnames=teamnames
+    )
+
+
 @user_routes.route('/team/<team_name>')
+@login_required
 def team(team_name):
-    # Find team, if it doesn't exist make an empty none team
-    try:
-        team = database.get_team_by_name(team_name)
-        team = db_entities.Team(team)
-    except:
-        team = db_entities.Team(("None", 0, None, -1))
+    viewer_player_id = current_user.player_id
 
-    # Get drops table data
-    drops_dict = {}
-    for drop in database.get_drops_by_team_id(team.team_id):
-        drop = db_entities.Drop(drop)
-        if drop.drop_name in drops_dict:
-            quantity = drops_dict[drop.drop_name][0]
-            value = drops_dict[drop.drop_name][1]
-            drops_dict[drop.drop_name] = (quantity + drop.drop_quantity, value + (drop.drop_value * drop.drop_quantity))
-        else:
-            drops_dict[drop.drop_name] = (drop.drop_quantity, drop.drop_value * drop.drop_quantity)
-    drops = []
-    for key, value in drops_dict.items():
-        drops.append((key, value[0], value[1]))
-    drops = sorted(drops, key=lambda drop: drop[2], reverse=True)
-    drops = [(drop[0], drop[1], scapify.int_to_gp(drop[2])) for drop in drops]
+    if not current_user.is_admin:
+        if viewer_player_id is None:
+            return redirect(
+                url_for(
+                    'user_routes.account',
+                    link_required=1
+                )
+            )
 
-    # Get killcount table data
-    killcount_dict = {}
-    for kc in database.get_killcount_by_team_id(team.team_id):
-        kc = db_entities.Killcount(kc)
-        if kc.boss_name in killcount_dict:
-            killcount_dict[kc.boss_name] = killcount_dict[kc.boss_name] + kc.kills
-        else:
-            killcount_dict[kc.boss_name] = kc.kills
-    killcount = []
-    for key,value in killcount_dict.items():
-        killcount.append((key, value))
-    killcount = sorted(killcount, key=lambda kc: kc[1], reverse=True)
+        own_player_data = database.get_player_by_id(
+            viewer_player_id
+        )
 
-    most_deaths_player = None
-    most_pets_player = None
-    most_gold_player = None
-    most_tiles_player = None
+        if own_player_data is None:
+            flash(
+                'Your linked RuneScape account could not be found. '
+                'Please contact an organiser.',
+                'danger'
+            )
+            return redirect(
+                url_for('user_routes.account')
+            )
 
-    most_deaths = 0
-    most_pets = 0
-    most_gold = 0
-    most_tiles = 0
+        own_player = db_entities.Player(
+            own_player_data
+        )
 
-    total_gold = 0
-    total_deaths = 0
-    total_pets = 0
-    total_tiles = 0
+        own_team_data = database.get_team_by_id(
+            own_player.team_id
+        )
 
-    players = []
-    for player in database.get_players_by_team_id(team.team_id):
-        player = db_entities.Player(player)
-        players.append(player)
+        if own_team_data is None:
+            flash(
+                'Your linked RuneScape account is not assigned '
+                'to a valid team. Please contact an organiser.',
+                'danger'
+            )
+            return redirect(
+                url_for('user_routes.account')
+            )
 
-        total_gold += player.gp_gained
-        total_deaths += player.deaths
-        total_pets += player.pet_count
-        total_tiles += player.tiles_completed
+        own_team = db_entities.Team(
+            own_team_data
+        )
 
-        if player.tiles_completed >= most_tiles:
-            most_tiles = player.tiles_completed
-            most_tiles_player = player
-        if player.gp_gained >= most_gold:
-            most_gold = player.gp_gained
-            most_gold_player = player
-        if player.pet_count >= most_pets:
-            most_pets = player.pet_count
-            most_pets_player = player
-        if player.deaths >= most_deaths:
-            most_deaths = player.deaths
-            most_deaths_player = player
+        if (
+            team_name.strip().lower()
+            != own_team.team_name.strip().lower()
+        ):
+            return redirect(
+                url_for(
+                    'user_routes.team',
+                    team_name=own_team.team_name
+                )
+            )
 
-    players = sorted(players, key=lambda player: (player.tiles_completed, player.gp_gained), reverse=True)
-    for player in players:
-        player.gp_gained = scapify.int_to_gp(player.gp_gained)
+        team_data = own_team_data
 
-    player_partials = defaultdict(int)
-    partial_tiles = 0
-    for partial_completion in database.get_partial_completions_by_team_id(team.team_id):
-        partial_completion = db_entities.PartialCompletion(partial_completion)
-        partial_tiles += partial_completion.partial_completion
-        player_partials[partial_completion.player_id] = player_partials[partial_completion.player_id] + partial_completion.partial_completion
+    else:
+        team_data = database.get_team_by_name(
+            team_name
+        )
 
-    for key, value in player_partials.items():
-        player_partials[key] = round(value, 2)
+        if team_data is None:
+            abort(404)
 
-    for player in players:
-        player.tiles_completed = round(player.tiles_completed, 2)
+    team = db_entities.Team(
+        team_data
+    )
 
-    partial_tiles = round(partial_tiles, 2)
+    team_summary = database.get_team_data_summary(
+        team.team_id
+    )
 
-    relevant_drops = []
-    for relevant_drop in database.get_relevant_drop_by_team_id(team.team_id):
-        relevant_drop = db_entities.RelevantDrop(relevant_drop)
-        relevant_drops.append(relevant_drop)
-    if len(relevant_drops) > 0:
-        relevant_drops = sorted(relevant_drops, key=lambda relevant_drop: relevant_drop.tile_name, reverse=True)
+    if team_summary is None:
+        abort(404)
 
-    total_tiles = round(total_tiles, 2)
+    teamnames = []
 
-    return render_template('user_templates/team.html', team=team, players=players, most_tiles_player=most_tiles_player,
-                           most_gold_player=most_gold_player, most_pets_player=most_pets_player,
-                           most_deaths_player=most_deaths_player, drops=drops, killcount=killcount,
-                           total_pets=total_pets, total_tiles=total_tiles, total_gold=scapify.int_to_gp(total_gold),
-                           total_deaths=total_deaths, teamnames=autocomplete.team_names(), partial_tiles=partial_tiles,
-                           player_partials=player_partials, relevant_drops=relevant_drops)
+    if current_user.is_admin:
+        teamnames = sorted(
+            (
+                db_entities.Team(team_row).team_name
+                for team_row in database.get_teams()
+            ),
+            key=str.lower
+        )
 
+    competition_timing = (
+        database.get_wom_competition_timing()
+    )
+
+    if competition_timing is not None:
+        competition_timing = {
+            "starts_at": competition_timing[
+                "starts_at"
+            ].isoformat(),
+            "ends_at": competition_timing[
+                "ends_at"
+            ].isoformat()
+        }
+
+    return render_template(
+        'user_templates/team.html',
+        team=team,
+        team_summary=team_summary,
+        teamnames=teamnames,
+        can_view_all_data=current_user.is_admin,
+        viewer_player_id=viewer_player_id,
+        competition_timing=competition_timing
+    )
+
+
+
+@user_routes.route('/team/<int:team_id>/photo')
+@login_required
+def team_photo(team_id):
+    team_data = database.get_team_by_id(
+        team_id
+    )
+
+    if team_data is None:
+        abort(404)
+
+    team = db_entities.Team(
+        team_data
+    )
+
+    if not team.team_photo_path:
+        abort(404)
+
+    if not current_user.is_admin:
+        if current_user.player_id is None:
+            abort(404)
+
+        player_data = database.get_player_by_id(
+            current_user.player_id
+        )
+
+        if player_data is None:
+            abort(404)
+
+        player = db_entities.Player(
+            player_data
+        )
+
+        if player.team_id != team.team_id:
+            abort(404)
+
+    absolute_path = resolve_team_photo_path(
+        team.team_photo_path
+    )
+
+    if absolute_path is None:
+        abort(404)
+
+    return send_file(
+        absolute_path
+    )
+
+
+@user_routes.route(
+    '/player/evidence/<evidence_type>/<int:evidence_id>'
+)
+@login_required
+def player_evidence(evidence_type, evidence_id):
+    evidence_type = str(
+        evidence_type
+    ).strip().lower()
+
+    if evidence_type == 'dink':
+        evidence = database.get_dink_event_by_id(
+            evidence_id
+        )
+
+        if evidence is None:
+            abort(404)
+
+        player_id = evidence[5]
+        screenshot_path = evidence[8]
+
+        absolute_path = resolve_dink_evidence_path(
+            event_id=evidence_id,
+            screenshot_path=screenshot_path
+        )
+
+    elif evidence_type == 'manual':
+        evidence = database.get_manual_evidence_by_id(
+            evidence_id
+        )
+
+        if evidence is None:
+            abort(404)
+
+        player_id = evidence[1]
+        evidence_path = evidence[2]
+
+        absolute_path = resolve_manual_evidence_path(
+            evidence_path
+        )
+
+    else:
+        abort(404)
+
+    if not current_user.is_admin:
+        if (
+            current_user.player_id is None
+            or player_id != current_user.player_id
+        ):
+            abort(404)
+
+    if absolute_path is None:
+        abort(404)
+
+    return send_file(
+        absolute_path
+    )
+
+
+@user_routes.route('/player')
+@login_required
+def player_landing():
+    viewer_player_id = current_user.player_id
+
+    if viewer_player_id is not None:
+        own_player_data = database.get_player_by_id(
+            viewer_player_id
+        )
+
+        if own_player_data is not None:
+            own_player = db_entities.Player(
+                own_player_data
+            )
+
+            return redirect(
+                url_for(
+                    'user_routes.player',
+                    player_name=own_player.player_name
+                )
+            )
+
+        if not current_user.is_admin:
+            flash(
+                'Your linked RuneScape account could not be found. '
+                'Please contact an organiser.',
+                'danger'
+            )
+            return redirect(
+                url_for('user_routes.account')
+            )
+
+    elif not current_user.is_admin:
+        return redirect(
+            url_for(
+                'user_routes.account',
+                link_required=1
+            )
+        )
+
+    return render_template(
+        'user_templates/player_select.html',
+        playernames=autocomplete.player_names()
+    )
 
 
 @user_routes.route('/player/<player_name>')
+@login_required
 def player(player_name):
+    if not current_user.is_admin:
+        if current_user.player_id is None:
+            return redirect(
+                url_for(
+                    'user_routes.account',
+                    link_required=1
+                )
+            )
+
+        own_player_data = database.get_player_by_id(
+            current_user.player_id
+        )
+
+        if own_player_data is None:
+            flash(
+                'Your linked RuneScape account could not be found. '
+                'Please contact an organiser.',
+                'danger'
+            )
+            return redirect(
+                url_for('user_routes.account')
+            )
+
+        own_player = db_entities.Player(
+            own_player_data
+        )
+
+        if (
+            player_name.strip().lower()
+            != own_player.player_name.strip().lower()
+        ):
+            return redirect(
+                url_for(
+                    'user_routes.player',
+                    player_name=own_player.player_name
+                )
+            )
+
     player = database.get_player_by_name(player_name)
     try:
         player = db_entities.Player(player)
@@ -166,94 +552,95 @@ def player(player_name):
     if len(relevant_drops) > 0:
         relevant_drops = sorted(relevant_drops, key=lambda relevant_drop: relevant_drop.tile_name, reverse=True)
 
-    return render_template('user_templates/player.html', player=player, drops=drops, killcount=killcount, team=team, playernames=autocomplete.player_names(), partial_completions=round(partial_completions, 2), relevant_drops=relevant_drops)
+    relevant_drop_summary = (
+        database.get_player_relevant_drop_summary(
+            player.player_id
+        )
+    )
 
+    relevant_boss_kc_summary = (
+        database.get_player_relevant_boss_kc_summary(
+            player.player_id
+        )
+    )
 
+    relevant_xp_summary = (
+        database.get_player_relevant_xp_summary(
+            player.player_id
+        )
+    )
+
+    bingo_evidence = []
+
+    for evidence in database.get_player_bingo_evidence(
+        player.player_id
+    ):
+        if evidence["evidence_type"] == "dink":
+            absolute_path = resolve_dink_evidence_path(
+                event_id=evidence["evidence_id"],
+                screenshot_path=evidence["screenshot_path"]
+            )
+        else:
+            absolute_path = resolve_manual_evidence_path(
+                evidence["screenshot_path"]
+            )
+
+        if absolute_path is not None:
+            bingo_evidence.append(evidence)
+
+    return render_template(
+        'user_templates/player.html',
+        player=player,
+        drops=drops,
+        killcount=killcount,
+        team=team,
+        playernames=autocomplete.player_names(),
+        partial_completions=round(
+            partial_completions,
+            2
+        ),
+        relevant_drops=relevant_drops,
+        relevant_drop_summary=relevant_drop_summary,
+        relevant_boss_kc_summary=relevant_boss_kc_summary,
+        relevant_xp_summary=relevant_xp_summary,
+        bingo_evidence=bingo_evidence
+    )
 
 
 @user_routes.route('/leaderboard', methods=['GET'])
+@login_required
 def leaderboard():
-    most_deaths_player = None
-    most_pets_player = None
-    most_gold_player = None
-    most_tiles_player = None
+    leaderboard_summary = database.get_leaderboard_summary()
 
-    most_deaths = 0
-    most_pets = 0
-    most_gold = 0
-    most_tiles = 0
+    viewer_player_id = current_user.player_id
+    viewer_team_id = None
 
-    total_gold = 0
-    total_deaths = 0
-    total_pets = 0
-    total_tiles = 0
+    if viewer_player_id is not None:
+        viewer_player_data = database.get_player_by_id(
+            viewer_player_id
+        )
 
-    teams_gp_earned = defaultdict(int)
+        if viewer_player_data is not None:
+            viewer_player = db_entities.Player(
+                viewer_player_data
+            )
+            viewer_team_id = viewer_player.team_id
 
-    players = []
-    for player in database.get_players():
-        player = db_entities.Player(player)
-        players.append(player)
+    competition_id = leaderboard_summary[
+        "competition_id"
+    ]
 
-        total_gold += player.gp_gained
-        total_deaths += player.deaths
-        total_pets += player.pet_count
-        total_tiles += player.tiles_completed
+    competition_url = (
+        f"https://wiseoldman.net/competitions/{competition_id}"
+        if competition_id is not None
+        else None
+    )
 
-        teams_gp_earned[player.team_id] = teams_gp_earned[player.team_id] + player.gp_gained
-
-        if player.tiles_completed >= most_tiles:
-            most_tiles = player.tiles_completed
-            most_tiles_player = player
-        if player.gp_gained >= most_gold:
-            most_gold = player.gp_gained
-            most_gold_player = player
-        if player.pet_count >= most_pets:
-            most_pets = player.pet_count
-            most_pets_player = player
-        if player.deaths >= most_deaths:
-            most_deaths = player.deaths
-            most_deaths_player = player
-
-
-    total_tiles = round(total_tiles, 2)
-    players = sorted(players, key=lambda player: (player.tiles_completed, player.gp_gained), reverse=True)
-
-    for player in players:
-        player.gp_gained = scapify.int_to_gp(player.gp_gained)
-        player.tiles_completed = round(player.tiles_completed, 2)
-
-    teams = []
-    for team in database.get_teams():
-        teams.append(db_entities.Team(team))
-
-    teams = sorted(teams, key=lambda team: (team.team_points, teams_gp_earned[team.team_id]), reverse=True)
-
-    for team in teams_gp_earned:
-        teams_gp_earned[team] = scapify.int_to_gp(teams_gp_earned[team])
-
-    team_partial_tiles = defaultdict(int)
-    player_partials = defaultdict(int)
-    partial_tiles = 0
-    for team in teams:
-        for partial_tile in database.get_partial_completions_by_team_id(team.team_id):
-            partial_tile = db_entities.PartialCompletion(partial_tile)
-            team_partial_tiles[team.team_id] = team_partial_tiles[team.team_id] + partial_tile.partial_completion
-            partial_tiles = partial_tiles + partial_tile.partial_completion
-            player_partials[partial_tile.player_id] = player_partials[
-                                                                partial_tile.player_id] + partial_tile.partial_completion
-    partial_tiles = round(partial_tiles, 2)
-    for key, value in team_partial_tiles.items():
-        team_partial_tiles[key] = round(value, 2)
-    for key, value in player_partials.items():
-        player_partials[key] = round(value, 2)
-
-    if most_tiles_player is not None:
-        most_tiles_player.tiles_completed = round(most_tiles_player.tiles_completed, 2)
-    partial_tiles = round(partial_tiles, 2)
-
-    return render_template('user_templates/leaderboard.html', teams=teams, players=players, most_tiles_player=most_tiles_player,
-                           most_gold_player=most_gold_player, most_pets_player=most_pets_player,
-                           most_deaths_player=most_deaths_player,
-                           total_pets=total_pets, total_tiles=total_tiles, total_gold=scapify.int_to_gp(total_gold),
-                           total_deaths=total_deaths, partial_tiles=partial_tiles, team_partial_tiles=team_partial_tiles, player_partials=player_partials, teams_gp_earned=teams_gp_earned)
+    return render_template(
+        "user_templates/leaderboard.html",
+        leaderboard=leaderboard_summary,
+        competition_url=competition_url,
+        can_view_all_data=current_user.is_admin,
+        viewer_player_id=viewer_player_id,
+        viewer_team_id=viewer_team_id
+    )

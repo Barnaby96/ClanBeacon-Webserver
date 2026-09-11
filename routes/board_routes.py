@@ -4,39 +4,13 @@ import random
 
 from flask import render_template, Blueprint, request, jsonify, make_response, redirect, url_for
 from utils import autocomplete, database, db_entities, bingo
+from utils.auth import admin_required
 
 board_routes = Blueprint("board_routes", __name__)
 
 @board_routes.route('/compare', methods=['GET'])
 def compare():
-    if os.getenv('BOARD_VISIBLE') == "FALSE":
-        return hidden_board()
-
-    teams = []
-    for team in database.get_teams():
-        teams.append(db_entities.Team(team))
-    # teams = sorted(teams, key=lambda team: team.team_id, reverse=True)
-
-
-    tiles = []
-    for tile in database.get_tiles():
-        tiles.append(db_entities.Tile(tile))
-    # tiles = sorted(tiles, key=lambda tile: tile.tile_id, reverse=True)
-
-
-    completed_tiles = defaultdict(lambda: defaultdict(int))
-    for completed_tile in database.get_completed_tiles():
-        completed_tile = db_entities.CompletedTile(completed_tile)
-        completed_tiles[completed_tile.tile_id][completed_tile.team_id] = completed_tiles[completed_tile.tile_id][completed_tile.team_id] + 1
-
-    partial_tiles = defaultdict(lambda: defaultdict(int))
-    for partial_tile in database.get_partial_completions():
-        partial_tile = db_entities.PartialCompletion(partial_tile)
-        partial_tiles[partial_tile.tile_id][partial_tile.team_id] = round(partial_tiles[partial_tile.tile_id][partial_tile.team_id] + partial_tile.partial_completion, 2)
-
-
-
-    return render_template('board_templates/compare.html', teams=teams, tiles=tiles, completed_tiles=completed_tiles, partial_tiles=partial_tiles)
+    return "", 404
 
 class PanelData:
     def __init__(self):

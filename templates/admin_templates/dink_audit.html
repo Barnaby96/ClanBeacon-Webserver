@@ -12,7 +12,7 @@
 
     <p style="color: #ccc; margin-top: 0;">
         Showing the 100 most recent connection attempts
-        that DanBot rejected before processing.
+        that {{ bot_name }} rejected before processing.
     </p>
 
     {% if audit_entries %}
@@ -39,7 +39,7 @@
                             {% elif entry.failure_reason == 'INVALID_SECRET' %}
                                 Invalid connection key
                             {% elif entry.failure_reason == 'SERVER_MISCONFIGURED' %}
-                                DanBot configuration problem
+                                {{ bot_name }} configuration problem
                             {% else %}
                                 Connection rejected
                             {% endif %}

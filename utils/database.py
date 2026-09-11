@@ -1,11 +1,14 @@
 import os
 import csv
 import json
+import hashlib
+import secrets
 import psycopg2
 from flask_bcrypt import Bcrypt
 from flask_login import UserMixin, logout_user
 import utils.db_entities as db_entities
 from routes import dink
+from utils.branding import BOT_NAME
 from utils.db_entities import Player, Tile
 from utils.spoofed_jsons import spoof_drop
 
@@ -40,6 +43,16 @@ def ensure_schema():
         ''')
 
         cursor.execute('''
+            ALTER TABLE players
+            ADD COLUMN IF NOT EXISTS discord_display_name TEXT
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE players
+            ADD COLUMN IF NOT EXISTS discord_username TEXT
+        ''')
+
+        cursor.execute('''
             CREATE UNIQUE INDEX IF NOT EXISTS idx_players_discord_user_id
             ON players (discord_user_id)
             WHERE discord_user_id IS NOT NULL
@@ -60,6 +73,106 @@ def ensure_schema():
             CREATE UNIQUE INDEX IF NOT EXISTS idx_players_wom_player_id
             ON players (wom_player_id)
             WHERE wom_player_id IS NOT NULL
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS account_role TEXT
+        ''')
+
+        cursor.execute('''
+            UPDATE users
+            SET account_role = CASE
+                WHEN is_admin = TRUE THEN 'ORGANISER'
+                ELSE 'PLAYER'
+            END
+            WHERE account_role IS NULL
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE users
+            ALTER COLUMN account_role SET DEFAULT 'PLAYER'
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE users
+            ALTER COLUMN account_role SET NOT NULL
+        ''')
+
+        cursor.execute('''
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'users_account_role_check'
+                      AND conrelid = 'users'::regclass
+                ) THEN
+                    ALTER TABLE users
+                    ADD CONSTRAINT users_account_role_check
+                    CHECK (
+                        account_role IN (
+                            'PLAYER',
+                            'ADMIN',
+                            'ORGANISER'
+                        )
+                    );
+                END IF;
+            END
+            $$;
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS player_id INTEGER
+        ''')
+
+        cursor.execute('''
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_users_player_id
+            ON users (player_id)
+            WHERE player_id IS NOT NULL
+        ''')
+
+        cursor.execute('''
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'users_player_id_fkey'
+                      AND conrelid = 'users'::regclass
+                ) THEN
+                    ALTER TABLE users
+                    ADD CONSTRAINT users_player_id_fkey
+                    FOREIGN KEY (player_id)
+                    REFERENCES players(player_id)
+                    ON DELETE SET NULL;
+                END IF;
+            END
+            $$;
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE users
+            ALTER COLUMN email DROP NOT NULL
+        ''')
+
+        cursor.execute('''
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_ci
+            ON users (LOWER(BTRIM(username)))
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS dashboard_link_codes (
+                user_id INTEGER PRIMARY KEY,
+                code_hash TEXT UNIQUE NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMPTZ NOT NULL,
+                FOREIGN KEY (user_id)
+                    REFERENCES users(user_id)
+                    ON DELETE CASCADE
+            )
         ''')
 
         cursor.execute('''
@@ -127,6 +240,68 @@ def ensure_schema():
                 )
             )
         ''')
+
+        cursor.execute(
+            "SELECT to_regclass('wom_condition_state')"
+        )
+        wom_condition_state_exists = (
+            cursor.fetchone()[0] is not None
+        )
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS wom_condition_state (
+                competition_id BIGINT NOT NULL,
+                player_id INTEGER NOT NULL,
+                condition_id INTEGER NOT NULL,
+                last_processed_gain BIGINT NOT NULL DEFAULT 0,
+                PRIMARY KEY (
+                    competition_id,
+                    player_id,
+                    condition_id
+                ),
+                FOREIGN KEY (player_id)
+                    REFERENCES players(player_id)
+                    ON DELETE CASCADE,
+                FOREIGN KEY (condition_id)
+                    REFERENCES tile_conditions(condition_id)
+                    ON DELETE CASCADE
+            )
+        ''')
+
+        # Existing WOM conditions must inherit the old
+        # player/metric checkpoint exactly once during migration.
+        # Otherwise the first poll after upgrading would replay all
+        # competition progress into conditions that already received it.
+        if not wom_condition_state_exists:
+            cursor.execute('''
+                INSERT INTO wom_condition_state (
+                    competition_id,
+                    player_id,
+                    condition_id,
+                    last_processed_gain
+                )
+                SELECT
+                    w.competition_id,
+                    w.player_id,
+                    c.condition_id,
+                    w.last_processed_gain
+                FROM wom_metric_state AS w
+                JOIN tile_conditions AS c
+                  ON LOWER(BTRIM(c.condition_trigger))
+                     = LOWER(BTRIM(w.metric))
+                WHERE c.condition_type IN (
+                    'KILLCOUNT',
+                    'EXPERIENCE',
+                    'METRIC'
+                )
+                  AND c.condition_trigger IS NOT NULL
+                ON CONFLICT (
+                    competition_id,
+                    player_id,
+                    condition_id
+                )
+                DO NOTHING
+            ''')
 
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS tile_completion_paths (
@@ -264,6 +439,11 @@ def ensure_schema():
         ''')
 
         cursor.execute('''
+            ALTER TABLE teams
+            ADD COLUMN IF NOT EXISTS team_photo_path TEXT
+        ''')
+
+        cursor.execute('''
             CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_discord_role_id
             ON teams (discord_role_id)
             WHERE discord_role_id IS NOT NULL
@@ -274,6 +454,8 @@ def ensure_schema():
                 config_id SMALLINT PRIMARY KEY
                     CHECK (config_id = 1),
                 wom_competition_id BIGINT,
+                wom_competition_starts_at TIMESTAMPTZ,
+                wom_competition_ends_at TIMESTAMPTZ,
                 evidence_codeword TEXT
             )
         ''')
@@ -281,6 +463,18 @@ def ensure_schema():
         cursor.execute('''
             ALTER TABLE bingo_config
             ADD COLUMN IF NOT EXISTS evidence_codeword TEXT
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE bingo_config
+            ADD COLUMN IF NOT EXISTS
+                wom_competition_starts_at TIMESTAMPTZ
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE bingo_config
+            ADD COLUMN IF NOT EXISTS
+                wom_competition_ends_at TIMESTAMPTZ
         ''')
 
         cursor.execute('''
@@ -369,6 +563,7 @@ def ensure_schema():
                 reviewer_id BIGINT NOT NULL,
                 reviewer_name TEXT NOT NULL,
                 reason TEXT,
+                audit_only BOOLEAN NOT NULL DEFAULT FALSE,
                 decided_at TIMESTAMPTZ NOT NULL
                     DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE (
@@ -397,6 +592,12 @@ def ensure_schema():
         ''')
 
         cursor.execute('''
+            ALTER TABLE staff_review_decisions
+            ADD COLUMN IF NOT EXISTS
+                audit_only BOOLEAN NOT NULL DEFAULT FALSE
+        ''')
+
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS manual_evidence (
                 evidence_id BIGSERIAL PRIMARY KEY,
                 player_id INTEGER,
@@ -407,6 +608,7 @@ def ensure_schema():
                 amount BIGINT NOT NULL DEFAULT 1,
                 tile_points_at_submission REAL,
                 banked_total_at_submission NUMERIC(18,12),
+                tile_name_at_submission TEXT,
                 description TEXT,
                 evidence_path TEXT NOT NULL,
                 evidence_sha256 TEXT NOT NULL,
@@ -476,6 +678,12 @@ def ensure_schema():
             ALTER TABLE manual_evidence
             ADD COLUMN IF NOT EXISTS
                 banked_total_at_submission NUMERIC(18,12)
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE manual_evidence
+            ADD COLUMN IF NOT EXISTS
+                tile_name_at_submission TEXT
         ''')
 
         cursor.execute('''
@@ -824,6 +1032,33 @@ def get_wom_competition_id():
     return row[0]
 
 
+def get_wom_competition_timing():
+    with connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT
+                wom_competition_starts_at,
+                wom_competition_ends_at
+            FROM bingo_config
+            WHERE config_id = 1
+            '''
+        )
+        row = cursor.fetchone()
+
+    if (
+        row is None
+        or row[0] is None
+        or row[1] is None
+    ):
+        return None
+
+    return {
+        "starts_at": row[0],
+        "ends_at": row[1]
+    }
+
+
 def set_wom_competition_id(competition_id):
     with connect() as conn:
         cursor = conn.cursor()
@@ -835,6 +1070,18 @@ def set_wom_competition_id(competition_id):
             VALUES (1, %s)
             ON CONFLICT (config_id)
             DO UPDATE SET
+                wom_competition_starts_at = CASE
+                    WHEN bingo_config.wom_competition_id
+                        IS DISTINCT FROM EXCLUDED.wom_competition_id
+                    THEN NULL
+                    ELSE bingo_config.wom_competition_starts_at
+                END,
+                wom_competition_ends_at = CASE
+                    WHEN bingo_config.wom_competition_id
+                        IS DISTINCT FROM EXCLUDED.wom_competition_id
+                    THEN NULL
+                    ELSE bingo_config.wom_competition_ends_at
+                END,
                 wom_competition_id = EXCLUDED.wom_competition_id
         ''', (competition_id,))
         conn.commit()
@@ -918,6 +1165,946 @@ def get_wom_last_processed_gain(
         return 0
 
     return row[0]
+
+def get_player_relevant_boss_kc_summary(player_id):
+    competition_id = get_wom_competition_id()
+
+    if competition_id is None:
+        return {
+            "total_kc": 0,
+            "bosses": []
+        }
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                LOWER(BTRIM(c.condition_trigger)) AS metric,
+                COALESCE(w.last_processed_gain, 0) AS kc_gained,
+                ARRAY_AGG(
+                    DISTINCT t.tile_name
+                    ORDER BY t.tile_name
+                ) AS related_tiles
+            FROM tile_conditions c
+            JOIN tiles t
+              ON t.tile_id = c.tile_id
+            LEFT JOIN wom_metric_state w
+              ON w.competition_id = %s
+             AND w.player_id = %s
+             AND LOWER(BTRIM(w.metric))
+                 = LOWER(BTRIM(c.condition_trigger))
+            WHERE c.condition_type = 'KILLCOUNT'
+              AND COALESCE(w.last_processed_gain, 0) > 0
+            GROUP BY
+                LOWER(BTRIM(c.condition_trigger)),
+                w.last_processed_gain
+            ORDER BY
+                LOWER(BTRIM(c.condition_trigger))
+            ''',
+            (
+                competition_id,
+                player_id
+            )
+        )
+
+        bosses = [
+            {
+                "metric": row[0],
+                "kc_gained": int(row[1]),
+                "related_tiles": list(row[2] or [])
+            }
+            for row in cursor.fetchall()
+        ]
+
+    return {
+        "total_kc": sum(
+            boss["kc_gained"]
+            for boss in bosses
+        ),
+        "bosses": bosses
+    }
+
+
+def get_player_relevant_xp_summary(player_id):
+    competition_id = get_wom_competition_id()
+
+    if competition_id is None:
+        return {
+            "total_xp": 0,
+            "skills": []
+        }
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                LOWER(BTRIM(c.condition_trigger)) AS metric,
+                COALESCE(w.last_processed_gain, 0) AS xp_gained,
+                ARRAY_AGG(
+                    DISTINCT t.tile_name
+                    ORDER BY t.tile_name
+                ) AS related_tiles
+            FROM tile_conditions c
+            JOIN tiles t
+              ON t.tile_id = c.tile_id
+            LEFT JOIN wom_metric_state w
+              ON w.competition_id = %s
+             AND w.player_id = %s
+             AND LOWER(BTRIM(w.metric))
+                 = LOWER(BTRIM(c.condition_trigger))
+            WHERE c.condition_type = 'EXPERIENCE'
+              AND COALESCE(w.last_processed_gain, 0) > 0
+            GROUP BY
+                LOWER(BTRIM(c.condition_trigger)),
+                w.last_processed_gain
+            ORDER BY
+                LOWER(BTRIM(c.condition_trigger))
+            ''',
+            (
+                competition_id,
+                player_id
+            )
+        )
+
+        skills = [
+            {
+                "metric": row[0],
+                "xp_gained": int(row[1]),
+                "related_tiles": list(row[2] or [])
+            }
+            for row in cursor.fetchall()
+        ]
+
+    return {
+        "total_xp": sum(
+            skill["xp_gained"]
+            for skill in skills
+        ),
+        "skills": skills
+    }
+
+
+def get_leaderboard_summary():
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                t.team_id,
+                t.team_name,
+                COALESCE(t.team_points, 0),
+                COUNT(ct.completed_tile_pk)
+            FROM teams AS t
+            LEFT JOIN completed_tiles AS ct
+              ON ct.team_id = t.team_id
+            GROUP BY
+                t.team_id,
+                t.team_name,
+                t.team_points
+            ORDER BY t.team_id
+            '''
+        )
+
+        teams = [
+            {
+                "team_id": int(row[0]),
+                "team_name": row[1],
+                "bingo_points": float(row[2]),
+                "tiles_completed": int(row[3]),
+                "mvp_points": 0.0,
+                "mvp_players": []
+            }
+            for row in cursor.fetchall()
+        ]
+
+        teams_by_id = {
+            team["team_id"]: team
+            for team in teams
+        }
+
+        cursor.execute(
+            '''
+            SELECT
+                p.player_id,
+                p.player_name,
+                p.team_id,
+                COALESCE(p.player_points, 0)
+            FROM players AS p
+            JOIN teams AS t
+              ON t.team_id = p.team_id
+            ORDER BY
+                p.team_id,
+                LOWER(p.player_name),
+                p.player_name
+            '''
+        )
+
+        players = [
+            {
+                "player_id": int(row[0]),
+                "player_name": row[1],
+                "team_id": int(row[2]),
+                "mvp_points": float(row[3])
+            }
+            for row in cursor.fetchall()
+        ]
+
+        for team in teams:
+            team_players = [
+                player
+                for player in players
+                if player["team_id"] == team["team_id"]
+            ]
+
+            if not team_players:
+                continue
+
+            highest_mvp_points = max(
+                player["mvp_points"]
+                for player in team_players
+            )
+
+            if highest_mvp_points <= 0:
+                continue
+
+            team["mvp_points"] = highest_mvp_points
+            team["mvp_players"] = [
+                {
+                    "player_id": player["player_id"],
+                    "player_name": player["player_name"]
+                }
+                for player in team_players
+                if player["mvp_points"] == highest_mvp_points
+            ]
+
+        ranked_teams = sorted(
+            teams,
+            key=lambda team: (
+                -team["bingo_points"],
+                -team["tiles_completed"],
+                team["team_name"].lower(),
+                team["team_id"]
+            )
+        )
+
+        previous_score = None
+        displayed_rank = 0
+
+        for position, team in enumerate(
+            ranked_teams,
+            start=1
+        ):
+            score = (
+                team["bingo_points"],
+                team["tiles_completed"]
+            )
+
+            if score != previous_score:
+                displayed_rank = position
+                previous_score = score
+
+            team["rank"] = displayed_rank
+
+        positive_mvp_players = [
+            player
+            for player in players
+            if player["mvp_points"] > 0
+        ]
+
+        clan_mvp_points = 0.0
+        clan_mvp_players = []
+
+        if positive_mvp_players:
+            clan_mvp_points = max(
+                player["mvp_points"]
+                for player in positive_mvp_players
+            )
+
+            clan_mvp_players = [
+                {
+                    "player_id": player["player_id"],
+                    "player_name": player["player_name"],
+                    "team_id": player["team_id"],
+                    "team_name": teams_by_id[
+                        player["team_id"]
+                    ]["team_name"]
+                }
+                for player in positive_mvp_players
+                if player["mvp_points"] == clan_mvp_points
+            ]
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM completed_tiles
+            '''
+        )
+        completed_tiles = int(cursor.fetchone()[0])
+
+        cursor.execute(
+            '''
+            SELECT wom_competition_id
+            FROM bingo_config
+            WHERE config_id = 1
+            '''
+        )
+        competition_row = cursor.fetchone()
+
+        competition_id = (
+            competition_row[0]
+            if competition_row is not None
+            else None
+        )
+
+        relevant_boss_kc = 0
+        relevant_xp = 0
+
+        if competition_id is not None:
+            cursor.execute(
+                '''
+                SELECT COALESCE(SUM(metric_gain), 0)
+                FROM (
+                    SELECT
+                        w.player_id,
+                        LOWER(BTRIM(w.metric)) AS metric,
+                        MAX(w.last_processed_gain) AS metric_gain
+                    FROM wom_metric_state AS w
+                    JOIN players AS p
+                      ON p.player_id = w.player_id
+                    WHERE w.competition_id = %s
+                      AND w.last_processed_gain > 0
+                      AND EXISTS (
+                          SELECT 1
+                          FROM tile_conditions AS c
+                          WHERE
+                              c.condition_type = 'KILLCOUNT'
+                              AND LOWER(
+                                  BTRIM(c.condition_trigger)
+                              ) = LOWER(BTRIM(w.metric))
+                      )
+                    GROUP BY
+                        w.player_id,
+                        LOWER(BTRIM(w.metric))
+                ) AS relevant_kc
+                ''',
+                (competition_id,)
+            )
+            relevant_boss_kc = int(
+                cursor.fetchone()[0]
+            )
+
+            cursor.execute(
+                '''
+                SELECT COALESCE(SUM(metric_gain), 0)
+                FROM (
+                    SELECT
+                        w.player_id,
+                        LOWER(BTRIM(w.metric)) AS metric,
+                        MAX(w.last_processed_gain) AS metric_gain
+                    FROM wom_metric_state AS w
+                    JOIN players AS p
+                      ON p.player_id = w.player_id
+                    WHERE w.competition_id = %s
+                      AND w.last_processed_gain > 0
+                      AND EXISTS (
+                          SELECT 1
+                          FROM tile_conditions AS c
+                          WHERE
+                              c.condition_type = 'EXPERIENCE'
+                              AND LOWER(
+                                  BTRIM(c.condition_trigger)
+                              ) = LOWER(BTRIM(w.metric))
+                      )
+                    GROUP BY
+                        w.player_id,
+                        LOWER(BTRIM(w.metric))
+                ) AS relevant_experience
+                ''',
+                (competition_id,)
+            )
+            relevant_xp = int(
+                cursor.fetchone()[0]
+            )
+
+        cursor.execute(
+            '''
+            SELECT COALESCE(SUM(d.drop_quantity), 0)
+            FROM relevant_drops AS rd
+            JOIN drops AS d
+              ON d.drops_pk = rd.drops_pk
+             AND LOWER(BTRIM(rd.drop_name))
+                 = LOWER(BTRIM(d.drop_name))
+            '''
+        )
+        relevant_drop_quantity = int(
+            cursor.fetchone()[0]
+        )
+
+    return {
+        "teams": ranked_teams,
+        "competition_id": competition_id,
+        "clan": {
+            "completed_tiles": completed_tiles,
+            "relevant_boss_kc": relevant_boss_kc,
+            "relevant_drop_quantity":
+                relevant_drop_quantity,
+            "relevant_xp": relevant_xp,
+            "team_count": len(teams),
+            "team_names": [
+                team["team_name"]
+                for team in sorted(
+                    teams,
+                    key=lambda team: team["team_id"]
+                )
+            ],
+            "mvp_points": clan_mvp_points,
+            "mvp_players": clan_mvp_players
+        }
+    }
+
+
+def get_team_data_summary(team_id):
+    team_id = int(team_id)
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                team_id,
+                team_name,
+                COALESCE(team_points, 0)
+            FROM teams
+            WHERE team_id = %s
+            ''',
+            (team_id,)
+        )
+
+        team_row = cursor.fetchone()
+
+        if team_row is None:
+            return None
+
+        team = {
+            "team_id": int(team_row[0]),
+            "team_name": team_row[1],
+            "bingo_points": float(team_row[2] or 0)
+        }
+
+        cursor.execute(
+            '''
+            SELECT
+                player_id,
+                player_name,
+                COALESCE(player_points, 0),
+                COALESCE(tiles_completed, 0)
+            FROM players
+            WHERE team_id = %s
+            ORDER BY
+                LOWER(player_name),
+                player_id
+            ''',
+            (team_id,)
+        )
+
+        roster = [
+            {
+                "player_id": int(row[0]),
+                "player_name": row[1],
+                "mvp_points": float(row[2] or 0),
+                "tile_contribution": round(
+                    float(row[3] or 0),
+                    2
+                )
+            }
+            for row in cursor.fetchall()
+        ]
+
+        highest_mvp_points = max(
+            (
+                player["mvp_points"]
+                for player in roster
+            ),
+            default=0
+        )
+
+        if highest_mvp_points > 0:
+            mvp_players = [
+                player
+                for player in roster
+                if player["mvp_points"]
+                == highest_mvp_points
+            ]
+        else:
+            highest_mvp_points = 0
+            mvp_players = []
+
+        cursor.execute(
+            '''
+            SELECT
+                d.drop_name,
+                SUM(d.drop_quantity)::INTEGER AS quantity
+            FROM relevant_drops AS rd
+            JOIN drops AS d
+              ON d.drops_pk = rd.drops_pk
+            WHERE rd.team_id = %s
+              AND LOWER(BTRIM(rd.drop_name))
+                  = LOWER(BTRIM(d.drop_name))
+            GROUP BY
+                LOWER(BTRIM(d.drop_name)),
+                d.drop_name
+            ORDER BY
+                LOWER(d.drop_name)
+            ''',
+            (team_id,)
+        )
+
+        relevant_drops = [
+            {
+                "drop_name": row[0],
+                "quantity": int(row[1])
+            }
+            for row in cursor.fetchall()
+        ]
+
+        relevant_drop_quantity = sum(
+            drop["quantity"]
+            for drop in relevant_drops
+        )
+
+        cursor.execute(
+            '''
+            SELECT wom_competition_id
+            FROM bingo_config
+            WHERE config_id = 1
+            '''
+        )
+
+        competition_row = cursor.fetchone()
+
+        competition_id = (
+            competition_row[0]
+            if (
+                competition_row is not None
+                and competition_row[0] is not None
+            )
+            else None
+        )
+
+        relevant_bosses = []
+        relevant_boss_kc = 0
+        relevant_skills = []
+        relevant_xp = 0
+
+        if competition_id is not None:
+            cursor.execute(
+                '''
+                WITH relevant_metrics AS (
+                    SELECT DISTINCT
+                        LOWER(
+                            BTRIM(condition_trigger)
+                        ) AS metric
+                    FROM tile_conditions
+                    WHERE condition_type = 'KILLCOUNT'
+                ),
+                player_metric_gains AS (
+                    SELECT
+                        w.player_id,
+                        LOWER(
+                            BTRIM(w.metric)
+                        ) AS metric,
+                        MAX(
+                            w.last_processed_gain
+                        )::BIGINT AS gained
+                    FROM wom_metric_state AS w
+                    JOIN players AS p
+                      ON p.player_id = w.player_id
+                    JOIN relevant_metrics AS rm
+                      ON rm.metric
+                         = LOWER(BTRIM(w.metric))
+                    WHERE w.competition_id = %s
+                      AND p.team_id = %s
+                      AND w.last_processed_gain > 0
+                    GROUP BY
+                        w.player_id,
+                        LOWER(BTRIM(w.metric))
+                ),
+                related_tiles AS (
+                    SELECT
+                        LOWER(
+                            BTRIM(c.condition_trigger)
+                        ) AS metric,
+                        ARRAY_AGG(
+                            DISTINCT t.tile_name
+                            ORDER BY t.tile_name
+                        ) AS tile_names
+                    FROM tile_conditions AS c
+                    JOIN tiles AS t
+                      ON t.tile_id = c.tile_id
+                    WHERE c.condition_type
+                        = 'KILLCOUNT'
+                    GROUP BY
+                        LOWER(
+                            BTRIM(c.condition_trigger)
+                        )
+                )
+                SELECT
+                    pmg.metric,
+                    SUM(pmg.gained)::BIGINT,
+                    rt.tile_names
+                FROM player_metric_gains AS pmg
+                JOIN related_tiles AS rt
+                  ON rt.metric = pmg.metric
+                GROUP BY
+                    pmg.metric,
+                    rt.tile_names
+                ORDER BY pmg.metric
+                ''',
+                (
+                    competition_id,
+                    team_id
+                )
+            )
+
+            relevant_bosses = [
+                {
+                    "metric": row[0],
+                    "kc_gained": int(row[1]),
+                    "related_tiles":
+                        list(row[2] or [])
+                }
+                for row in cursor.fetchall()
+            ]
+
+            relevant_boss_kc = sum(
+                boss["kc_gained"]
+                for boss in relevant_bosses
+            )
+
+            cursor.execute(
+                '''
+                WITH relevant_metrics AS (
+                    SELECT DISTINCT
+                        LOWER(
+                            BTRIM(condition_trigger)
+                        ) AS metric
+                    FROM tile_conditions
+                    WHERE condition_type = 'EXPERIENCE'
+                ),
+                player_metric_gains AS (
+                    SELECT
+                        w.player_id,
+                        LOWER(
+                            BTRIM(w.metric)
+                        ) AS metric,
+                        MAX(
+                            w.last_processed_gain
+                        )::BIGINT AS gained
+                    FROM wom_metric_state AS w
+                    JOIN players AS p
+                      ON p.player_id = w.player_id
+                    JOIN relevant_metrics AS rm
+                      ON rm.metric
+                         = LOWER(BTRIM(w.metric))
+                    WHERE w.competition_id = %s
+                      AND p.team_id = %s
+                      AND w.last_processed_gain > 0
+                    GROUP BY
+                        w.player_id,
+                        LOWER(BTRIM(w.metric))
+                ),
+                related_tiles AS (
+                    SELECT
+                        LOWER(
+                            BTRIM(c.condition_trigger)
+                        ) AS metric,
+                        ARRAY_AGG(
+                            DISTINCT t.tile_name
+                            ORDER BY t.tile_name
+                        ) AS tile_names
+                    FROM tile_conditions AS c
+                    JOIN tiles AS t
+                      ON t.tile_id = c.tile_id
+                    WHERE c.condition_type
+                        = 'EXPERIENCE'
+                    GROUP BY
+                        LOWER(
+                            BTRIM(c.condition_trigger)
+                        )
+                )
+                SELECT
+                    pmg.metric,
+                    SUM(pmg.gained)::BIGINT,
+                    rt.tile_names
+                FROM player_metric_gains AS pmg
+                JOIN related_tiles AS rt
+                  ON rt.metric = pmg.metric
+                GROUP BY
+                    pmg.metric,
+                    rt.tile_names
+                ORDER BY pmg.metric
+                ''',
+                (
+                    competition_id,
+                    team_id
+                )
+            )
+
+            relevant_skills = [
+                {
+                    "metric": row[0],
+                    "xp_gained": int(row[1]),
+                    "related_tiles":
+                        list(row[2] or [])
+                }
+                for row in cursor.fetchall()
+            ]
+
+            relevant_xp = sum(
+                skill["xp_gained"]
+                for skill in relevant_skills
+            )
+
+        cursor.execute(
+            '''
+            SELECT
+                t.tile_id,
+                t.tile_name,
+                COALESCE(t.tile_points, 0),
+                path.completion_path,
+                path.route_mode,
+                path.route_target,
+                path.require_unique,
+                c.condition_id,
+                c.target,
+                COALESCE(progress.progress, 0)
+            FROM tiles AS t
+            JOIN tile_completion_paths AS path
+              ON path.tile_id = t.tile_id
+            JOIN tile_conditions AS c
+              ON c.tile_id = t.tile_id
+             AND c.completion_path
+                 = path.completion_path
+            LEFT JOIN tile_condition_progress
+                AS progress
+              ON progress.condition_id
+                 = c.condition_id
+             AND progress.team_id = %s
+            LEFT JOIN completed_tiles AS completed
+              ON completed.tile_id = t.tile_id
+             AND completed.team_id = %s
+            WHERE completed.tile_id IS NULL
+            ORDER BY
+                t.tile_id,
+                path.completion_path,
+                c.condition_id
+            ''',
+            (
+                team_id,
+                team_id
+            )
+        )
+
+        progress_rows = cursor.fetchall()
+
+        path_data = {}
+
+        for row in progress_rows:
+            (
+                tile_id,
+                tile_name,
+                tile_points,
+                completion_path,
+                route_mode,
+                route_target,
+                require_unique,
+                condition_id,
+                condition_target,
+                condition_progress
+            ) = row
+
+            key = (
+                int(tile_id),
+                int(completion_path)
+            )
+
+            if key not in path_data:
+                path_data[key] = {
+                    "tile_id": int(tile_id),
+                    "tile_name": tile_name,
+                    "tile_points": float(
+                        tile_points or 0
+                    ),
+                    "completion_path":
+                        int(completion_path),
+                    "route_mode":
+                        str(route_mode),
+                    "route_target": (
+                        int(route_target)
+                        if route_target is not None
+                        else None
+                    ),
+                    "require_unique":
+                        bool(require_unique),
+                    "conditions": []
+                }
+
+            path_data[key]["conditions"].append(
+                (
+                    int(condition_id),
+                    int(condition_target),
+                    int(condition_progress)
+                )
+            )
+
+        tile_progress = {}
+
+        for path in path_data.values():
+            state = _evaluate_completion_path_conditions(
+                route_mode=path["route_mode"],
+                route_target=path["route_target"],
+                require_unique=path["require_unique"],
+                conditions=path["conditions"]
+            )
+
+            tile_id = path["tile_id"]
+            progress_fraction = float(
+                state["progress_fraction"]
+            )
+
+            if tile_id not in tile_progress:
+                tile_progress[tile_id] = {
+                    "tile_id": tile_id,
+                    "tile_name":
+                        path["tile_name"],
+                    "tile_points":
+                        path["tile_points"],
+                    "progress_fraction":
+                        progress_fraction
+                }
+            else:
+                tile_progress[tile_id][
+                    "progress_fraction"
+                ] = max(
+                    tile_progress[tile_id][
+                        "progress_fraction"
+                    ],
+                    progress_fraction
+                )
+
+        tiles_in_progress = []
+
+        for tile in tile_progress.values():
+            if tile["progress_fraction"] <= 0:
+                continue
+
+            tiles_in_progress.append(
+                {
+                    "tile_id": tile["tile_id"],
+                    "tile_name":
+                        tile["tile_name"],
+                    "tile_points":
+                        tile["tile_points"],
+                    "progress_fraction": round(
+                        tile["progress_fraction"],
+                        12
+                    ),
+                    "progress_percentage": round(
+                        tile["progress_fraction"]
+                        * 100,
+                        2
+                    )
+                }
+            )
+
+        tiles_in_progress.sort(
+            key=lambda tile: (
+                -tile["progress_fraction"],
+                -tile["tile_points"],
+                tile["tile_name"].lower(),
+                tile["tile_id"]
+            )
+        )
+
+        cursor.execute(
+            '''
+            SELECT
+                t.tile_id,
+                t.tile_name,
+                COALESCE(t.tile_points, 0),
+                completed.completed_at
+            FROM completed_tiles AS completed
+            JOIN tiles AS t
+              ON t.tile_id = completed.tile_id
+            WHERE completed.team_id = %s
+            ORDER BY
+                completed.completed_at DESC,
+                LOWER(t.tile_name),
+                t.tile_id
+            ''',
+            (team_id,)
+        )
+
+        completed_tiles = [
+            {
+                "tile_id": int(row[0]),
+                "tile_name": row[1],
+                "tile_points": float(row[2] or 0),
+                "completed_at": row[3]
+            }
+            for row in cursor.fetchall()
+        ]
+
+    return {
+        "team": team,
+        "stats": {
+            "bingo_points":
+                team["bingo_points"],
+            "tiles_completed":
+                len(completed_tiles),
+            "relevant_boss_kc":
+                relevant_boss_kc,
+            "relevant_drop_quantity":
+                relevant_drop_quantity,
+            "relevant_xp":
+                relevant_xp
+        },
+        "roster": roster,
+        "team_mvp": {
+            "mvp_points":
+                highest_mvp_points,
+            "players":
+                mvp_players
+        },
+        "relevant_drops": {
+            "total_quantity":
+                relevant_drop_quantity,
+            "drops":
+                relevant_drops
+        },
+        "relevant_boss_kc": {
+            "total_kc":
+                relevant_boss_kc,
+            "bosses":
+                relevant_bosses
+        },
+        "relevant_xp": {
+            "total_xp":
+                relevant_xp,
+            "skills":
+                relevant_skills
+        },
+        "tiles_in_progress":
+            tiles_in_progress,
+        "completed_tiles":
+            completed_tiles
+    }
 
 
 def _bank_partial_contribution(
@@ -1172,13 +2359,64 @@ def apply_wom_metric_progress(
                 completion_path=completion_path
             )
 
-            if new_gain > 0:
+            cursor.execute(
+                '''
+                INSERT INTO wom_condition_state (
+                    competition_id,
+                    player_id,
+                    condition_id,
+                    last_processed_gain
+                )
+                VALUES (%s, %s, %s, 0)
+                ON CONFLICT (
+                    competition_id,
+                    player_id,
+                    condition_id
+                )
+                DO NOTHING
+                ''',
+                (
+                    competition_id,
+                    player_id,
+                    condition_id
+                )
+            )
+
+            cursor.execute(
+                '''
+                SELECT last_processed_gain
+                FROM wom_condition_state
+                WHERE competition_id = %s
+                  AND player_id = %s
+                  AND condition_id = %s
+                FOR UPDATE
+                ''',
+                (
+                    competition_id,
+                    player_id,
+                    condition_id
+                )
+            )
+
+            condition_last_processed_gain = int(
+                cursor.fetchone()[0]
+            )
+
+            if current_gain > condition_last_processed_gain:
+                condition_new_gain = (
+                    current_gain
+                    - condition_last_processed_gain
+                )
+            else:
+                condition_new_gain = 0
+
+            if condition_new_gain > 0:
                 raw_progress = (
                     _add_tile_condition_progress(
                         cursor=cursor,
                         team_id=team_id,
                         condition_id=condition_id,
-                        amount=new_gain
+                        amount=condition_new_gain
                     )
                 )
             else:
@@ -1203,6 +2441,23 @@ def apply_wom_metric_progress(
                     raw_progress = int(
                         progress_row[0]
                     )
+
+            if current_gain > condition_last_processed_gain:
+                cursor.execute(
+                    '''
+                    UPDATE wom_condition_state
+                    SET last_processed_gain = %s
+                    WHERE competition_id = %s
+                      AND player_id = %s
+                      AND condition_id = %s
+                    ''',
+                    (
+                        current_gain,
+                        competition_id,
+                        player_id,
+                        condition_id
+                    )
+                )
 
             after = _evaluate_completion_path(
                 cursor=cursor,
@@ -1312,7 +2567,9 @@ def import_wom_competition(
     competition_id,
     teams,
     evidence_codeword,
-    wom_player_ids=None
+    wom_player_ids=None,
+    competition_starts_at=None,
+    competition_ends_at=None
 ):
     evidence_codeword = str(
         evidence_codeword
@@ -1387,7 +2644,7 @@ def import_wom_competition(
                     continue
 
                 # Prevent a WOM-identified player being renamed to a name
-                # already used by a different DanBot player.
+                # already used by a different bingo player record.
                 cursor.execute(
                     '''
                     SELECT player_id
@@ -1409,7 +2666,7 @@ def import_wom_competition(
                         "wom_team": team_name,
                         "danbot_team": (
                             "RuneScape name already belongs to "
-                            "another DanBot player"
+                            f"another {BOT_NAME} player"
                         )
                     })
                     continue
@@ -1430,7 +2687,7 @@ def import_wom_competition(
                     continue
 
                 # Protect against one WOM account being attached to
-                # two different DanBot player records.
+                # two different bingo player records.
                 if wom_player_id is not None:
                     cursor.execute(
                         '''
@@ -1624,18 +2881,26 @@ def import_wom_competition(
             INSERT INTO bingo_config (
                 config_id,
                 wom_competition_id,
+                wom_competition_starts_at,
+                wom_competition_ends_at,
                 evidence_codeword
             )
-            VALUES (1, %s, %s)
+            VALUES (1, %s, %s, %s, %s)
             ON CONFLICT (config_id)
             DO UPDATE SET
                 wom_competition_id =
                     EXCLUDED.wom_competition_id,
+                wom_competition_starts_at =
+                    EXCLUDED.wom_competition_starts_at,
+                wom_competition_ends_at =
+                    EXCLUDED.wom_competition_ends_at,
                 evidence_codeword =
                     EXCLUDED.evidence_codeword
             ''',
             (
                 competition_id,
+                competition_starts_at,
+                competition_ends_at,
                 evidence_codeword
             )
         )
@@ -1654,22 +2919,257 @@ def import_wom_competition(
 # User authentication functions
 
 class User(UserMixin):
-    def __init__(self, user_id, username, email, password, is_admin=False):
+    def __init__(
+        self,
+        user_id,
+        username,
+        email,
+        password,
+        is_admin=False,
+        account_role=None,
+        player_id=None
+    ):
         self.id = user_id
         self.username = username
         self.email = email
         self.password = password
-        self.is_admin = is_admin
+        self.player_id = player_id
 
-def add_user(username, email, password):
+        if account_role is None:
+            account_role = (
+                "ORGANISER"
+                if is_admin
+                else "PLAYER"
+            )
+
+        self.account_role = str(
+            account_role
+        ).strip().upper()
+
+    @property
+    def is_admin(self):
+        return self.account_role in {
+            "ADMIN",
+            "ORGANISER"
+        }
+
+    @property
+    def is_organiser(self):
+        return self.account_role == "ORGANISER"
+
+    @property
+    def is_player(self):
+        return self.account_role == "PLAYER"
+
+def add_user(username, password):
+    username = username.strip()
+
     with connect() as conn:
         cursor = conn.cursor()
-        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+        hashed_password = bcrypt.generate_password_hash(
+            password
+        ).decode('utf-8')
         cursor.execute(
-            "INSERT INTO users (username, email, password) VALUES (%s, %s, %s)",
-            (username, email, hashed_password)
+            '''
+            INSERT INTO users (
+                username,
+                password
+            )
+            VALUES (%s, %s)
+            ''',
+            (
+                username,
+                hashed_password
+            )
         )
         conn.commit()
+
+
+def create_dashboard_link_code(user_id):
+    raw_code = secrets.token_hex(6).upper()
+    display_code = (
+        f"{raw_code[:4]}-"
+        f"{raw_code[4:8]}-"
+        f"{raw_code[8:]}"
+    )
+
+    code_hash = hashlib.sha256(
+        display_code.encode("utf-8")
+    ).hexdigest()
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT player_id
+            FROM users
+            WHERE user_id = %s
+            ''',
+            (user_id,)
+        )
+        user = cursor.fetchone()
+
+        if user is None:
+            raise ValueError(
+                "Dashboard account could not be found."
+            )
+
+        if user[0] is not None:
+            raise ValueError(
+                "This dashboard account is already linked "
+                "to a player."
+            )
+
+        cursor.execute(
+            '''
+            INSERT INTO dashboard_link_codes (
+                user_id,
+                code_hash,
+                created_at,
+                expires_at
+            )
+            VALUES (
+                %s,
+                %s,
+                CURRENT_TIMESTAMP,
+                CURRENT_TIMESTAMP
+                    + INTERVAL '10 minutes'
+            )
+            ON CONFLICT (user_id)
+            DO UPDATE SET
+                code_hash = EXCLUDED.code_hash,
+                created_at = EXCLUDED.created_at,
+                expires_at = EXCLUDED.expires_at
+            ''',
+            (
+                user_id,
+                code_hash
+            )
+        )
+
+    return display_code
+
+
+def redeem_dashboard_link_code(
+    discord_user_id,
+    code
+):
+    normalised_code = str(code).strip().upper()
+
+    code_hash = hashlib.sha256(
+        normalised_code.encode("utf-8")
+    ).hexdigest()
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                dlc.user_id,
+                u.username,
+                u.player_id
+            FROM dashboard_link_codes dlc
+            INNER JOIN users u
+                ON u.user_id = dlc.user_id
+            WHERE dlc.code_hash = %s
+              AND dlc.expires_at > CURRENT_TIMESTAMP
+            FOR UPDATE
+            ''',
+            (code_hash,)
+        )
+        link_code = cursor.fetchone()
+
+        if link_code is None:
+            raise ValueError(
+                "That dashboard link code is invalid or has expired."
+            )
+
+        dashboard_user_id = link_code[0]
+        dashboard_username = link_code[1]
+        existing_player_id = link_code[2]
+
+        if existing_player_id is not None:
+            raise ValueError(
+                f"That {BOT_NAME} account is already linked to a player."
+            )
+
+        cursor.execute(
+            '''
+            SELECT
+                player_id,
+                player_name
+            FROM players
+            WHERE discord_user_id = %s
+            FOR UPDATE
+            ''',
+            (discord_user_id,)
+        )
+        player = cursor.fetchone()
+
+        if player is None:
+            raise ValueError(
+                "Your Discord account is not registered to a player. "
+                "Use `/register` first."
+            )
+
+        player_id = player[0]
+        player_name = player[1]
+
+        cursor.execute(
+            '''
+            SELECT username
+            FROM users
+            WHERE player_id = %s
+              AND user_id != %s
+            ''',
+            (
+                player_id,
+                dashboard_user_id
+            )
+        )
+        existing_dashboard_link = cursor.fetchone()
+
+        if existing_dashboard_link is not None:
+            raise ValueError(
+                f"**{player_name}** is already linked to another "
+                f"{BOT_NAME} account."
+            )
+
+        cursor.execute(
+            '''
+            UPDATE users
+            SET player_id = %s
+            WHERE user_id = %s
+              AND player_id IS NULL
+            ''',
+            (
+                player_id,
+                dashboard_user_id
+            )
+        )
+
+        if cursor.rowcount != 1:
+            raise ValueError(
+                f"That {BOT_NAME} account could not be linked. "
+                "Please request a new link code."
+            )
+
+        cursor.execute(
+            '''
+            DELETE FROM dashboard_link_codes
+            WHERE user_id = %s
+            ''',
+            (dashboard_user_id,)
+        )
+
+    return {
+        "user_id": dashboard_user_id,
+        "username": dashboard_username,
+        "player_id": player_id,
+        "player_name": player_name
+    }
 
 
 def get_tile_names():
@@ -1697,6 +3197,16 @@ def get_player_names():
 def update_tile(tile_id,new_tile_id, tile_name, tile_type, old_tile_triggers, tile_triggers, tile_trigger_weights, tile_unique_drops, tile_triggers_required, tile_repetition, tile_points, tile_rules):
     with connect() as conn:
         cursor = conn.cursor()
+
+        if _tile_has_recorded_activity(
+            cursor,
+            tile_id
+        ):
+            raise ValueError(
+                "This tile cannot be edited because progress "
+                "or evidence has already been recorded for it."
+            )
+
         cursor.execute('''
             UPDATE tiles
             SET tile_id = %s, tile_name = %s, tile_type = %s, tile_triggers = %s, tile_trigger_weights = %s, tile_unique_drops = %s,
@@ -1745,40 +3255,241 @@ def remove_drop_by_pk(drop_pk):
         cursor = conn.cursor()
         cursor.execute("DELETE FROM drops WHERE drop_pk = %s", (drop_pk))
 
+def _tile_has_recorded_activity(cursor, tile_id):
+    cursor.execute(
+        '''
+        SELECT
+            EXISTS (
+                SELECT 1
+                FROM manual_evidence
+                WHERE tile_id = %s
+            )
+            OR EXISTS (
+                SELECT 1
+                FROM dink_event_progress
+                WHERE tile_id = %s
+            )
+            OR EXISTS (
+                SELECT 1
+                FROM tile_condition_progress AS progress
+                JOIN tile_conditions AS condition
+                  ON condition.condition_id =
+                        progress.condition_id
+                WHERE condition.tile_id = %s
+                  AND COALESCE(progress.progress, 0) > 0
+            )
+            OR EXISTS (
+                SELECT 1
+                FROM partial_completions
+                WHERE tile_id = %s
+                  AND COALESCE(partial_completion, 0) > 0
+            )
+            OR EXISTS (
+                SELECT 1
+                FROM player_tile_credits
+                WHERE tile_id = %s
+            )
+            OR EXISTS (
+                SELECT 1
+                FROM completed_tiles
+                WHERE tile_id = %s
+            )
+            OR EXISTS (
+                SELECT 1
+                FROM relevant_drops
+                WHERE tile_id = %s
+            )
+        ''',
+        (
+            tile_id,
+            tile_id,
+            tile_id,
+            tile_id,
+            tile_id,
+            tile_id,
+            tile_id
+        )
+    )
+
+    return bool(cursor.fetchone()[0])
+
+
 def remove_tile(tile_id):
     with connect() as conn:
         cursor = conn.cursor()
+
+        if _tile_has_recorded_activity(
+            cursor,
+            tile_id
+        ):
+            raise ValueError(
+                "This tile cannot be deleted because progress "
+                "or evidence has already been recorded for it."
+            )
+
         cursor.execute('''
             DELETE FROM drop_whitelist
             WHERE tile_id = %s
         ''', (tile_id,))
-        cursor.execute("DELETE FROM tiles WHERE tile_id = %s", (tile_id,))
+
+        cursor.execute(
+            "DELETE FROM tiles WHERE tile_id = %s",
+            (tile_id,)
+        )
+
         conn.commit()
+
+
+def get_user_by_username(username):
+    with connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT
+                user_id,
+                username,
+                email,
+                password,
+                is_admin,
+                account_role,
+                player_id
+            FROM users
+            WHERE LOWER(BTRIM(username)) = LOWER(BTRIM(%s))
+            ''',
+            (username,)
+        )
+        result = cursor.fetchone()
+
+    if result is None:
+        return None
+
+    return User(
+        user_id=result[0],
+        username=result[1],
+        email=result[2],
+        password=result[3],
+        is_admin=result[4],
+        account_role=result[5],
+        player_id=result[6]
+    )
 
 
 def get_user_by_email(email):
     with connect() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+        cursor.execute(
+            '''
+            SELECT
+                user_id,
+                username,
+                email,
+                password,
+                is_admin,
+                account_role,
+                player_id
+            FROM users
+            WHERE email = %s
+            ''',
+            (email,)
+        )
         result = cursor.fetchone()
-        if result:
-            return User(result[0], result[1], result[2], result[3])
+
+    if result is None:
         return None
+
+    return User(
+        user_id=result[0],
+        username=result[1],
+        email=result[2],
+        password=result[3],
+        is_admin=result[4],
+        account_role=result[5],
+        player_id=result[6]
+    )
 
 def get_user_by_id(user_id):
     with connect() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE user_id = %s", (user_id,))
+        cursor.execute(
+            '''
+            SELECT
+                user_id,
+                username,
+                email,
+                password,
+                is_admin,
+                account_role,
+                player_id
+            FROM users
+            WHERE user_id = %s
+            ''',
+            (user_id,)
+        )
         result = cursor.fetchone()
-        try:
-            if result:
-                return User(result[0], result[1], result[2], result[3], result[4])
-            return None
-        except:
-            return None
+
+    if result is None:
+        return None
+
+    return User(
+        user_id=result[0],
+        username=result[1],
+        email=result[2],
+        password=result[3],
+        is_admin=result[4],
+        account_role=result[5],
+        player_id=result[6]
+    )
 
 def check_password(hashed_password, password):
     return bcrypt.check_password_hash(hashed_password, password)
+
+def change_user_password(
+    user_id,
+    current_password,
+    new_password
+):
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT password
+            FROM users
+            WHERE user_id = %s
+            FOR UPDATE
+            ''',
+            (user_id,)
+        )
+        user = cursor.fetchone()
+
+        if user is None:
+            raise ValueError(
+                f"{BOT_NAME} account could not be found."
+            )
+
+        if not bcrypt.check_password_hash(
+            user[0],
+            current_password
+        ):
+            raise ValueError(
+                "Your current password is incorrect."
+            )
+
+        hashed_password = bcrypt.generate_password_hash(
+            new_password
+        ).decode('utf-8')
+
+        cursor.execute(
+            '''
+            UPDATE users
+            SET password = %s
+            WHERE user_id = %s
+            ''',
+            (
+                hashed_password,
+                user_id
+            )
+        )
 
 # Add these functions to your existing database functions
 
@@ -1859,6 +3570,32 @@ def set_team_discord_role_id(team_id, discord_role_id):
             """,
             (discord_role_id, team_id)
         )
+        conn.commit()
+
+
+def set_team_photo_path(
+    team_id,
+    team_photo_path
+):
+    with connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE teams
+            SET team_photo_path = %s
+            WHERE team_id = %s
+            """,
+            (
+                team_photo_path,
+                team_id
+            )
+        )
+
+        if cursor.rowcount != 1:
+            raise ValueError(
+                f"Team {team_id} was not found."
+            )
+
         conn.commit()
 
 
@@ -1960,6 +3697,62 @@ def get_players_by_team():
     return players_by_team
 
 
+def get_manage_players_roster():
+    with connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT
+                t.team_id,
+                t.team_name,
+                p.player_id,
+                p.player_name,
+                COALESCE(p.player_points, 0),
+                COALESCE(p.tiles_completed, 0),
+                p.discord_user_id,
+                p.discord_display_name,
+                p.discord_username
+            FROM teams t
+            LEFT JOIN players p
+                ON p.team_id = t.team_id
+            ORDER BY
+                t.team_id,
+                LOWER(p.player_name),
+                p.player_name
+        ''')
+        rows = cursor.fetchall()
+
+    teams = []
+
+    for row in rows:
+        team_id = row[0]
+
+        if not teams or teams[-1]["team_id"] != team_id:
+            teams.append(
+                {
+                    "team_id": team_id,
+                    "team_name": row[1],
+                    "players": []
+                }
+            )
+
+        if row[2] is None:
+            continue
+
+        teams[-1]["players"].append(
+            {
+                "player_id": row[2],
+                "player_name": row[3],
+                "mvp_points": row[4],
+                "tile_contributions": row[5],
+                "discord_user_id": row[6],
+                "discord_display_name": row[7],
+                "discord_username": row[8]
+            }
+        )
+
+    return teams
+
+
 def get_players_by_team_id(team_id):
     with connect() as conn:
         cursor = conn.cursor()
@@ -2003,16 +3796,33 @@ def get_player_by_discord_user_id(discord_user_id):
         )
         return cursor.fetchone()
 
-def link_player_to_discord(player_id, discord_user_id):
+def link_player_to_discord(
+    player_id,
+    discord_user_id,
+    discord_display_name=None,
+    discord_username=None
+):
     with connect() as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
             UPDATE players
-            SET discord_user_id = %s
+            SET discord_user_id = %s,
+                discord_display_name = %s,
+                discord_username = %s
             WHERE player_id = %s
+              AND (
+                  discord_user_id IS NULL
+                  OR discord_user_id = %s
+              )
             """,
-            (discord_user_id, player_id)
+            (
+                discord_user_id,
+                discord_display_name,
+                discord_username,
+                player_id,
+                discord_user_id
+            )
         )
 
 def record_dink_auth_failure(
@@ -2748,6 +4558,26 @@ def get_dink_event_by_id(event_id):
 
 
 
+def get_manual_evidence_by_id(evidence_id):
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                evidence_id,
+                player_id,
+                evidence_path,
+                status
+            FROM manual_evidence
+            WHERE evidence_id = %s
+            ''',
+            (evidence_id,)
+        )
+
+        return cursor.fetchone()
+
+
 def minimise_ignored_dink_event(event_id):
     with connect() as conn:
         cursor = conn.cursor()
@@ -2865,7 +4695,8 @@ def _record_staff_review_decision(
     review_source,
     reviewer_id,
     reviewer_name,
-    reason=None
+    reason=None,
+    audit_only=False
 ):
     if reviewer_name is None:
         raise ValueError(
@@ -2901,9 +4732,11 @@ def _record_staff_review_decision(
             reviewer_id,
             reviewer_name,
             reason,
+            audit_only,
             decided_at
         )
         VALUES (
+            %s,
             %s,
             %s,
             %s,
@@ -2922,7 +4755,8 @@ def _record_staff_review_decision(
             review_source,
             reviewer_id,
             reviewer_name,
-            reason
+            reason,
+            bool(audit_only)
         )
     )
 
@@ -3093,7 +4927,9 @@ def add_manual_evidence(
         # contribution represent one coherent moment.
         cursor.execute(
             '''
-            SELECT tile_id
+            SELECT
+                tile_id,
+                tile_name
             FROM tiles
             WHERE tile_id = %s
             FOR UPDATE
@@ -3101,10 +4937,16 @@ def add_manual_evidence(
             (tile_id,)
         )
 
-        if cursor.fetchone() is None:
+        tile_row = cursor.fetchone()
+
+        if tile_row is None:
             raise ValueError(
                 f"Tile {tile_id} does not exist."
             )
+
+        tile_name_at_submission = str(
+            tile_row[1]
+        )
 
         # Re-read the selected condition only after acquiring
         # the tile lock. The earlier lookup was solely to find
@@ -3302,6 +5144,7 @@ def add_manual_evidence(
                 amount,
                 tile_points_at_submission,
                 banked_total_at_submission,
+                tile_name_at_submission,
                 evidence_codeword_at_submission,
                 description,
                 evidence_path,
@@ -3320,7 +5163,7 @@ def add_manual_evidence(
                 %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s, %s,
-                %s, %s,
+                %s, %s, %s,
                 clock_timestamp()
             )
             RETURNING evidence_id
@@ -3334,6 +5177,7 @@ def add_manual_evidence(
                 amount,
                 tile_points_at_submission,
                 banked_total_at_submission,
+                tile_name_at_submission,
                 evidence_codeword_at_submission,
                 description,
                 evidence_path,
@@ -4947,7 +6791,8 @@ def accept_pending_manual_evidence(
                     "Accepted for audit only because the tile "
                     "changed after this submission was made. "
                     "No points were awarded."
-                )
+                ),
+                audit_only=True
             )
 
             conn.commit()
@@ -6755,6 +8600,15 @@ def update_tile_with_conditions(
                 f"Tile {tile_id} does not exist."
             )
 
+        if _tile_has_recorded_activity(
+            cursor,
+            tile_id
+        ):
+            raise ValueError(
+                "This tile cannot be edited because progress "
+                "or evidence has already been recorded for it."
+            )
+
         existing_tile_points = float(tile_row[0])
 
         new_tile_points = float(tile_points)
@@ -8007,11 +9861,6 @@ def get_wom_tile_conditions():
         return cursor.fetchall()
 
 
-def update_tile_trigger(tile_id, tile_trigger):
-    with connect() as conn:
-        cursor = conn.cursor()
-        cursor.execute("UPDATE tiles SET tile_triggers = %s WHERE tile_id = %s", (tile_trigger, tile_id))
-
 # ... Repeat similar functions for 'drops', 'killcount', 'drop_whitelist', and 'completed_tiles' tables ...
 
 def get_tiles():
@@ -8657,6 +10506,188 @@ def get_relevant_drop_by_player_id(player_id):
         cursor.execute("SELECT * FROM relevant_drops WHERE player_id = %s", (player_id,))
         return cursor.fetchall()
 
+def get_player_relevant_drop_summary(player_id):
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                d.drop_name,
+                SUM(d.drop_quantity)::INTEGER AS quantity
+            FROM relevant_drops rd
+            JOIN drops d
+              ON d.drops_pk = rd.drops_pk
+            WHERE rd.player_id = %s
+              AND LOWER(BTRIM(rd.drop_name))
+                  = LOWER(BTRIM(d.drop_name))
+            GROUP BY
+                LOWER(BTRIM(d.drop_name)),
+                d.drop_name
+            ORDER BY
+                LOWER(d.drop_name)
+            ''',
+            (player_id,)
+        )
+
+        drops = [
+            {
+                "drop_name": row[0],
+                "quantity": int(row[1])
+            }
+            for row in cursor.fetchall()
+        ]
+
+    return {
+        "total_quantity": sum(
+            drop["quantity"]
+            for drop in drops
+        ),
+        "drops": drops
+    }
+
+def get_player_bingo_evidence(player_id):
+    evidence_rows = []
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                de.event_id,
+                dep.tile_id,
+                t.tile_name,
+                SUM(dep.credited)::NUMERIC(18, 12),
+                BOOL_OR(dep.completed),
+                de.screenshot_path,
+                de.received_at
+            FROM dink_events AS de
+            JOIN dink_event_progress AS dep
+              ON dep.event_id = de.event_id
+            JOIN tiles AS t
+              ON t.tile_id = dep.tile_id
+            WHERE de.player_id = %s
+              AND de.status = 'PROCESSED'
+              AND de.screenshot_path IS NOT NULL
+            GROUP BY
+                de.event_id,
+                dep.tile_id,
+                t.tile_name,
+                de.screenshot_path,
+                de.received_at
+            ''',
+            (player_id,)
+        )
+
+        for row in cursor.fetchall():
+            evidence_rows.append(
+                {
+                    "date": row[6],
+                    "tile_name": row[2],
+                    "contribution": float(row[3]),
+                    "source": "Automatic submission",
+                    "evidence_type": "dink",
+                    "evidence_id": int(row[0]),
+                    "screenshot_path": row[5],
+                    "status": (
+                        "Tile completed"
+                        if bool(row[4])
+                        else "In progress"
+                    )
+                }
+            )
+
+        cursor.execute(
+            '''
+            SELECT
+                me.evidence_id,
+                COALESCE(
+                    me.tile_name_at_submission,
+                    t.tile_name,
+                    'Former/removed tile'
+                ),
+                me.status,
+                me.evidence_path,
+                me.submitted_at,
+                srd.decision,
+                srd.reason,
+                srd.audit_only,
+                mep.actual_contribution,
+                mep.completed,
+                EXISTS (
+                    SELECT 1
+                    FROM player_tile_credits AS ptc
+                    WHERE ptc.evidence_id = me.evidence_id
+                      AND ptc.credit_type = 'LATE_REVIEW'
+                      AND ptc.points_awarded > 0
+                ) AS late_review_mvp_awarded
+            FROM manual_evidence AS me
+            LEFT JOIN tiles AS t
+              ON t.tile_id = me.tile_id
+            JOIN staff_review_decisions AS srd
+              ON srd.subject_type = 'MANUAL_EVIDENCE'
+             AND srd.subject_id = me.evidence_id
+            LEFT JOIN manual_evidence_progress AS mep
+              ON mep.evidence_id = me.evidence_id
+            WHERE me.player_id = %s
+              AND me.status IN ('ACCEPTED', 'REJECTED')
+              AND me.evidence_path IS NOT NULL
+            ''',
+            (player_id,)
+        )
+
+        for row in cursor.fetchall():
+            decision = row[5]
+            reason = row[6]
+            audit_only = bool(row[7])
+            completed = bool(row[9]) if row[9] is not None else False
+            late_review_mvp_awarded = bool(row[10])
+
+            if decision == "REJECT":
+                contribution = None
+                status = "Not accepted"
+
+                if reason:
+                    status = f"{status} — {reason}"
+            elif audit_only:
+                contribution = 0.0
+                status = "Accepted — audit only"
+            else:
+                contribution = (
+                    float(row[8])
+                    if row[8] is not None
+                    else 0.0
+                )
+
+                if contribution == 0.0 and late_review_mvp_awarded:
+                    status = "Accepted — MVP awarded"
+                elif completed and contribution > 0.0:
+                    status = "Accepted — tile completed"
+                else:
+                    status = "Accepted — progress recorded"
+
+            evidence_rows.append(
+                {
+                    "date": row[4],
+                    "tile_name": row[1],
+                    "contribution": contribution,
+                    "source": "Manual evidence",
+                    "evidence_type": "manual",
+                    "evidence_id": int(row[0]),
+                    "screenshot_path": row[3],
+                    "status": status
+                }
+            )
+
+    evidence_rows.sort(
+        key=lambda evidence: evidence["date"],
+        reverse=True
+    )
+
+    return evidence_rows
+
+
 def get_relevant_drop_by_team_id(team_id):
     with connect() as conn:
         cursor = conn.cursor()
@@ -8766,17 +10797,53 @@ def reset_tables():
         CREATE TABLE users (
             user_id SERIAL PRIMARY KEY,
             username text NOT NULL,
-            email text UNIQUE NOT NULL,
+            email text UNIQUE,
             password text NOT NULL,
-            is_admin boolean NOT NULL DEFAULT FALSE
+            is_admin boolean NOT NULL DEFAULT FALSE,
+            account_role TEXT NOT NULL DEFAULT 'PLAYER',
+            player_id INTEGER,
+            CONSTRAINT users_account_role_check
+                CHECK (
+                    account_role IN (
+                        'PLAYER',
+                        'ADMIN',
+                        'ORGANISER'
+                    )
+                )
         )
         ''')
+
+    cursor.execute('''
+        CREATE TABLE dashboard_link_codes (
+            user_id INTEGER PRIMARY KEY,
+            code_hash TEXT UNIQUE NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL
+                DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMPTZ NOT NULL,
+            FOREIGN KEY (user_id)
+                REFERENCES users(user_id)
+                ON DELETE CASCADE
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE UNIQUE INDEX idx_users_username_ci
+        ON users (LOWER(BTRIM(username)))
+    ''')
+
+    cursor.execute('''
+        CREATE UNIQUE INDEX idx_users_player_id
+        ON users (player_id)
+        WHERE player_id IS NOT NULL
+    ''')
 
     cursor.execute('''
         CREATE TABLE bingo_config (
             config_id SMALLINT PRIMARY KEY
                 CHECK (config_id = 1),
             wom_competition_id BIGINT,
+            wom_competition_starts_at TIMESTAMPTZ,
+            wom_competition_ends_at TIMESTAMPTZ,
             evidence_codeword TEXT
         )
         ''')
@@ -8789,7 +10856,8 @@ def reset_tables():
                 team_points real,
                 team_webhook text,
                 team_id SERIAL PRIMARY KEY,
-                discord_role_id BIGINT
+                discord_role_id BIGINT,
+                team_photo_path TEXT
             )
             ''')
 
@@ -8811,6 +10879,8 @@ def reset_tables():
                 discord_user_id BIGINT,
                 player_points DOUBLE PRECISION NOT NULL DEFAULT 0,
                 wom_player_id BIGINT,
+                discord_display_name TEXT,
+                discord_username TEXT,
                 FOREIGN KEY(team_id) REFERENCES teams(team_id) ON DELETE CASCADE
             )
             ''')
@@ -8827,6 +10897,14 @@ def reset_tables():
             ON players (wom_player_id)
             WHERE wom_player_id IS NOT NULL
             ''')
+
+    cursor.execute('''
+        ALTER TABLE users
+        ADD CONSTRAINT users_player_id_fkey
+        FOREIGN KEY (player_id)
+        REFERENCES players(player_id)
+        ON DELETE SET NULL
+    ''')
 
     cursor.execute('''
         CREATE TABLE dink_identities (
@@ -8931,6 +11009,7 @@ def reset_tables():
             reviewer_id BIGINT NOT NULL,
             reviewer_name TEXT NOT NULL,
             reason TEXT,
+            audit_only BOOLEAN NOT NULL DEFAULT FALSE,
             decided_at TIMESTAMPTZ NOT NULL
                 DEFAULT CURRENT_TIMESTAMP,
             UNIQUE (
@@ -9078,6 +11157,26 @@ def reset_tables():
         ''')
 
     cursor.execute('''
+            CREATE TABLE wom_condition_state (
+                competition_id BIGINT NOT NULL,
+                player_id INTEGER NOT NULL,
+                condition_id INTEGER NOT NULL,
+                last_processed_gain BIGINT NOT NULL DEFAULT 0,
+                PRIMARY KEY (
+                    competition_id,
+                    player_id,
+                    condition_id
+                ),
+                FOREIGN KEY (player_id)
+                    REFERENCES players(player_id)
+                    ON DELETE CASCADE,
+                FOREIGN KEY (condition_id)
+                    REFERENCES tile_conditions(condition_id)
+                    ON DELETE CASCADE
+            )
+        ''')
+
+    cursor.execute('''
             CREATE TABLE tile_completion_paths (
                 tile_id INTEGER NOT NULL,
                 completion_path INTEGER NOT NULL,
@@ -9147,6 +11246,7 @@ def reset_tables():
             amount BIGINT NOT NULL DEFAULT 1,
             tile_points_at_submission REAL,
             banked_total_at_submission NUMERIC(18,12),
+            tile_name_at_submission TEXT,
             evidence_codeword_at_submission TEXT,
             description TEXT,
             evidence_path TEXT NOT NULL,

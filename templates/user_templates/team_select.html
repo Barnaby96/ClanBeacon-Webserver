@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<title>Team Data</title>
+
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
+
+<div class="osrs-dashboard">
+    <main class="osrs-page">
+        <header class="osrs-team-select-landing">
+            <div class="osrs-player-identity">
+                <p class="osrs-page-subtitle">
+                    Team Data
+                </p>
+
+                <h1 class="osrs-page-title">
+                    Select a Team
+                </h1>
+            </div>
+
+            <form
+                id="team-search-form"
+                class="osrs-team-search"
+            >
+                <label for="team-searchbox">
+                    Select Team
+                </label>
+
+                <div class="osrs-team-search-controls">
+                    <select
+                        id="team-searchbox"
+                        aria-label="Select team"
+                    >
+                        {% for teamname in teamnames %}
+                            <option
+                                value="{{ url_for(
+                                    'user_routes.team',
+                                    team_name=teamname
+                                ) }}"
+                            >
+                                {{ teamname }}
+                            </option>
+                        {% endfor %}
+                    </select>
+
+                    <button type="submit">
+                        View
+                    </button>
+                </div>
+            </form>
+        </header>
+    </main>
+</div>
+
+<script>
+    const teamSearchForm = document.getElementById(
+        "team-search-form"
+    );
+
+    if (teamSearchForm) {
+        teamSearchForm.addEventListener(
+            "submit",
+            function (event) {
+                event.preventDefault();
+
+                const teamUrl = document.getElementById(
+                    "team-searchbox"
+                ).value;
+
+                if (teamUrl) {
+                    window.location.href = teamUrl;
+                }
+            }
+        );
+    }
+</script>
+{% endblock %}

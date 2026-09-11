@@ -45,21 +45,32 @@ def create_test_user(
 ):
     database.add_user(
         username,
-        email,
         password
     )
 
-    if is_admin:
-        with database.connect() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                '''
-                UPDATE users
-                SET is_admin = TRUE
-                WHERE email = %s
-                ''',
-                (email,)
+    account_role = (
+        "ADMIN"
+        if is_admin
+        else "PLAYER"
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            UPDATE users
+            SET
+                email = %s,
+                account_role = %s
+            WHERE LOWER(BTRIM(username))
+                = LOWER(BTRIM(%s))
+            ''',
+            (
+                email,
+                account_role,
+                username
             )
+        )
 
 
 def login_test_user(
@@ -67,10 +78,24 @@ def login_test_user(
     email,
     password
 ):
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT username
+            FROM users
+            WHERE LOWER(BTRIM(email))
+                = LOWER(BTRIM(%s))
+            ''',
+            (email,)
+        )
+
+        username = cursor.fetchone()[0]
+
     return client.post(
         "/login",
         data={
-            "email": email,
+            "username": username,
             "password": password
         }
     )
@@ -91,7 +116,7 @@ def test_admin_can_view_dink_auth_audit(client):
         claimed_dink_account_hash="audit-test-hash",
         claimed_event_type="LOOT",
         source_ip="127.0.0.1",
-        user_agent="DanBot audit regression test"
+        user_agent="Bingo bot audit regression test"
     )
 
     login_response = login_test_user(
@@ -119,7 +144,7 @@ def test_admin_can_view_dink_auth_audit(client):
     assert "LOOT" in page
     assert "JSON" in page
     assert "127.0.0.1" in page
-    assert "DanBot audit regression test" in page
+    assert "Bingo bot audit regression test" in page
 
 
 def test_non_admin_cannot_view_dink_auth_audit(client):

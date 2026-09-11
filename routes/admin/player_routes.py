@@ -2,11 +2,12 @@ import os
 
 from flask import Flask, render_template, request, redirect, url_for, flash, Blueprint
 
-from routes.admin.admin_routes import admin_required
+from utils.auth import admin_required
+from utils.branding import get_wom_user_agent
 from utils import db_entities
 from utils.database import add_player, get_players, get_player_by_id, remove_player, rename_player, \
-    get_players_by_team_id, update_player, change_player_team, get_team_by_name, get_teams, get_players_by_team, \
-    get_team_by_id
+    get_players_by_team_id, update_player, change_player_team, get_team_by_name, get_teams, \
+    get_manage_players_roster, get_team_by_id
 import requests
 
 
@@ -16,15 +17,23 @@ player_routes = Blueprint("player_management", __name__)
 @player_routes.route('/players', methods=['GET'])
 @admin_required
 def player_list():
-    players_by_team = get_players_by_team()
-    return render_template('admin_templates/player_templates/player_list.html', players_by_team=players_by_team)
+    teams = get_manage_players_roster()
+    team_count = len(teams)
+    player_count = sum(
+        len(team["players"])
+        for team in teams
+    )
+
+    return render_template(
+        'admin_templates/player_templates/player_list.html',
+        teams=teams,
+        team_count=team_count,
+        player_count=player_count
+    )
 
 
 API_KEY = os.getenv('WOM_KEY')
-DISCORD_NAME = os.getenv(
-    "WOM_USER_AGENT",
-    "DanBot Development"
-)
+DISCORD_NAME = get_wom_user_agent()
 
 @player_routes.route('/add_list/<int:team_id>', methods=['GET', 'POST'])
 @admin_required

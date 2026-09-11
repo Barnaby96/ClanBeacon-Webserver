@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<title>Player Data</title>
+
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
+
+<div class="osrs-dashboard">
+    <main class="osrs-page">
+        <header class="osrs-team-select-landing">
+            <div class="osrs-player-identity">
+                <p class="osrs-page-subtitle">
+                    Player Data
+                </p>
+
+                <h1 class="osrs-page-title">
+                    Select a Player
+                </h1>
+            </div>
+
+            <form
+                id="player-search-form"
+                class="osrs-player-search"
+            >
+                <datalist id="player-names">
+                    {% for playername in playernames %}
+                        <option value="{{ playername }}">
+                    {% endfor %}
+                </datalist>
+
+                <input
+                    type="text"
+                    id="player-searchbox"
+                    placeholder="Search players..."
+                    list="player-names"
+                    autocomplete="off"
+                    aria-label="Search players"
+                >
+
+                <button type="submit">
+                    View
+                </button>
+            </form>
+        </header>
+    </main>
+</div>
+
+<script>
+    const playerSearchForm = document.getElementById(
+        "player-search-form"
+    );
+
+    if (playerSearchForm) {
+        playerSearchForm.addEventListener(
+            "submit",
+            function (event) {
+                event.preventDefault();
+
+                const playerName = document.getElementById(
+                    "player-searchbox"
+                ).value.trim();
+
+                if (playerName) {
+                    window.location.href =
+                        "/user/player/"
+                        + encodeURIComponent(playerName);
+                }
+            }
+        );
+    }
+</script>
+{% endblock %}

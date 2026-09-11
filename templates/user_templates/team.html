@@ -1,205 +1,694 @@
 {% extends "base.html" %}
 
 {% block content %}
-<title>{{ team.team_name }}</title>
-    <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            font-family: Arial, sans-serif; /* Use a readable font */
-        }
+<title>{{ team.team_name }} - Team Data</title>
 
-        th {
-            background-color: #333; /* Darker background for navbar */
-            color: white;
-            position: sticky;
-            top: 0;
-            font-size: 16px; /* Larger font size for header */
-        }
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
 
-        th, td {
-            border: 1px solid #ddd;
-            padding: 15px;
-            text-align: left;
-        }
+<div class="osrs-dashboard osrs-team-data">
+    <main class="osrs-page">
+        <header class="osrs-player-header osrs-team-header">
+            <div class="osrs-player-identity">
+                <p class="osrs-page-subtitle">
+                    Team Data
+                </p>
 
-        tr:nth-child(even) {
-            background-color: #1E1E1E;
-        }
+                <h1 class="osrs-page-title">
+                    {{ team.team_name }}
+                </h1>
 
-        tr:hover {
-            background-color: #444; /* Slightly darker hover effect */
-        }
+                <div class="osrs-team-actions">
+                    <a
+                        class="osrs-action-link"
+                        href="/board/{{ team.team_name }}"
+                    >
+                        View Board
+                    </a>
 
-        /* Optional: Remove borders or adjust as needed */
-        /* table {
-            border: none;
-        } */
+                    {% if can_view_all_data %}
+                        <a
+                            class="osrs-action-link"
+                            href="{{ url_for(
+                                'team_routes.edit_team',
+                                team_id=team.team_id
+                            ) }}"
+                        >
+                            Edit Team
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
 
-        /* Optional: Add spacing between rows */
-        tr {
-            margin-bottom: 5px;
-        }
+            {% if can_view_all_data %}
+                <form
+                    id="team-search-form"
+                    class="osrs-team-search"
+                >
+                    <label for="team-searchbox">
+                        Select Team
+                    </label>
 
-        /* Optional: Style the search bar and header */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-        }
+                    <div class="osrs-team-search-controls">
+                        <select
+                            id="team-searchbox"
+                            aria-label="Select team"
+                        >
+                            {% for teamname in teamnames %}
+                                <option
+                                    value="{{ url_for(
+                                        'user_routes.team',
+                                        team_name=teamname
+                                    ) }}"
+                                    {% if teamname == team.team_name %}
+                                        selected
+                                    {% endif %}
+                                >
+                                    {{ teamname }}
+                                </option>
+                            {% endfor %}
+                        </select>
 
-        .search-bar {
-            display: flex;
-        }
+                        <button type="submit">
+                            View
+                        </button>
+                    </div>
+                </form>
+            {% endif %}
+        </header>
 
-        .search-bar input[type="text"] {
-            border: none;
-            padding: 10px;
-            color: #000;
-            background-color: #fff;
-        }
+        {% if competition_timing %}
+            <section
+                id="competition-countdown"
+                class="osrs-competition-countdown"
+                data-starts-at="{{ competition_timing.starts_at }}"
+                data-ends-at="{{ competition_timing.ends_at }}"
+                role="timer"
+                aria-live="off"
+            >
+                <span
+                    id="competition-countdown-label"
+                    class="osrs-countdown-label"
+                >
+                    Competition
+                </span>
 
-        .search-bar input[type="submit"] {
-            border: none;
-            padding: 10px;
-            color: #fff;
-            background-color: #444;
-            cursor: pointer;
-        }
+                <strong
+                    id="competition-countdown-value"
+                    class="osrs-countdown-value"
+                >
+                    Loading countdown...
+                </strong>
 
-        a {
-            color: white;
-        }
-    </style>
-<script>
-    function submitForm(event) {
-        event.preventDefault();
-        var team = document.getElementById('teamselect').value;
-        window.location.href = '/user/team/' + team;
-    }
-</script>
-</head>
-<body>
-<div class="content">
-    <div class="header">
-        <h2><a href="/board/{{ team.team_name }}">View Board</a></h2>
-        <form onsubmit="submitForm(event)" class="search-bar">
-            <select id="teamselect" name="teamsearch">
-                {% for teamname in teamnames %}
-                <option value="{{teamname}}">{{teamname}}</option>
-                {% endfor %}
-            </select>
-            <input type="submit" value="Search">
-        </form>
-    </div>
-    <div class="header" style="justify-content: center;">
-        <h1>{{team.team_name}}</h1>
-    </div>
-    <h2>Team Gains</h2>
+                <span
+                    id="competition-countdown-deadline"
+                    class="osrs-countdown-deadline"
+                ></span>
+            </section>
+        {% endif %}
 
-    <table>
-        <tr>
-            <th>Total Tiles</th>
-            <th>Total Gold</th>
-            <th>Total Deaths</th>
-            <th>Total Pets</th>
-        </tr>
-        <tr>
-            <td>{{ total_tiles }} tiles {% if partial_tiles > 0 %}({{ partial_tiles }} partial){% endif %}</td>
-            <td>{{ total_gold }}</td>
-            <td>{{ total_deaths }} deaths</td>
-            <td>{{ total_pets }} pets</td>
-        </tr>
-    </table>
-    <h2>Top Players</h2>
-    <table>
-        <tr>
-            <th>MVP</th>
-            <th>Top G</th>
-            <th>Clan Thrall</th>
-            <th>Pet Collector</th>
-        </tr>
-        <tr>
-            <td><a href="/user/player/{{ most_tiles_player.player_name }}">{{ most_tiles_player.player_name }}</a> with
-                {{ most_tiles_player.tiles_completed }} tiles
-            </td>
-            <td><a href="/user/player/{{ most_gold_player.player_name }}">{{ most_gold_player.player_name }}</a> with {{
-                most_gold_player.gp_gained }} gold
-            </td>
-            <td><a href="/user/player/{{ most_deaths_player.player_name }}">{{ most_deaths_player.player_name }}</a>
-                with {{ most_deaths_player.deaths }} deaths
-            </td>
-            <td><a href="/user/player/{{ most_pets_player.player_name}}">{{ most_pets_player.player_name }}</a> with {{
-                most_pets_player.pet_count }} pets
-            </td>
-        </tr>
-    </table>
-    <h2>Relevant Drops</h2>
-    <table>
-        <tr>
-            <th>Tile name</th>
-            <th>Drop name</th>
-            <th>Player name</th>
-        </tr>
-        {% for relevant_drop in relevant_drops %}
-        <tr>
-            <td>{{ relevant_drop.tile_name }}</td>
-            <td>{{ relevant_drop.drop_name }}</td>
-            <td><a href="/user/player/{{relevant_drop.player_name}}">{{ relevant_drop.player_name }}</a></td>
-        </tr>
-        {% endfor %}
-    </table>
-    <h2>Killcount</h2>
-    <table>
-        <tr>
-            <th>Boss name</th>
-            <th>Kill count</th>
-        </tr>
-        {% for kills in killcount %}
-        <tr>
-            <td>{{ kills[0] }}</td>
-            <td>{{ kills[1] }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-    <h2>Player Ranks</h2>
-    <table>
-        <tr>
-            <th>Rank</th>
-            <th>Player Name</th>
-            <th>Total Deaths</th>
-            <th>Pets Gained</th>
-            <th>Gold Gained</th>
-            <th>Tiles Completed</th>
-        </tr>
-        {% for player in players %}
-        <tr>
-            <td>{{ loop.index }}</td>
-            <td><a href="/user/player/{{player.player_name}}">{{ player.player_name }}</a></td>
-            <td>{{ player.deaths }}</td>
-            <td>{{ player.pet_count }}</td>
-            <td>{{ player.gp_gained }}</td>
-            <td>{{ player.tiles_completed }} {% if player_partials[player.player_id] > 0 %}({{ player_partials[player.player_id] }}) {% endif %}</td>
-        </tr>
-        {% endfor %}
-    </table>
-    <h2>Drops</h2>
-    <table>
-        <tr>
-            <th>Item name</th>
-            <th>Quantity</th>
-            <th>Gold gained</th>
-        </tr>
-        {% for drop in drops %}
-        <tr>
-            <td>{{ drop[0] }}</td>
-            <td>{{ drop[1] }}</td>
-            <td>{{ drop[2] }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+        {% if team.team_photo_path %}
+            <section
+                class="osrs-team-photo"
+                aria-label="{{ team.team_name }} team photo"
+            >
+                <img
+                    src="{{ url_for(
+                        'user_routes.team_photo',
+                        team_id=team.team_id
+                    ) }}"
+                    alt="{{ team.team_name }} team photo"
+                >
+            </section>
+        {% endif %}
+
+        <section
+            class="osrs-player-summary osrs-team-summary"
+            aria-label="Team bingo summary"
+        >
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">
+                    Bingo Points
+                </span>
+
+                <span class="osrs-summary-value">
+                    {{ '%g' | format(
+                        team_summary.stats.bingo_points
+                    ) }}
+                </span>
+            </div>
+
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">
+                    Tiles Completed
+                </span>
+
+                <span class="osrs-summary-value">
+                    {{ team_summary.stats.tiles_completed }}
+                </span>
+            </div>
+
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">
+                    Relevant Boss KC
+                </span>
+
+                <span class="osrs-summary-value">
+                    {{ '{:,}'.format(
+                        team_summary.stats.relevant_boss_kc
+                    ) }}
+                </span>
+            </div>
+
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">
+                    Relevant Drops
+                </span>
+
+                <span class="osrs-summary-value">
+                    {{ '{:,}'.format(
+                        team_summary.stats.relevant_drop_quantity
+                    ) }}
+                </span>
+            </div>
+
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">
+                    Relevant XP Gained
+                </span>
+
+                <span class="osrs-summary-value">
+                    {{ '{:,}'.format(
+                        team_summary.stats.relevant_xp
+                    ) }}
+                </span>
+            </div>
+        </section>
+
+        <section class="osrs-player-section">
+            <h2 class="osrs-player-section-heading">
+                Team Roster
+            </h2>
+
+            {% if team_summary.roster %}
+                <div class="osrs-scroll-table">
+                    <table class="osrs-table">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>MVP Points</th>
+                                <th>Tile Contribution</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for player in team_summary.roster %}
+                                <tr>
+                                    <td>
+                                        {% if
+                                            can_view_all_data
+                                            or viewer_player_id
+                                                == player.player_id
+                                        %}
+                                            <a
+                                                class="osrs-data-link"
+                                                href="/user/player/{{ player.player_name }}"
+                                            >
+                                                {{ player.player_name }}
+                                            </a>
+                                        {% else %}
+                                            {{ player.player_name }}
+                                        {% endif %}
+                                    </td>
+
+                                    <td>
+                                        {{ '%g' | format(
+                                            player.mvp_points
+                                        ) }}
+                                    </td>
+
+                                    <td>
+                                        {{ '%.2f' | format(
+                                            player.tile_contribution
+                                        ) }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="osrs-empty-state">
+                    No players are currently assigned to this team.
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="osrs-player-section">
+            <h2 class="osrs-player-section-heading">
+                Team MVP
+            </h2>
+
+            <div class="osrs-team-mvp-panel">
+                {% if team_summary.team_mvp.players %}
+                    {% for player in team_summary.team_mvp.players %}
+                        <div class="osrs-team-mvp-entry">
+                            <span class="osrs-team-mvp-name">
+                                {% if
+                                    can_view_all_data
+                                    or viewer_player_id
+                                        == player.player_id
+                                %}
+                                    <a
+                                        class="osrs-data-link"
+                                        href="/user/player/{{ player.player_name }}"
+                                    >
+                                        {{ player.player_name }}
+                                    </a>
+                                {% else %}
+                                    {{ player.player_name }}
+                                {% endif %}
+                            </span>
+
+                            <span class="osrs-team-mvp-points">
+                                {{ '%g' | format(
+                                    player.mvp_points
+                                ) }}
+                                MVP Points
+                            </span>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="osrs-empty-state">
+                        No MVP Points awarded yet
+                    </p>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="osrs-player-section">
+            <h2 class="osrs-player-section-heading">
+                Relevant Drops
+            </h2>
+
+            {% if team_summary.relevant_drops.drops %}
+                <div class="osrs-scroll-table">
+                    <table class="osrs-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Quantity</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for drop in team_summary.relevant_drops.drops %}
+                                <tr>
+                                    <td>{{ drop.drop_name }}</td>
+                                    <td>
+                                        {{ '{:,}'.format(
+                                            drop.quantity
+                                        ) }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="osrs-empty-state">
+                    No relevant drops recorded yet.
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="osrs-player-section">
+            <h2 class="osrs-player-section-heading">
+                Relevant Boss KC
+            </h2>
+
+            {% if team_summary.relevant_boss_kc.bosses %}
+                <div class="osrs-scroll-table">
+                    <table class="osrs-table">
+                        <thead>
+                            <tr>
+                                <th>Boss</th>
+                                <th>KC Gained</th>
+                                <th>Related Tile(s)</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for boss in team_summary.relevant_boss_kc.bosses %}
+                                <tr>
+                                    <td>
+                                        {{ boss.metric
+                                            | replace('_', ' ')
+                                            | title
+                                        }}
+                                    </td>
+
+                                    <td>
+                                        {{ '{:,}'.format(
+                                            boss.kc_gained
+                                        ) }}
+                                    </td>
+
+                                    <td>
+                                        <div class="osrs-related-tiles">
+                                            {% for tile_name in boss.related_tiles %}
+                                                <span>
+                                                    {{ tile_name }}
+                                                </span>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="osrs-empty-state">
+                    No relevant boss KC recorded yet.
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="osrs-player-section">
+            <h2 class="osrs-player-section-heading">
+                Relevant XP Gained
+            </h2>
+
+            {% if team_summary.relevant_xp.skills %}
+                <div class="osrs-scroll-table">
+                    <table class="osrs-table">
+                        <thead>
+                            <tr>
+                                <th>Skill</th>
+                                <th>XP Gained</th>
+                                <th>Related Tile(s)</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for skill in team_summary.relevant_xp.skills %}
+                                <tr>
+                                    <td>
+                                        {{ skill.metric
+                                            | replace('_', ' ')
+                                            | title
+                                        }}
+                                    </td>
+
+                                    <td>
+                                        {{ '{:,}'.format(
+                                            skill.xp_gained
+                                        ) }}
+                                    </td>
+
+                                    <td>
+                                        <div class="osrs-related-tiles">
+                                            {% for tile_name in skill.related_tiles %}
+                                                <span>
+                                                    {{ tile_name }}
+                                                </span>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="osrs-empty-state">
+                    No relevant XP recorded yet.
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="osrs-player-section">
+            <h2 class="osrs-player-section-heading">
+                Tiles in Progress
+            </h2>
+
+            {% if team_summary.tiles_in_progress %}
+                <div class="osrs-scroll-table osrs-team-progress-table">
+                    <table class="osrs-table">
+                        <thead>
+                            <tr>
+                                <th>Tile</th>
+                                <th>Tile Points</th>
+                                <th>Progress</th>
+                                <th>Percentage</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for tile in team_summary.tiles_in_progress %}
+                                <tr>
+                                    <td>{{ tile.tile_name }}</td>
+
+                                    <td>
+                                        {{ '%g' | format(
+                                            tile.tile_points
+                                        ) }}
+                                    </td>
+
+                                    <td class="osrs-progress-cell">
+                                        <div
+                                            class="osrs-progress-bar"
+                                            role="progressbar"
+                                            aria-label="{{ tile.tile_name }} progress"
+                                            aria-valuemin="0"
+                                            aria-valuemax="100"
+                                            aria-valuenow="{{ tile.progress_percentage }}"
+                                        >
+                                            <span
+                                                class="osrs-progress-fill"
+                                                style="width: {{ tile.progress_percentage }}%;"
+                                            ></span>
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        {{ '%g' | format(
+                                            tile.progress_percentage
+                                        ) }}%
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="osrs-empty-state">
+                    No incomplete tiles currently have recorded progress.
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="osrs-player-section">
+            <h2 class="osrs-player-section-heading">
+                Completed Tiles
+            </h2>
+
+            {% if team_summary.completed_tiles %}
+                <div class="osrs-scroll-table osrs-completed-tiles-table">
+                    <table class="osrs-table">
+                        <thead>
+                            <tr>
+                                <th>Tile</th>
+                                <th>Tile Points</th>
+                                <th>Completed At</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for tile in team_summary.completed_tiles %}
+                                <tr>
+                                    <td>{{ tile.tile_name }}</td>
+
+                                    <td>
+                                        {{ '%g' | format(
+                                            tile.tile_points
+                                        ) }}
+                                    </td>
+
+                                    <td>
+                                        <time
+                                            class="osrs-local-datetime"
+                                            datetime="{{ tile.completed_at.isoformat() }}"
+                                        >
+                                            {{ tile.completed_at.day }}
+                                            {{ tile.completed_at.strftime(
+                                                '%b %Y, %H:%M'
+                                            ) }}
+                                        </time>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="osrs-empty-state">
+                    This team has not completed any tiles yet.
+                </p>
+            {% endif %}
+        </section>
+    </main>
 </div>
-</body>
+{% if competition_timing %}
+    <script>
+        (function () {
+            const countdown = document.getElementById(
+                'competition-countdown'
+            );
+            const label = document.getElementById(
+                'competition-countdown-label'
+            );
+            const value = document.getElementById(
+                'competition-countdown-value'
+            );
+            const deadline = document.getElementById(
+                'competition-countdown-deadline'
+            );
+
+            if (!countdown || !label || !value || !deadline) {
+                return;
+            }
+
+            const startsAt = new Date(
+                countdown.dataset.startsAt
+            );
+            const endsAt = new Date(
+                countdown.dataset.endsAt
+            );
+
+            if (
+                Number.isNaN(startsAt.getTime())
+                || Number.isNaN(endsAt.getTime())
+                || endsAt <= startsAt
+            ) {
+                countdown.hidden = true;
+                return;
+            }
+
+            const dateFormatter = new Intl.DateTimeFormat(
+                'en-GB',
+                {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hourCycle: 'h23',
+                    timeZoneName: 'short'
+                }
+            );
+
+            function formatDuration(milliseconds) {
+                const totalSeconds = Math.max(
+                    0,
+                    Math.floor(milliseconds / 1000)
+                );
+                const days = Math.floor(
+                    totalSeconds / 86400
+                );
+                const hours = Math.floor(
+                    (totalSeconds % 86400) / 3600
+                );
+                const minutes = Math.floor(
+                    (totalSeconds % 3600) / 60
+                );
+                const seconds = totalSeconds % 60;
+
+                return (
+                    String(days).padStart(2, '0') + 'd '
+                    + String(hours).padStart(2, '0') + 'h '
+                    + String(minutes).padStart(2, '0') + 'm '
+                    + String(seconds).padStart(2, '0') + 's'
+                );
+            }
+
+            function updateCountdown() {
+                const now = new Date();
+
+                if (now < startsAt) {
+                    label.textContent = 'Competition starts in';
+                    value.hidden = false;
+                    value.textContent = formatDuration(
+                        startsAt - now
+                    );
+                    deadline.textContent = (
+                        'Starts '
+                        + dateFormatter.format(startsAt)
+                    );
+                    countdown.dataset.state = 'upcoming';
+                    return true;
+                }
+
+                if (now < endsAt) {
+                    label.textContent = 'Time remaining';
+                    value.hidden = false;
+                    value.textContent = formatDuration(
+                        endsAt - now
+                    );
+                    deadline.textContent = (
+                        'Ends '
+                        + dateFormatter.format(endsAt)
+                    );
+                    countdown.dataset.state = 'active';
+                    return true;
+                }
+
+                label.textContent = 'Competition ended';
+                value.textContent = '';
+                value.hidden = true;
+                deadline.textContent = (
+                    'Ended '
+                    + dateFormatter.format(endsAt)
+                );
+                countdown.dataset.state = 'ended';
+                return false;
+            }
+
+            if (updateCountdown()) {
+                const countdownInterval = window.setInterval(
+                    function () {
+                        if (!updateCountdown()) {
+                            window.clearInterval(
+                                countdownInterval
+                            );
+                        }
+                    },
+                    1000
+                );
+            }
+        }());
+    </script>
+{% endif %}
+
+{% if can_view_all_data %}
+    <script>
+        document.getElementById('team-search-form').addEventListener(
+            'submit',
+            function (event) {
+                event.preventDefault();
+
+                const selector = document.getElementById(
+                    'team-searchbox'
+                );
+
+                if (selector && selector.value) {
+                    window.location.href = selector.value;
+                }
+            }
+        );
+    </script>
+{% endif %}
 {% endblock %}

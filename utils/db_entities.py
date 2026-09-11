@@ -10,6 +10,8 @@ class Player:
         self.discord_user_id = player_tuple[7] if len(player_tuple) > 7 else None
         self.player_points = player_tuple[8] if len(player_tuple) > 8 else 0
         self.wom_player_id = player_tuple[9] if len(player_tuple) > 9 else None
+        self.discord_display_name = player_tuple[10] if len(player_tuple) > 10 else None
+        self.discord_username = player_tuple[11] if len(player_tuple) > 11 else None
 
 
 class Team:
@@ -19,6 +21,7 @@ class Team:
         self.team_webhook = team_tuple[2]
         self.team_id = team_tuple[3]
         self.discord_role_id = team_tuple[4] if len(team_tuple) > 4 else None
+        self.team_photo_path = team_tuple[5] if len(team_tuple) > 5 else None
 
 
 class Drop:

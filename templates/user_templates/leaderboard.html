@@ -2,163 +2,256 @@
 
 {% block content %}
 
-    <title>Leaderboard</title>
-    <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            font-family: Arial, sans-serif; /* Use a readable font */
-        }
+<title>Leaderboard</title>
 
-        th {
-            background-color: #333; /* Darker background for navbar */
-            color: white;
-            position: sticky;
-            top: 0;
-            font-size: 16px; /* Larger font size for header */
-        }
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
 
-        th, td {
-            border: 1px solid #ddd;
-            padding: 15px;
-            text-align: left;
-        }
+<div class="osrs-dashboard osrs-leaderboard">
 
-        tr:nth-child(even) {
-            background-color: #1E1E1E;
-        }
+    <div class="osrs-leaderboard-header">
+        <div>
+            <h1 class="osrs-leaderboard-title">
+                Leaderboard
+            </h1>
 
-        tr:hover {
-            background-color: #444; /* Slightly darker hover effect */
-        }
-
-        /* Optional: Remove borders or adjust as needed */
-        /* table {
-            border: none;
-        } */
-
-        /* Optional: Add spacing between rows */
-        tr {
-            margin-bottom: 5px;
-        }
-
-        /* Optional: Style the search bar and header */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-        }
-
-        .search-bar {
-            display: flex;
-        }
-
-        .search-bar input[type="text"] {
-            border: none;
-            padding: 10px;
-            color: #000;
-            background-color: #fff;
-        }
-
-        .search-bar input[type="submit"] {
-            border: none;
-            padding: 10px;
-            color: #fff;
-            background-color: #444;
-            cursor: pointer;
-        }
-
-        a {
-            color: white;
-        }
-    </style>
-</head>
-<body>
-    <div class="content">
-        <div class="header" style="justify-content: center;">
-            <h1>Leaderboard</h1>
+            <p class="osrs-leaderboard-subtitle">
+                Clan-wide bingo standings and competition progress
+            </p>
         </div>
-        <h2>Team Ranks</h2>
-        <table>
-            <tr>
-                <th>Rank</th>
-                <th>Team Name</th>
-                <th>Gold</th>
-                <th>Points</th>
-            </tr>
-            {% for team in teams %}
-            <tr>
-                <td>{{ loop.index }}</td>
-                <td><a href="/user/team/{{team.team_name}}">{{ team.team_name }}</a></td>
-                <td>{{ teams_gp_earned[team.team_id] }}</td>
-                <td>
-                    {{ team.team_points }}
-                    {% if team_partial_tiles[team.team_id] > 0 %}
-                    ({{ team_partial_tiles[team.team_id] }})
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </table>
-        <h2>Clan Gains</h2>
-        <table>
-            <tr>
-                <th>Total Tiles</th>
-                <th>Total Gold</th>
-                <th>Total Deaths</th>
-                <th>Total Pets</th>
-            </tr>
-            <tr>
-                <th>
-                    {{ total_tiles }} tiles
-                    {% if partial_tiles > 0 %}
-                    ({{ partial_tiles }} partials)
-                    {% endif %}
-                </th>
-                <th>{{ total_gold }}</th>
-                <th>{{ total_deaths }} deaths</th>
-                <th>{{ total_pets }} pets</th>
-            </tr>
-        </table>
-        <h2>Honorable Mentions</h2>
-        <table>
-            <tr>
-                <th>MVP</th>
-                <th>Top G</th>
-                <th>Clan Thrall</th>
-                <th>Pet Collector</th>
-            </tr>
-            <tr>
-                <th><a href="/user/player/{{ most_tiles_player.player_name }}">{{ most_tiles_player.player_name }}</a> with {{ most_tiles_player.tiles_completed }} tiles </th>
-                <th><a href="/user/player/{{ most_gold_player.player_name }}">{{ most_gold_player.player_name }}</a> with {{ most_gold_player.gp_gained }} gold </th>
-                <th><a href="/user/player/{{ most_deaths_player.player_name }}">{{ most_deaths_player.player_name }}</a> with {{ most_deaths_player.deaths }} deaths</th>
-                <th><a href="/user/player/{{ most_pets_player.player_name}}">{{ most_pets_player.player_name }}</a> with {{ most_pets_player.pet_count }} pets </th>
-            </tr>
-        </table>
-        <h2>Player Ranks</h2>
-        <table>
-            <tr>
-                <th>Rank</th>
-                <th>Player Name</th>
-                <th>Total Deaths</th>
-                <th>Pets Gained</th>
-                <th>Gold Gained</th>
-                <th>Tiles Completed</th>
-            </tr>
-            {% for player in players %}
-            <tr>
-                <td>{{ loop.index }}</td>
-                <td><a href="/user/player/{{player.player_name}}">{{ player.player_name }}</a></td>
-                <td>{{ player.deaths }}</td>
-                <td>{{ player.pet_count }}</td>
-                <td>{{ player.gp_gained }}</td>
-                <td>{{ player.tiles_completed }} {% if player_partials[player.player_id] > 0 %}({{ player_partials[player.player_id] }}) {% endif %}</td>
-            </tr>
-            {% endfor %}
-        </table>
+
+        {% if competition_url %}
+        <a
+            class="osrs-action-link osrs-wom-link"
+            href="{{ competition_url }}"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+            View WOM Competition ↗
+        </a>
+        {% endif %}
     </div>
-</body>
+
+
+    <section class="osrs-player-section">
+        <div class="osrs-player-section-heading">
+            <h2>Team Rankings</h2>
+        </div>
+
+        <div class="osrs-scroll-table osrs-leaderboard-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Team</th>
+                        <th>Bingo Points</th>
+                        <th>Tiles Completed</th>
+                        <th>Team MVP(s)</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for team in leaderboard.teams %}
+                    <tr>
+                        <td class="osrs-rank-cell">
+                            {{ team.rank }}
+                        </td>
+
+                        <td>
+                            {% if can_view_all_data or viewer_team_id == team.team_id %}
+                            <a
+                                class="osrs-data-link"
+                                href="/user/team/{{ team.team_name }}"
+                            >
+                                {{ team.team_name }}
+                            </a>
+                            {% else %}
+                            {{ team.team_name }}
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {{ "%g"|format(team.bingo_points) }}
+                        </td>
+
+                        <td>
+                            {{ team.tiles_completed }}
+                        </td>
+
+                        <td>
+                            {% if team.mvp_players %}
+                            <div class="osrs-mvp-list">
+                                {% for player in team.mvp_players %}
+                                <div class="osrs-mvp-entry">
+                                    {% if can_view_all_data or viewer_player_id == player.player_id %}
+                                    <a
+                                        class="osrs-data-link"
+                                        href="/user/player/{{ player.player_name }}"
+                                    >
+                                        {{ player.player_name }}
+                                    </a>
+                                    {% else %}
+                                    <span>
+                                        {{ player.player_name }}
+                                    </span>
+                                    {% endif %}
+
+                                    <span class="osrs-mvp-points">
+                                        —
+                                        {{ "%g"|format(team.mvp_points) }}
+                                        MVP Points
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <span class="osrs-muted-text">
+                                No MVP Points awarded yet
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5">
+                            <div class="osrs-empty-state">
+                                No teams are currently configured.
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+
+    <section class="osrs-player-section">
+        <div class="osrs-player-section-heading">
+            <h2>Clan Overview</h2>
+        </div>
+
+        <div class="osrs-leaderboard-summary">
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">
+                    Completed Tiles
+                </span>
+
+                <span class="osrs-summary-value">
+                    {{ leaderboard.clan.completed_tiles }}
+                </span>
+            </div>
+
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">
+                    Relevant Boss KC
+                </span>
+
+                <span class="osrs-summary-value">
+                    {{ "{:,}".format(
+                        leaderboard.clan.relevant_boss_kc
+                    ) }}
+                </span>
+            </div>
+
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">
+                    Relevant Drops
+                </span>
+
+                <span class="osrs-summary-value">
+                    {{ "{:,}".format(
+                        leaderboard.clan.relevant_drop_quantity
+                    ) }}
+                </span>
+            </div>
+
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">
+                    Relevant XP Gained
+                </span>
+
+                <span class="osrs-summary-value">
+                    {{ "{:,}".format(
+                        leaderboard.clan.relevant_xp
+                    ) }}
+                </span>
+            </div>
+
+            <div class="osrs-summary-card osrs-team-count-card">
+                <span class="osrs-summary-label">
+                    Teams
+                </span>
+
+                <span class="osrs-summary-value">
+                    {{ leaderboard.clan.team_count }}
+                </span>
+
+                {% if leaderboard.clan.team_names %}
+                <span class="osrs-team-name-list">
+                    {{ leaderboard.clan.team_names | join(" · ") }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+
+    <section class="osrs-player-section">
+        <div class="osrs-player-section-heading">
+            <h2>Honourable Mentions</h2>
+        </div>
+
+        <div class="osrs-clan-mvp-panel">
+            <div class="osrs-clan-mvp-heading">
+                Clan
+                {% if leaderboard.clan.mvp_players|length > 1 %}
+                MVPs
+                {% else %}
+                MVP
+                {% endif %}
+            </div>
+
+            {% if leaderboard.clan.mvp_players %}
+            <div class="osrs-clan-mvp-list">
+                {% for player in leaderboard.clan.mvp_players %}
+                <div class="osrs-clan-mvp-entry">
+                    <div class="osrs-clan-mvp-name">
+                        {% if can_view_all_data or viewer_player_id == player.player_id %}
+                        <a
+                            class="osrs-data-link"
+                            href="/user/player/{{ player.player_name }}"
+                        >
+                            {{ player.player_name }}
+                        </a>
+                        {% else %}
+                        {{ player.player_name }}
+                        {% endif %}
+                    </div>
+
+                    <div class="osrs-clan-mvp-score">
+                        {{ "%g"|format(
+                            leaderboard.clan.mvp_points
+                        ) }}
+                        MVP Points
+                    </div>
+
+                    <div class="osrs-clan-mvp-team">
+                        {{ player.team_name }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="osrs-empty-state">
+                No MVP Points awarded yet
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+</div>
 
 {% endblock %}

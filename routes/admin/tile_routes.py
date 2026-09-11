@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, Blueprint
 
-from routes.admin.admin_routes import admin_required
+from utils.auth import admin_required
 from utils.database import (
     remove_tile,
     get_tile_by_id,
@@ -373,7 +373,14 @@ def edit_tile(tile_id):
 @tile_routes.route('/tiles/delete/<int:tile_id>', methods=['POST'])
 @admin_required
 def delete_tile(tile_id):
-    remove_tile(tile_id)
+    try:
+        remove_tile(tile_id)
+    except ValueError as error:
+        flash(str(error), 'danger')
+        return redirect(
+            url_for('tile_management.tile_list')
+        )
+
     flash('Tile deleted successfully!', 'success')
     return redirect(url_for('tile_management.tile_list'))
 

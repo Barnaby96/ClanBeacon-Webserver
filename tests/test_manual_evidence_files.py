@@ -15,7 +15,7 @@ from utils import manual_evidence_files
 
 def test_manual_evidence_file_can_be_saved_resolved_and_deleted():
     file_bytes = (
-        b"DanBot manual evidence file test"
+        b"Bingo bot manual evidence file test"
     )
 
     saved = None

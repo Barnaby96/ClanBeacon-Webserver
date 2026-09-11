@@ -1,10 +1,10 @@
-from functools import wraps
-
 from flask import request, render_template, Blueprint, flash, redirect, url_for, abort, send_file
-from flask_login import current_user, login_required
+from flask_login import current_user
 from werkzeug.utils import secure_filename
 
 from routes import dink
+from utils.auth import admin_required
+from utils.branding import BOT_NAME
 from utils import database, db_entities, wom
 from utils.dink_evidence import resolve_dink_evidence_path
 from utils.database import get_player_names, get_tile_names, get_tiles
@@ -14,14 +14,6 @@ from utils.spoofed_jsons.spoof_kc import kc_spoof_json
 from utils.spoofed_jsons.spoof_pet import spoof_pet
 
 admin_routes = Blueprint("admin_routes", __name__)
-def admin_required(f):
-    @wraps(f)
-    @login_required
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_admin:
-            abort(403)  # Forbidden
-        return f(*args, **kwargs)
-    return decorated_function
 
 @admin_routes.route('/', methods=['GET'])
 @admin_required
@@ -129,7 +121,7 @@ def dink_identities():
 
         except (TypeError, ValueError):
             flash(
-                'Please select a valid DanBot player.',
+                f'Please select a valid {BOT_NAME} player.',
                 'danger'
             )
             return redirect(
@@ -167,7 +159,7 @@ def dink_identities():
 
         elif result['status'] == 'PLAYER_NOT_FOUND':
             flash(
-                'The selected DanBot player no longer exists.',
+                f'The selected {BOT_NAME} player no longer exists.',
                 'danger'
             )
 
@@ -618,7 +610,13 @@ def bingo_setup():
                     competition_id,
                     teams,
                     evidence_codeword,
-                    wom_player_ids
+                    wom_player_ids,
+                    competition_starts_at=competition.get(
+                        'startsAt'
+                    ),
+                    competition_ends_at=competition.get(
+                        'endsAt'
+                    )
                 )
 
                 if not result['imported']:

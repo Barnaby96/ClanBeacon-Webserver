@@ -24,14 +24,24 @@ import bot
 
 from utils.database import (
     add_user,
-    get_user_by_email,
+    get_user_by_username,
     check_password,
     get_user_by_id,
     ensure_schema
 )
 
+from utils.branding import BOT_NAME
+
+
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'development secret')
+
+
+@app.context_processor
+def inject_branding():
+    return {
+        "bot_name": BOT_NAME
+    }
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
@@ -48,32 +58,50 @@ def home():
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('home'))
+
     if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        user = get_user_by_email(email)
-        if user:
-            flash('Email is already registered.', 'danger')
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+
+        if not username:
+            flash('Please enter a username.', 'danger')
             return redirect(url_for('register'))
-        add_user(username, email, password)
-        flash('Your account has been created! You can now log in', 'success')
+
+        if get_user_by_username(username):
+            flash('That username is already in use.', 'danger')
+            return redirect(url_for('register'))
+
+        add_user(username, password)
+
+        flash(
+            f'Your {BOT_NAME} account has been created. '
+            'You can now log in.',
+            'success'
+        )
         return redirect(url_for('login'))
+
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('home'))
+
     if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        user = get_user_by_email(email)
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+
+        user = get_user_by_username(username)
+
         if user and check_password(user.password, password):
             login_user(user)
             return redirect(url_for('home'))
-        else:
-            flash('Login Unsuccessful. Please check email and password', 'danger')
+
+        flash(
+            'Login unsuccessful. Please check your username and password.',
+            'danger'
+        )
+
     return render_template('login.html')
 
 @app.route('/logout')

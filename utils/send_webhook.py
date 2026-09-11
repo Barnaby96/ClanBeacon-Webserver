@@ -2,6 +2,92 @@ import json
 
 import requests
 
+from urllib.parse import urlparse
+
+
+DISCORD_WEBHOOK_HOSTS = {
+    "discord.com",
+    "ptb.discord.com",
+    "canary.discord.com"
+}
+
+
+def validate_discord_webhook_url(url):
+    if not isinstance(url, str):
+        return False
+
+    url = url.strip()
+
+    if not url:
+        return False
+
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
+
+    if parsed.scheme != "https":
+        return False
+
+    if parsed.hostname not in DISCORD_WEBHOOK_HOSTS:
+        return False
+
+    path_parts = [
+        part
+        for part in parsed.path.split("/")
+        if part
+    ]
+
+    if len(path_parts) != 4:
+        return False
+
+    if (
+        path_parts[0] != "api"
+        or path_parts[1] != "webhooks"
+    ):
+        return False
+
+    webhook_id = path_parts[2]
+    webhook_token = path_parts[3]
+
+    if not webhook_id.isdigit():
+        return False
+
+    if not webhook_token:
+        return False
+
+    return True
+
+
+def send_test_webhook(url, message):
+    url = str(url or "").strip()
+
+    if not validate_discord_webhook_url(url):
+        raise ValueError(
+            "Please enter a valid Discord webhook URL."
+        )
+
+    try:
+        response = requests.post(
+            url,
+            json={
+                "content": message
+            },
+            timeout=10
+        )
+    except requests.RequestException as error:
+        raise RuntimeError(
+            "Discord could not be reached to test this webhook."
+        ) from error
+
+    if not response.ok:
+        raise RuntimeError(
+            "Discord rejected the test webhook. "
+            "Please check the webhook URL and try again."
+        )
+
+    return True
+
 
 def send_webhook(url, title, description, color, image):
     """

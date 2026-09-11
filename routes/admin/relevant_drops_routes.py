@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, Blueprint
 from utils.database import get_relevant_drop_by_id, update_relevant_drop, delete_relevant_drop, get_tile_triggers, \
     get_tile_types, get_player_names
-from routes.admin.admin_routes import admin_required
+from utils.auth import admin_required
 
 relevant_drop_routes = Blueprint("relevant_drop_management", __name__)
 

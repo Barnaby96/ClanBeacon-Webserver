@@ -46,21 +46,32 @@ def create_test_user(
 ):
     database.add_user(
         username,
-        email,
         password
     )
 
-    if is_admin:
-        with database.connect() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                '''
-                UPDATE users
-                SET is_admin = TRUE
-                WHERE email = %s
-                ''',
-                (email,)
+    account_role = (
+        "ADMIN"
+        if is_admin
+        else "PLAYER"
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            UPDATE users
+            SET
+                email = %s,
+                account_role = %s
+            WHERE LOWER(BTRIM(username))
+                = LOWER(BTRIM(%s))
+            ''',
+            (
+                email,
+                account_role,
+                username
             )
+        )
 
 
 def login_test_user(
@@ -68,10 +79,24 @@ def login_test_user(
     email,
     password
 ):
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT username
+            FROM users
+            WHERE LOWER(BTRIM(email))
+                = LOWER(BTRIM(%s))
+            ''',
+            (email,)
+        )
+
+        username = cursor.fetchone()[0]
+
     return client.post(
         "/login",
         data={
-            "email": email,
+            "username": username,
             "password": password
         }
     )
@@ -1621,7 +1646,7 @@ def test_admin_can_view_dink_event_screenshot(client):
     response = None
     try:
         screenshot_file.write_bytes(
-            b"DanBot screenshot regression test"
+            b"Bingo bot screenshot regression test"
         )
 
         relative_path = (
@@ -1645,7 +1670,7 @@ def test_admin_can_view_dink_event_screenshot(client):
         assert response.status_code == 200
         assert (
             response.data
-            == b"DanBot screenshot regression test"
+            == b"Bingo bot screenshot regression test"
         )
 
     finally:
@@ -2270,7 +2295,8 @@ def test_manual_evidence_freezes_full_tile_snapshot():
             '''
             SELECT
                 tile_points_at_submission,
-                banked_total_at_submission
+                banked_total_at_submission,
+                tile_name_at_submission
             FROM manual_evidence
             WHERE evidence_id = %s
             ''',
@@ -2279,7 +2305,8 @@ def test_manual_evidence_freezes_full_tile_snapshot():
 
         (
             frozen_points,
-            frozen_banked_total
+            frozen_banked_total,
+            frozen_tile_name
         ) = cursor.fetchone()
 
         cursor.execute(
@@ -2319,6 +2346,7 @@ def test_manual_evidence_freezes_full_tile_snapshot():
 
     assert frozen_points == 4.0
     assert float(frozen_banked_total) == 0.35
+    assert frozen_tile_name == "Manual Snapshot Test Tile"
 
     assert path_snapshots == [
         (1, "ALL", None, False),
@@ -2714,7 +2742,7 @@ def test_incompatible_late_manual_evidence_accepts_for_audit_only():
     )
 
     # Staff may still record genuinely valid old evidence as
-    # accepted for audit, but DanBot must not score it against a
+    # accepted for audit, but the bingo bot must not score it against a
     # tile definition that no longer matches its frozen snapshot.
     assert result["status"] == "ACCEPTED"
     assert result["audit_only"] is True
@@ -2744,6 +2772,20 @@ def test_incompatible_late_manual_evidence_accepts_for_audit_only():
         )
 
         evidence_status = cursor.fetchone()[0]
+
+        cursor.execute(
+            '''
+            SELECT audit_only
+            FROM staff_review_decisions
+            WHERE subject_type = 'MANUAL_EVIDENCE'
+              AND subject_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        persisted_audit_only = bool(
+            cursor.fetchone()[0]
+        )
 
         cursor.execute(
             '''
@@ -2800,6 +2842,7 @@ def test_incompatible_late_manual_evidence_accepts_for_audit_only():
         decision_row = cursor.fetchone()
 
     assert evidence_status == "ACCEPTED"
+    assert persisted_audit_only is True
     assert decision_row is not None
     assert decision_row[0] == "ACCEPT"
     assert decision_row[1] == (
@@ -2814,6 +2857,21 @@ def test_incompatible_late_manual_evidence_accepts_for_audit_only():
     # version of the tile.
     assert team_points_before_review == 4.0
     assert team_points_after_review == 4.0
+
+    bingo_evidence = database.get_player_bingo_evidence(
+        player[0]
+    )
+
+    assert len(bingo_evidence) == 1
+
+    evidence = bingo_evidence[0]
+
+    assert evidence["evidence_type"] == "manual"
+    assert evidence["evidence_id"] == submission["evidence_id"]
+    assert evidence["source"] == "Manual evidence"
+    assert evidence["contribution"] == 0.0
+    assert evidence["status"] == "Accepted — audit only"
+    assert evidence["date"] is not None
 
 
 def test_manual_evidence_snapshot_route_evaluator():
@@ -4912,6 +4970,22 @@ def test_late_manual_evidence_accepts_without_discretionary_mvp_by_default():
     assert result["completed"] is True
     assert result["player_deleted"] is False
 
+    player_evidence = database.get_player_bingo_evidence(
+        player[0]
+    )
+
+    evidence_row = next(
+        row
+        for row in player_evidence
+        if (
+            row["evidence_type"] == "manual"
+            and row["evidence_id"] == submission["evidence_id"]
+        )
+    )
+
+    assert evidence_row["contribution"] == 0.0
+    assert evidence_row["status"] == "Accepted — progress recorded"
+
     with database.connect() as conn:
         cursor = conn.cursor()
 
@@ -5249,6 +5323,22 @@ def test_late_manual_evidence_awards_discretionary_mvp_when_requested():
     assert result["late_review_points"] == 1.6
 
     assert result["player_deleted"] is False
+
+    player_evidence = database.get_player_bingo_evidence(
+        player[0]
+    )
+
+    evidence_row = next(
+        row
+        for row in player_evidence
+        if (
+            row["evidence_type"] == "manual"
+            and row["evidence_id"] == submission["evidence_id"]
+        )
+    )
+
+    assert evidence_row["contribution"] == 0.0
+    assert evidence_row["status"] == "Accepted — MVP awarded"
 
     with database.connect() as conn:
         cursor = conn.cursor()
@@ -6286,7 +6376,7 @@ def test_manual_evidence_completion_does_not_award_lost_mvp_by_default():
     # truncated by tile completion.
     assert result["lost_mvp_contribution"] == 0.3
 
-    # DanBot reports that compensation was available, but staff
+    # The bingo bot reports that compensation was available, but staff
     # did not explicitly request it.
     assert result["award_lost_mvp_requested"] is False
     assert result["late_review_contribution"] == 0.0

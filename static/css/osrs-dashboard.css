@@ -1,0 +1,1631 @@
+@font-face {
+    font-family: "RuneScape Bold";
+    src: url("../fonts/RuneScape-Bold-12.ttf") format("truetype");
+    font-style: normal;
+    font-weight: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "RuneScape Quill Caps";
+    src: url("../fonts/RuneScape-Quill-Caps.ttf") format("truetype");
+    font-style: normal;
+    font-weight: normal;
+    font-display: swap;
+}
+
+:root {
+    --osrs-bg: #18130d;
+    --osrs-bg-soft: #241b12;
+    --osrs-stone-dark: #30271d;
+    --osrs-stone: #4b3d2d;
+    --osrs-stone-light: #6b5a43;
+
+    --osrs-parchment: #d6c092;
+    --osrs-parchment-light: #ead9ae;
+    --osrs-parchment-dark: #b79a67;
+
+    --osrs-gold: #d3a83b;
+    --osrs-gold-bright: #f1d06a;
+    --osrs-gold-dark: #7d5a16;
+
+    --osrs-text: #f1e2b3;
+    --osrs-text-dark: #2d2116;
+    --osrs-text-muted: #b7a780;
+
+    --osrs-green: #4b7d36;
+    --osrs-green-light: #6fa550;
+    --osrs-red: #8c332d;
+
+    --osrs-border-dark: #1b140d;
+    --osrs-shadow: rgba(0, 0, 0, 0.55);
+}
+
+.osrs-dashboard {
+    min-height: 100vh;
+    box-sizing: border-box;
+    margin-top: -60px;
+    padding: 94px 4% 60px;
+    background:
+        radial-gradient(
+            circle at top,
+            rgba(106, 78, 42, 0.16),
+            transparent 38%
+        ),
+        linear-gradient(
+            180deg,
+            #211910 0%,
+            var(--osrs-bg) 100%
+        );
+    color: var(--osrs-text);
+}
+
+.osrs-dashboard *,
+.osrs-dashboard *::before,
+.osrs-dashboard *::after {
+    box-sizing: border-box;
+}
+
+.osrs-page {
+    width: min(1400px, 100%);
+    margin: 0 auto;
+}
+
+.osrs-page-header {
+    margin-bottom: 26px;
+}
+
+.osrs-page-title {
+    margin: 0;
+    color: var(--osrs-gold-bright);
+    font-family: "RuneScape Quill Caps", Georgia, serif;
+    font-size: clamp(38px, 5vw, 66px);
+    font-weight: normal;
+    line-height: 1;
+    letter-spacing: 1px;
+    text-shadow:
+        2px 2px 0 #000,
+        0 0 12px rgba(211, 168, 59, 0.18);
+}
+
+.osrs-page-subtitle {
+    margin: 8px 0 0;
+    color: var(--osrs-text-muted);
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 18px;
+}
+
+.osrs-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(180px, 260px));
+    gap: 16px;
+    margin-bottom: 30px;
+}
+
+.osrs-summary-card {
+    position: relative;
+    overflow: hidden;
+    padding: 18px 22px;
+    border: 2px solid var(--osrs-border-dark);
+    border-radius: 6px;
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.035),
+            rgba(0, 0, 0, 0.1)
+        ),
+        var(--osrs-stone-dark);
+    box-shadow:
+        inset 0 0 0 2px rgba(211, 168, 59, 0.18),
+        0 5px 14px var(--osrs-shadow);
+}
+
+.osrs-summary-label {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--osrs-text-muted);
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 17px;
+}
+
+.osrs-summary-value {
+    display: block;
+    color: var(--osrs-gold-bright);
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 30px;
+    line-height: 1;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.osrs-team-panel {
+    overflow: hidden;
+    margin-bottom: 26px;
+    border: 2px solid var(--osrs-border-dark);
+    border-radius: 7px;
+    background: var(--osrs-stone-dark);
+    box-shadow:
+        inset 0 0 0 2px rgba(211, 168, 59, 0.12),
+        0 7px 18px var(--osrs-shadow);
+}
+
+.osrs-team-heading {
+    margin: 0;
+    padding: 13px 20px 11px;
+    border-bottom: 2px solid var(--osrs-border-dark);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.04),
+            rgba(0, 0, 0, 0.12)
+        ),
+        var(--osrs-stone);
+    color: var(--osrs-gold-bright);
+    font-family: "RuneScape Quill Caps", Georgia, serif;
+    font-size: 30px;
+    font-weight: normal;
+    line-height: 1;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.osrs-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.osrs-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--osrs-parchment);
+    color: var(--osrs-text-dark);
+}
+
+.osrs-table th {
+    padding: 12px 16px;
+    border-bottom: 2px solid #866b42;
+    background:
+        linear-gradient(
+            180deg,
+            var(--osrs-parchment-light),
+            #ccb17d
+        );
+    color: #4a341d;
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 17px;
+    font-weight: normal;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.osrs-table td {
+    padding: 13px 16px;
+    border-bottom: 1px solid rgba(86, 63, 35, 0.32);
+    font-family: Arial, sans-serif;
+    font-size: 15px;
+    vertical-align: middle;
+}
+
+.osrs-table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.osrs-table tbody tr:hover {
+    background: rgba(255, 237, 181, 0.28);
+}
+
+.osrs-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.osrs-player-name {
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 18px;
+}
+
+.osrs-number {
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 17px;
+}
+
+.osrs-discord-name {
+    font-weight: 600;
+}
+
+.osrs-discord-username {
+    margin-left: 4px;
+    color: #66543d;
+}
+
+.osrs-status-unlinked,
+.osrs-status-pending {
+    color: #755f43;
+    font-style: italic;
+}
+
+.osrs-button {
+    display: inline-block;
+    min-width: 92px;
+    padding: 8px 14px;
+    border: 2px solid #263719;
+    border-radius: 4px;
+    background:
+        linear-gradient(
+            180deg,
+            var(--osrs-green-light),
+            var(--osrs-green)
+        );
+    color: #fff4c7;
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1;
+    text-align: center;
+    text-decoration: none;
+    text-shadow: 1px 1px 0 #1b260f;
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+        0 2px 0 #1d2813;
+    cursor: pointer;
+}
+
+.osrs-button:hover,
+.osrs-button:focus {
+    background:
+        linear-gradient(
+            180deg,
+            #7bb45a,
+            #588b3d
+        );
+    color: #fffbe2;
+    text-decoration: none;
+}
+
+.osrs-panel {
+    overflow: hidden;
+    margin-bottom: 24px;
+    border: 2px solid var(--osrs-border-dark);
+    border-radius: 6px;
+    background: var(--osrs-parchment);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+        0 3px 8px rgba(0, 0, 0, 0.35);
+}
+
+.osrs-panel-header {
+    padding: 15px 20px;
+    border-bottom: 2px solid var(--osrs-border-dark);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(91, 67, 40, 0.98),
+            rgba(57, 40, 24, 0.98)
+        );
+}
+
+.osrs-panel-title {
+    margin: 0;
+    color: var(--osrs-gold-bright);
+    font-family: "RuneScape Quill Caps", Georgia, serif;
+    font-size: 28px;
+    line-height: 1.1;
+    text-shadow: 1px 1px 0 #1d130b;
+}
+
+.osrs-panel-description {
+    margin: 6px 0 0;
+    color: #d5c39d;
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 16px;
+}
+
+.osrs-panel-body {
+    padding: 22px;
+}
+
+.osrs-form-grid {
+    display: grid;
+    gap: 22px;
+}
+
+.osrs-form-field {
+    display: grid;
+    gap: 8px;
+}
+
+.osrs-form-label {
+    color: var(--osrs-text);
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 18px;
+}
+
+.osrs-form-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 2px solid #7c6342;
+    border-radius: 4px;
+    background: #f2dfb4;
+    color: #2c2116;
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 17px;
+    box-shadow:
+        inset 0 1px 3px rgba(57, 39, 22, 0.25);
+}
+
+.osrs-form-input:focus {
+    outline: 2px solid var(--osrs-gold-bright);
+    outline-offset: 1px;
+    border-color: #4f3a22;
+}
+
+.osrs-form-help {
+    margin: 0;
+    color: #6c583d;
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.35;
+}
+
+.osrs-notice {
+    margin: 0;
+    padding: 11px 14px;
+    border: 1px solid #9b7c49;
+    border-radius: 4px;
+    background: rgba(225, 190, 114, 0.28);
+    color: #5a452b;
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.35;
+}
+
+.osrs-notice-warning {
+    border-color: #9a6a27;
+    background: rgba(206, 147, 55, 0.24);
+    color: #624419;
+}
+
+.osrs-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-top: 2px;
+}
+
+.osrs-button-secondary {
+    border-color: #59452e;
+    background:
+        linear-gradient(
+            180deg,
+            #8a7252,
+            #665037
+        );
+    color: #fff4c7;
+    text-shadow: 1px 1px 0 #2d2115;
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+        0 2px 0 #352719;
+}
+
+.osrs-button-secondary:hover,
+.osrs-button-secondary:focus {
+    background:
+        linear-gradient(
+            180deg,
+            #9a8160,
+            #745b3f
+        );
+}
+
+.osrs-button-danger {
+    border-color: #4b1e18;
+    background:
+        linear-gradient(
+            180deg,
+            #a64a3d,
+            #793128
+        );
+    color: #fff0dc;
+    text-shadow: 1px 1px 0 #341510;
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+        0 2px 0 #351711;
+}
+
+.osrs-button-danger:hover,
+.osrs-button-danger:focus {
+    background:
+        linear-gradient(
+            180deg,
+            #bd594a,
+            #8b3a30
+        );
+}
+
+.osrs-status-badge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 5px 9px;
+    border: 1px solid #6f583a;
+    border-radius: 4px;
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1;
+}
+
+.osrs-status-configured {
+    border-color: #42602c;
+    background: rgba(82, 126, 53, 0.2);
+    color: #395525;
+}
+
+.osrs-status-unconfigured {
+    border-color: #8c6c3b;
+    background: rgba(173, 126, 54, 0.16);
+    color: #6d512b;
+}
+
+.osrs-media-preview {
+    overflow: hidden;
+    width: 100%;
+    border: 2px solid #71583a;
+    border-radius: 5px;
+    background: #2b2117;
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.osrs-media-preview img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.osrs-team-photo-preview {
+    aspect-ratio: 3 / 1;
+    object-fit: cover;
+}
+
+.osrs-modal-backdrop {
+    position: fixed;
+    z-index: 1000;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(15, 11, 7, 0.78);
+}
+
+.osrs-modal-backdrop[hidden] {
+    display: none;
+}
+
+.osrs-modal {
+    overflow: hidden;
+    width: min(640px, 100%);
+    max-height: calc(100vh - 48px);
+    border: 2px solid var(--osrs-border-dark);
+    border-radius: 6px;
+    background: var(--osrs-parchment);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+        0 8px 28px rgba(0, 0, 0, 0.6);
+}
+
+.osrs-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 16px 20px;
+    border-bottom: 2px solid var(--osrs-border-dark);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(91, 67, 40, 0.99),
+            rgba(57, 40, 24, 0.99)
+        );
+}
+
+.osrs-modal-title {
+    margin: 0;
+    color: var(--osrs-gold-bright);
+    font-family: "RuneScape Quill Caps", Georgia, serif;
+    font-size: 28px;
+    line-height: 1.1;
+    text-shadow: 1px 1px 0 #1d130b;
+}
+
+.osrs-modal-close {
+    flex: 0 0 auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #d7c59e;
+    font-family: Arial, sans-serif;
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.osrs-modal-close:hover,
+.osrs-modal-close:focus {
+    color: #fff4c7;
+}
+
+.osrs-modal-body {
+    overflow-y: auto;
+    max-height: calc(100vh - 190px);
+    padding: 22px;
+}
+
+.osrs-modal-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 15px 20px;
+    border-top: 2px solid #8b6f49;
+    background: rgba(105, 79, 47, 0.12);
+}
+
+.osrs-modal-section + .osrs-modal-section {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid #9d835f;
+}
+
+.osrs-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.osrs-button:disabled:hover,
+.osrs-button:disabled:focus {
+    background:
+        linear-gradient(
+            180deg,
+            var(--osrs-green-light),
+            var(--osrs-green)
+        );
+    color: #fff4c7;
+}
+
+.osrs-empty-team {
+    margin: 0;
+    padding: 22px;
+    background: var(--osrs-parchment);
+    color: #69563c;
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 17px;
+    text-align: center;
+}
+
+.osrs-player-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 28px;
+    margin-bottom: 28px;
+}
+
+.osrs-player-identity {
+    min-width: 0;
+}
+
+.osrs-player-team-link {
+    display: inline-block;
+    margin-top: 9px;
+    color: var(--osrs-text-muted);
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 20px;
+    text-decoration: none;
+}
+
+.osrs-player-team-link:hover,
+.osrs-player-team-link:focus {
+    color: var(--osrs-gold-bright);
+    text-decoration: none;
+}
+
+.osrs-player-search {
+    display: flex;
+    align-items: stretch;
+    min-width: min(390px, 100%);
+    margin-top: 5px;
+}
+
+.osrs-player-search input[type="text"] {
+    min-width: 0;
+    flex: 1;
+    padding: 9px 12px;
+    border: 2px solid var(--osrs-border-dark);
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+    outline: none;
+    background: var(--osrs-parchment-light);
+    color: var(--osrs-text-dark);
+    font-family: Arial, sans-serif;
+    font-size: 15px;
+    box-shadow:
+        inset 0 0 0 1px rgba(125, 90, 22, 0.24);
+}
+
+.osrs-player-search input[type="text"]:focus {
+    box-shadow:
+        inset 0 0 0 1px var(--osrs-gold),
+        0 0 0 1px var(--osrs-gold-dark);
+}
+
+.osrs-player-search button {
+    min-width: 86px;
+    padding: 8px 14px;
+    border: 2px solid #263719;
+    border-radius: 0 4px 4px 0;
+    background:
+        linear-gradient(
+            180deg,
+            var(--osrs-green-light),
+            var(--osrs-green)
+        );
+    color: #fff4c7;
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 16px;
+    text-shadow: 1px 1px 0 #1b260f;
+    cursor: pointer;
+}
+
+.osrs-player-search button:hover,
+.osrs-player-search button:focus {
+    background:
+        linear-gradient(
+            180deg,
+            #7bb45a,
+            #588b3d
+        );
+}
+
+.osrs-player-summary {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(150px, 1fr));
+    gap: 16px;
+    margin-bottom: 30px;
+}
+
+.osrs-player-summary .osrs-summary-card {
+    min-width: 0;
+    text-align: center;
+}
+
+.osrs-player-summary .osrs-summary-label {
+    min-height: 38px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.osrs-player-section {
+    overflow: hidden;
+    margin-bottom: 26px;
+    border: 2px solid var(--osrs-border-dark);
+    border-radius: 7px;
+    background: var(--osrs-stone-dark);
+    box-shadow:
+        inset 0 0 0 2px rgba(211, 168, 59, 0.12),
+        0 7px 18px var(--osrs-shadow);
+}
+
+.osrs-player-section-heading {
+    margin: 0;
+    padding: 13px 20px 11px;
+    border-bottom: 2px solid var(--osrs-border-dark);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.04),
+            rgba(0, 0, 0, 0.12)
+        ),
+        var(--osrs-stone);
+    color: var(--osrs-gold-bright);
+    font-family: "RuneScape Quill Caps", Georgia, serif;
+    font-size: 30px;
+    font-weight: normal;
+    line-height: 1;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.osrs-scroll-table {
+    max-height: 300px;
+    overflow: auto;
+    scrollbar-color:
+        var(--osrs-parchment-dark)
+        var(--osrs-stone-dark);
+    scrollbar-width: thin;
+}
+
+.osrs-scroll-table--evidence {
+    max-height: 420px;
+}
+
+.osrs-scroll-table::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+}
+
+.osrs-scroll-table::-webkit-scrollbar-track {
+    background: var(--osrs-stone-dark);
+}
+
+.osrs-scroll-table::-webkit-scrollbar-thumb {
+    border: 2px solid var(--osrs-stone-dark);
+    border-radius: 6px;
+    background: var(--osrs-parchment-dark);
+}
+
+.osrs-scroll-table::-webkit-scrollbar-thumb:hover {
+    background: var(--osrs-gold);
+}
+
+.osrs-scroll-table .osrs-table {
+    min-width: 100%;
+}
+
+.osrs-scroll-table .osrs-table th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    box-shadow: 0 1px 0 #866b42;
+}
+
+.osrs-related-tiles {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.osrs-related-tile {
+    line-height: 1.25;
+}
+
+.osrs-evidence-source {
+    white-space: nowrap;
+}
+
+.osrs-evidence-status {
+    min-width: 190px;
+    line-height: 1.3;
+}
+
+.osrs-evidence-button {
+    min-width: 68px;
+    padding: 7px 12px;
+}
+
+.osrs-empty-state {
+    margin: 0;
+    padding: 24px 18px;
+    background: var(--osrs-parchment);
+    color: #69563c;
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 17px;
+    text-align: center;
+}
+
+.osrs-leaderboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+    margin-bottom: 30px;
+    padding: 22px 24px;
+    border: 2px solid var(--osrs-border-dark);
+    border-radius: 7px;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.04),
+            rgba(0, 0, 0, 0.14)
+        ),
+        var(--osrs-stone);
+    box-shadow:
+        inset 0 0 0 2px rgba(211, 168, 59, 0.12),
+        0 7px 18px var(--osrs-shadow);
+}
+
+.osrs-leaderboard-title {
+    margin: 0;
+    color: var(--osrs-gold-bright);
+    font-family: "RuneScape Quill Caps", Georgia, serif;
+    font-size: 42px;
+    font-weight: normal;
+    line-height: 1;
+    text-shadow: 2px 2px 0 #000;
+}
+
+.osrs-leaderboard-subtitle {
+    margin: 8px 0 0;
+    color: var(--osrs-text-muted);
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 18px;
+}
+
+.osrs-action-link,
+.osrs-data-link {
+    color: var(--osrs-gold-bright);
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    text-decoration: none;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.osrs-action-link:hover,
+.osrs-action-link:focus,
+.osrs-data-link:hover,
+.osrs-data-link:focus {
+    color: #fff2a8;
+    text-decoration: underline;
+}
+
+.osrs-wom-link {
+    flex: 0 0 auto;
+    padding: 10px 15px;
+    border: 2px solid var(--osrs-border-dark);
+    border-radius: 5px;
+    background:
+        linear-gradient(
+            180deg,
+            #71613f,
+            #4e422c
+        );
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 220, 123, 0.18),
+        0 3px 8px rgba(0, 0, 0, 0.38);
+}
+
+.osrs-wom-link:hover,
+.osrs-wom-link:focus {
+    background:
+        linear-gradient(
+            180deg,
+            #857148,
+            #5c4d31
+        );
+    text-decoration: none;
+}
+
+.osrs-leaderboard-table {
+    max-height: 360px;
+}
+
+.osrs-leaderboard-table table {
+    width: 100%;
+    min-width: 760px;
+    border-collapse: collapse;
+    background: var(--osrs-parchment);
+    color: #2d2419;
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 17px;
+}
+
+.osrs-leaderboard-table th,
+.osrs-leaderboard-table td {
+    padding: 13px 16px;
+    border-right: 1px solid #9f8258;
+    border-bottom: 1px solid #9f8258;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.osrs-leaderboard-table th:last-child,
+.osrs-leaderboard-table td:last-child {
+    border-right: 0;
+}
+
+.osrs-leaderboard-table th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background:
+        linear-gradient(
+            180deg,
+            #69593b,
+            #4c402c
+        );
+    color: var(--osrs-gold-bright);
+    font-size: 17px;
+    text-shadow: 1px 1px 0 #000;
+    box-shadow: 0 1px 0 #866b42;
+}
+
+.osrs-leaderboard-table tbody tr:nth-child(even) {
+    background: rgba(114, 87, 48, 0.08);
+}
+
+.osrs-leaderboard-table tbody tr:hover {
+    background: rgba(193, 151, 74, 0.16);
+}
+
+.osrs-rank-cell {
+    width: 70px;
+    color: #6a4b21;
+    font-size: 22px;
+    text-align: center !important;
+}
+
+.osrs-mvp-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.osrs-mvp-entry {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-items: baseline;
+}
+
+.osrs-mvp-points {
+    color: #6a5637;
+}
+
+.osrs-muted-text {
+    color: #77694f;
+    font-style: italic;
+}
+
+.osrs-leaderboard-summary {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(140px, 1fr));
+    gap: 16px;
+    padding: 20px;
+    background: var(--osrs-stone-dark);
+}
+
+.osrs-leaderboard-summary .osrs-summary-card {
+    min-width: 0;
+    text-align: center;
+}
+
+.osrs-leaderboard-summary .osrs-summary-label {
+    min-height: 38px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.osrs-team-count-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.osrs-team-name-list {
+    display: block;
+    margin-top: 7px;
+    color: var(--osrs-text-muted);
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.25;
+}
+
+.osrs-clan-mvp-panel {
+    padding: 24px;
+    background:
+        radial-gradient(
+            circle at top,
+            rgba(198, 158, 67, 0.12),
+            transparent 55%
+        ),
+        var(--osrs-stone-dark);
+    text-align: center;
+}
+
+.osrs-clan-mvp-heading {
+    margin-bottom: 18px;
+    color: var(--osrs-gold-bright);
+    font-family: "RuneScape Quill Caps", Georgia, serif;
+    font-size: 30px;
+    line-height: 1;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.osrs-clan-mvp-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 18px;
+}
+
+.osrs-clan-mvp-entry {
+    min-width: 210px;
+    padding: 17px 22px;
+    border: 2px solid var(--osrs-border-dark);
+    border-radius: 6px;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.04),
+            rgba(0, 0, 0, 0.13)
+        ),
+        var(--osrs-stone);
+    box-shadow:
+        inset 0 0 0 1px rgba(211, 168, 59, 0.14),
+        0 5px 13px rgba(0, 0, 0, 0.38);
+}
+
+.osrs-clan-mvp-name {
+    color: var(--osrs-gold-bright);
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 24px;
+    line-height: 1.1;
+}
+
+.osrs-clan-mvp-score {
+    margin-top: 6px;
+    color: var(--osrs-parchment-light);
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 18px;
+}
+
+.osrs-clan-mvp-team {
+    margin-top: 5px;
+    color: var(--osrs-text-muted);
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 15px;
+}
+
+.osrs-evidence-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.78);
+}
+
+.osrs-evidence-modal.is-open {
+    display: flex;
+}
+
+.osrs-evidence-modal-panel {
+    width: min(1100px, 96vw);
+    max-height: 92vh;
+    overflow: hidden;
+    border: 2px solid var(--osrs-border-dark);
+    border-radius: 7px;
+    background: var(--osrs-stone-dark);
+    box-shadow:
+        inset 0 0 0 2px rgba(211, 168, 59, 0.18),
+        0 14px 38px rgba(0, 0, 0, 0.72);
+}
+
+.osrs-evidence-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    padding: 12px 16px;
+    border-bottom: 2px solid var(--osrs-border-dark);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.04),
+            rgba(0, 0, 0, 0.12)
+        ),
+        var(--osrs-stone);
+}
+
+.osrs-evidence-modal-title {
+    margin: 0;
+    color: var(--osrs-gold-bright);
+    font-family: "RuneScape Quill Caps", Georgia, serif;
+    font-size: 28px;
+    font-weight: normal;
+    line-height: 1;
+}
+
+.osrs-evidence-modal-close {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 2px solid #51211e;
+    border-radius: 4px;
+    background:
+        linear-gradient(
+            180deg,
+            #a8443c,
+            var(--osrs-red)
+        );
+    color: #fff4c7;
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 23px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.osrs-evidence-modal-close:hover,
+.osrs-evidence-modal-close:focus {
+    background:
+        linear-gradient(
+            180deg,
+            #bd554c,
+            #9d3933
+        );
+}
+
+.osrs-evidence-modal-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-height: calc(92vh - 64px);
+    overflow: auto;
+    padding: 18px;
+    background: #15100b;
+}
+
+.osrs-evidence-modal-image {
+    display: block;
+    max-width: 100%;
+    max-height: calc(92vh - 105px);
+    object-fit: contain;
+}
+
+/* Team Data */
+
+.osrs-team-select-landing {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    text-align: center;
+}
+
+.osrs-team-select-landing .osrs-player-identity {
+    text-align: center;
+}
+
+.osrs-team-select-landing .osrs-team-search {
+    align-items: center;
+    width: min(390px, 100%);
+    margin-top: 22px;
+}
+
+.osrs-team-select-landing .osrs-team-search > label {
+    text-align: center;
+}
+
+.osrs-team-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 22px;
+    margin-top: 12px;
+}
+
+.osrs-team-search {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: min(390px, 100%);
+    margin-top: 5px;
+}
+
+.osrs-team-search > label {
+    margin-bottom: 6px;
+    color: var(--osrs-text-muted);
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 17px;
+}
+
+.osrs-team-search-controls {
+    display: flex;
+    width: 100%;
+}
+
+.osrs-team-search select {
+    min-width: 0;
+    flex: 1;
+    padding: 9px 12px;
+    border: 2px solid var(--osrs-border-dark);
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+    outline: none;
+    background: var(--osrs-parchment-light);
+    color: var(--osrs-text-dark);
+    font-family: Arial, sans-serif;
+    font-size: 15px;
+    box-shadow:
+        inset 0 0 0 1px rgba(125, 90, 22, 0.24);
+}
+
+.osrs-team-search select:focus {
+    box-shadow:
+        inset 0 0 0 1px var(--osrs-gold),
+        0 0 0 1px var(--osrs-gold-dark);
+}
+
+.osrs-team-search button {
+    min-width: 86px;
+    padding: 8px 14px;
+    border: 2px solid #263719;
+    border-radius: 0 4px 4px 0;
+    background:
+        linear-gradient(
+            180deg,
+            var(--osrs-green-light),
+            var(--osrs-green)
+        );
+    color: #fff4c7;
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 16px;
+    text-shadow: 1px 1px 0 #1b260f;
+    cursor: pointer;
+}
+
+.osrs-team-search button:hover,
+.osrs-team-search button:focus {
+    background:
+        linear-gradient(
+            180deg,
+            #7bb45a,
+            #588b3d
+        );
+}
+
+.osrs-competition-countdown {
+    display: grid;
+    grid-template-columns:
+        minmax(180px, 1fr)
+        auto
+        minmax(240px, 1fr);
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 30px;
+    padding: 16px 22px;
+    border: 2px solid var(--osrs-border-dark);
+    border-radius: 7px;
+    background:
+        linear-gradient(
+            145deg,
+            var(--osrs-parchment-light),
+            var(--osrs-parchment)
+        );
+    color: var(--osrs-text-dark);
+    box-shadow:
+        inset 0 0 0 2px rgba(125, 90, 22, 0.28),
+        0 7px 18px var(--osrs-shadow);
+}
+
+.osrs-countdown-label,
+.osrs-countdown-value,
+.osrs-countdown-deadline {
+    font-family: "RuneScape Bold", Arial, sans-serif;
+}
+
+.osrs-countdown-label {
+    font-size: 21px;
+}
+
+.osrs-countdown-value {
+    color: var(--osrs-gold-dark);
+    font-size: 30px;
+    line-height: 1;
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
+
+.osrs-countdown-deadline {
+    font-size: 18px;
+    line-height: 1.25;
+    text-align: right;
+}
+
+.osrs-competition-countdown[hidden] {
+    display: none;
+}
+
+.osrs-competition-countdown[data-state="ended"] {
+    background:
+        linear-gradient(
+            145deg,
+            var(--osrs-parchment),
+            var(--osrs-parchment-dark)
+        );
+}
+
+@media (min-width: 801px) {
+    .osrs-competition-countdown[data-state="ended"]
+    .osrs-countdown-deadline {
+        grid-column: 3;
+    }
+}
+
+.osrs-team-photo {
+    overflow: hidden;
+    width: 100%;
+    aspect-ratio: 3 / 1;
+    margin-bottom: 30px;
+    border: 2px solid var(--osrs-border-dark);
+    border-radius: 7px;
+    background: var(--osrs-stone-dark);
+    box-shadow:
+        inset 0 0 0 2px rgba(211, 168, 59, 0.12),
+        0 7px 18px var(--osrs-shadow);
+}
+
+.osrs-team-photo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.osrs-team-mvp-panel {
+    padding: 16px 20px;
+}
+
+.osrs-team-mvp-entry {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(211, 168, 59, 0.18);
+}
+
+.osrs-team-mvp-entry:last-child {
+    border-bottom: none;
+}
+
+.osrs-team-mvp-name {
+    min-width: 0;
+    color: var(--osrs-text-light);
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 20px;
+}
+
+.osrs-team-mvp-points {
+    flex: 0 0 auto;
+    color: var(--osrs-gold-bright);
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 18px;
+}
+
+.osrs-team-progress-table .osrs-table {
+    min-width: 760px;
+}
+
+.osrs-completed-tiles-table .osrs-table {
+    min-width: 620px;
+}
+
+.osrs-progress-cell {
+    min-width: 240px;
+}
+
+.osrs-progress-bar {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    height: 18px;
+    border: 2px solid var(--osrs-border-dark);
+    border-radius: 4px;
+    background: #211b14;
+    box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.55);
+}
+
+.osrs-progress-fill {
+    display: block;
+    height: 100%;
+    min-width: 0;
+    background:
+        linear-gradient(
+            180deg,
+            var(--osrs-green-light),
+            var(--osrs-green)
+        );
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+@media (max-width: 800px) {
+    .osrs-dashboard {
+        padding: 84px 14px 40px;
+    }
+
+    .osrs-summary {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .osrs-player-header,
+    .osrs-leaderboard-header,
+    .osrs-team-header {
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .osrs-competition-countdown {
+        grid-template-columns: 1fr;
+        gap: 7px;
+        text-align: center;
+    }
+
+    .osrs-countdown-deadline {
+        text-align: center;
+    }
+
+    .osrs-player-search,
+    .osrs-team-search {
+        width: 100%;
+        min-width: 0;
+        margin-top: 0;
+    }
+
+    .osrs-player-summary,
+    .osrs-leaderboard-summary,
+    .osrs-team-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .osrs-leaderboard-title {
+        font-size: 38px;
+    }
+
+    .osrs-wom-link {
+        align-self: stretch;
+        text-align: center;
+    }
+
+    .osrs-leaderboard-table {
+        max-height: 320px;
+    }
+
+    .osrs-team-heading,
+    .osrs-player-section-heading {
+        font-size: 25px;
+    }
+
+    .osrs-table th,
+    .osrs-table td,
+    .osrs-leaderboard-table th,
+    .osrs-leaderboard-table td {
+        padding: 11px 12px;
+    }
+
+    .osrs-clan-mvp-entry {
+        min-width: 190px;
+    }
+
+    .osrs-evidence-modal {
+        padding: 14px;
+    }
+}
+
+@media (max-width: 520px) {
+    .osrs-summary,
+    .osrs-player-summary,
+    .osrs-leaderboard-summary,
+    .osrs-team-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .osrs-page-title {
+        font-size: 40px;
+    }
+
+    .osrs-leaderboard-header {
+        padding: 18px 16px;
+    }
+
+    .osrs-leaderboard-title {
+        font-size: 34px;
+    }
+
+    .osrs-leaderboard-subtitle {
+        font-size: 16px;
+        line-height: 1.25;
+    }
+
+    .osrs-player-team-link {
+        font-size: 18px;
+    }
+
+    .osrs-player-search,
+    .osrs-team-search-controls {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .osrs-player-search input[type="text"],
+    .osrs-team-search select {
+        border-right: 2px solid var(--osrs-border-dark);
+        border-radius: 4px;
+    }
+
+    .osrs-player-search button,
+    .osrs-team-search button {
+        width: 100%;
+        border-radius: 4px;
+    }
+
+    .osrs-player-section-heading {
+        font-size: 23px;
+    }
+
+    .osrs-team-mvp-entry {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .osrs-team-mvp-points {
+        flex: none;
+    }
+
+    .osrs-scroll-table {
+        max-height: 260px;
+    }
+
+    .osrs-leaderboard-table {
+        max-height: 280px;
+    }
+
+    .osrs-leaderboard-table table {
+        min-width: 700px;
+        font-size: 16px;
+    }
+
+    .osrs-leaderboard-table th,
+    .osrs-leaderboard-table td {
+        padding: 10px;
+    }
+
+    .osrs-rank-cell {
+        width: 58px;
+        font-size: 20px;
+    }
+
+    .osrs-leaderboard-summary {
+        padding: 14px;
+    }
+
+    .osrs-clan-mvp-panel {
+        padding: 18px 14px;
+    }
+
+    .osrs-clan-mvp-heading {
+        font-size: 27px;
+    }
+
+    .osrs-clan-mvp-list {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .osrs-clan-mvp-entry {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .osrs-scroll-table--evidence {
+        max-height: 360px;
+    }
+
+    .osrs-evidence-modal {
+        padding: 8px;
+    }
+
+    .osrs-evidence-modal-header {
+        padding: 10px 12px;
+    }
+
+    .osrs-evidence-modal-title {
+        font-size: 24px;
+    }
+
+    .osrs-evidence-modal-body {
+        padding: 10px;
+    }
+}

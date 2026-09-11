@@ -13,6 +13,7 @@ from utils import (
 )
 
 from utils.autocomplete import player_names, team_names, tile_names, fuzzy_autocomplete
+from utils.branding import BOT_NAME
 
 from utils.wom import WiseOldManError, get_group_member
 
@@ -231,7 +232,7 @@ def _get_manual_evidence_error_message(
         )
 
     return (
-        "DanBot could not submit this evidence. "
+        f"{BOT_NAME} could not submit this evidence. "
         "Please check the current bingo progress and try again."
     )
 
@@ -709,6 +710,12 @@ class UserCog(commands.Cog):
         "submit",
         "Submit bingo evidence"
     )
+
+    link = discord.SlashCommandGroup(
+        "link",
+        f"Link your {BOT_NAME} accounts"
+    )
+
     def __init__(self, bot):
         self.bot = bot
     
@@ -916,6 +923,39 @@ class UserCog(commands.Cog):
             ephemeral=True
         )
 
+    @link.command(
+        name="dashboard",
+        description=f"Link your {BOT_NAME} dashboard account"
+    )
+    async def link_dashboard(
+        self,
+        ctx: discord.ApplicationContext,
+        code: discord.Option(
+            str,
+            f"The link code shown on your {BOT_NAME} dashboard"
+        )
+    ):
+        await ctx.defer(ephemeral=True)
+
+        try:
+            result = database.redeem_dashboard_link_code(
+                ctx.author.id,
+                code
+            )
+        except ValueError as error:
+            await ctx.respond(
+                str(error),
+                ephemeral=True
+            )
+            return
+
+        await ctx.respond(
+            f"Dashboard linking complete. "
+            f"**{result['username']}** is now linked to "
+            f"**{result['player_name']}**.",
+            ephemeral=True
+        )
+
     @discord.slash_command(
         name="register",
         description="Link your Discord account to your OSRS account"
@@ -930,9 +970,18 @@ class UserCog(commands.Cog):
         existing_link = database.get_player_by_discord_user_id(ctx.author.id)
         if existing_link is not None:
             player = db_entities.Player(existing_link)
+
+            database.link_player_to_discord(
+                player.player_id,
+                ctx.author.id,
+                ctx.author.display_name,
+                ctx.author.name
+            )
+
             await ctx.respond(
                 f"Your Discord account is already linked to "
-                f"**{player.player_name}**.",
+                f"**{player.player_name}**. Your Discord name details "
+                f"have been refreshed.",
                 ephemeral=True
             )
             return
@@ -1016,7 +1065,9 @@ class UserCog(commands.Cog):
 
         database.link_player_to_discord(
             player.player_id,
-            ctx.author.id
+            ctx.author.id,
+            ctx.author.display_name,
+            ctx.author.name
         )
 
         await ctx.respond(
@@ -1071,7 +1122,7 @@ class UserCog(commands.Cog):
         await ctx.respond(
             "Dink tracking is not currently enabled on this "
             "development server.\n\n"
-            "Once DanBot is publicly hosted, Bingo Organisers will "
+            f"Once {BOT_NAME} is publicly hosted, Bingo Organisers will "
             "provide the correct Dink import settings."
         )
 

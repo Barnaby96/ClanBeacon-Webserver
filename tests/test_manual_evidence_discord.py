@@ -14,6 +14,7 @@ from cogs.UserCog import (
 )
 
 from utils import database, manual_evidence_files
+from utils.branding import BOT_NAME
 
 
 class FakeContext:
@@ -1235,7 +1236,7 @@ def test_review_submission_preflight_failure_does_not_accept(
     edit = interaction.response.edits[0]
 
     assert edit["content"] == (
-        "DanBot could not safely determine whether "
+        f"{BOT_NAME} could not safely determine whether "
         "discretionary MVP is available. The "
         "submission has not been accepted."
     )

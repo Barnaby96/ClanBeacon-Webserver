@@ -1,4 +1,5 @@
 from utils import database, db_entities, wom
+from utils.branding import BOT_NAME
 
 
 def process_wom_competition():
@@ -69,7 +70,7 @@ def process_wom_competition():
                         "wom_player_id": wom_player_id,
                         "error": (
                             "WOM participant is not linked "
-                            "to a DanBot player."
+                            f"to a {BOT_NAME} player."
                         )
                     }
                 )

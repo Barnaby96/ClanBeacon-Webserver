@@ -2,6 +2,8 @@ import os
 
 import requests
 
+from utils.branding import get_wom_user_agent
+
 
 class WiseOldManError(Exception):
     """Raised when Wise Old Man data cannot be retrieved."""
@@ -9,10 +11,7 @@ class WiseOldManError(Exception):
 
 def _get_headers():
     headers = {
-        "User-Agent": os.getenv(
-            "WOM_USER_AGENT",
-            "DanBot Development"
-        )
+        "User-Agent": get_wom_user_agent()
     }
 
     api_key = os.getenv("WOM_KEY")

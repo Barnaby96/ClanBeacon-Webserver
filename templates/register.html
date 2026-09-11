@@ -2,15 +2,39 @@
 
 {% block content %}
 <div style="max-width: 600px; margin: 0 auto; background-color: #1e1e1e; padding: 20px; border-radius: 10px; box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);">
-    <h1 style="text-align: center; color: #fff;">Register</h1>
-    <form method="POST" style="display: flex; flex-direction: column; gap: 15px;">
-        <input type="text" name="username" placeholder="Username" required style="padding: 10px; border: 1px solid #444; border-radius: 5px; background-color: #333; color: #ccc;">
-        <input type="email" name="email" placeholder="Email" required style="padding: 10px; border: 1px solid #444; border-radius: 5px; background-color: #333; color: #ccc;">
-        <input type="password" name="password" placeholder="Password" required style="padding: 10px; border: 1px solid #444; border-radius: 5px; background-color: #333; color: #ccc;">
-        <button type="submit" style="padding: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">Register</button>
-    </form>
-    <p style="text-align: center; margin-top: 15px;">
-        <a href="{{ url_for('login') }}" style="color: #4CAF50;">Already have an account? Login here.</a>
+<h1 style="text-align: center; color: #fff;">Create {{ bot_name }} Account</h1>
+
+<form method="POST" style="display: flex; flex-direction: column; gap: 15px;">
+    <input
+        type="text"
+        name="username"
+        placeholder="Username"
+        autocomplete="username"
+        required
+        style="padding: 10px; border: 1px solid #444; border-radius: 5px; background-color: #333; color: #ccc;"
+    >
+
+    <input
+        type="password"
+        name="password"
+        placeholder="Password"
+        autocomplete="new-password"
+        required
+        style="padding: 10px; border: 1px solid #444; border-radius: 5px; background-color: #333; color: #ccc;"
+    >
+
+    <button
+        type="submit"
+        style="padding: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;"
+    >
+        Create Account
+    </button>
+</form>
+
+<p style="text-align: center; margin-top: 15px;">
+    <a href="{{ url_for('login') }}" style="color: #4CAF50;">
+        Already have an account? Log in here.
+    </a>
     </p>
 </div>
 {% endblock %}

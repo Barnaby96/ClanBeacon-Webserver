@@ -1,120 +1,122 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div style="max-width: 95%; margin: 0 auto;">
-    <h1>Players by Team</h1>
-    <form action="{{ url_for('player_management.create_player') }}" style="display:inline;">
-        <button type="submit">New Player</button>
-    </form>
-    <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            font-family: Arial, sans-serif;
-        }
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
 
-        th {
-            background-color: #333;
-            color: white;
-            position: sticky;
-            top: 0;
-            font-size: 16px;
-        }
+<div class="osrs-dashboard">
+    <main class="osrs-page">
+        <header class="osrs-page-header">
+            <h1 class="osrs-page-title">Manage Players</h1>
+            <p class="osrs-page-subtitle">
+                Bingo roster and Discord account links
+            </p>
+        </header>
 
-        th, td {
-            border: 1px solid #ddd;
-            padding: 15px;
-            text-align: left;
-        }
+        <section class="osrs-summary" aria-label="Roster summary">
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">Teams</span>
+                <span class="osrs-summary-value">{{ team_count }}</span>
+            </div>
 
-        tr:nth-child(even) {
-            background-color: #1E1E1E;
-        }
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">Players</span>
+                <span class="osrs-summary-value">{{ player_count }}</span>
+            </div>
+        </section>
 
-        tr:hover {
-            background-color: #444;
-        }
+        {% for team in teams %}
+            <section class="osrs-team-panel">
+                <h2 class="osrs-team-heading">
+                    {{ team.team_name }}
+                </h2>
 
-        .team-section {
-            margin-bottom: 40px;
-        }
+                {% if team.players %}
+                    <div class="osrs-table-wrap">
+                        <table class="osrs-table">
+                            <thead>
+                                <tr>
+                                    <th>Player</th>
+                                    <th>MVP Points</th>
+                                    <th>Tile Contributions</th>
+                                    <th>Linked Discord</th>
+                                    <th>View</th>
+                                </tr>
+                            </thead>
 
-        .team-section h2 {
-            margin-bottom: 10px;
-            color: #fff;
-        }
+                            <tbody>
+                                {% for player in team.players %}
+                                    <tr>
+                                        <td>
+                                            <span class="osrs-player-name">
+                                                {{ player.player_name }}
+                                            </span>
+                                        </td>
 
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-        }
+                                        <td>
+                                            <span class="osrs-number">
+                                                {{ '%g' | format(player.mvp_points) }}
+                                            </span>
+                                        </td>
 
-        .action-buttons form {
-            display: inline;
-        }
+                                        <td>
+                                            <span class="osrs-number">
+                                                {{ '%.2f' | format(player.tile_contributions) }}
+                                            </span>
+                                        </td>
 
-        .action-buttons button {
-            padding: 5px 10px;
-            cursor: pointer;
-            border: none;
-            color: white;
-            background-color: #4CAF50;
-            border-radius: 3px;
-        }
+                                        <td>
+                                            {% if player.discord_user_id %}
+                                                {% if player.discord_display_name
+                                                      or player.discord_username %}
+                                                    {% if player.discord_display_name %}
+                                                        <span class="osrs-discord-name">
+                                                            {{ player.discord_display_name }}
+                                                        </span>
+                                                    {% endif %}
 
-        .action-buttons button:hover {
-            background-color: limegreen;
-        }
+                                                    {% if player.discord_username %}
+                                                        <span class="osrs-discord-username">
+                                                            (@{{ player.discord_username }})
+                                                        </span>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <span class="osrs-status-pending">
+                                                        Linked — name not yet available
+                                                    </span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="osrs-status-unlinked">
+                                                    Not linked
+                                                </span>
+                                            {% endif %}
+                                        </td>
 
-        .action-buttons .delete-button {
-            background-color: darkred;
-        }
-
-        .action-buttons .delete-button:hover {
-            background-color: red;
-        }
-    </style>
-
-    {% for team_name, players in players_by_team.items() %}
-    <div class="team-section">
-        <h2>{{ team_name }}</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Player ID</th>
-                    <th>Name</th>
-                    <th>Deaths</th>
-                    <th>GP Gained</th>
-                    <th>Tiles Completed</th>
-                    <th>Pet Count</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for player in players %}
-                <tr>
-                    <td>{{ player[0] }}</td>
-                    <td>{{ player[1] }}</td>
-                    <td>{{ player[2] }}</td>
-                    <td>{{ player[3] }}</td>
-                    <td>{{ player[4] }}</td>
-                    <td>{{ player[5] }}</td>
-                    <td>
-                        <div class="action-buttons">
-                            <form action="{{ url_for('player_management.edit_player', player_id=player[0]) }}" method="GET">
-                                <button type="submit">Edit</button>
-                            </form>
-                            <form action="{{ url_for('player_management.delete_player', player_id=player[0]) }}" method="POST">
-                                <button type="submit" class="delete-button" onclick="return confirm('Are you sure you want to delete this player?');">Delete</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% endfor %}
+                                        <td>
+                                            <a
+                                                class="osrs-button"
+                                                href="{{ url_for(
+                                                    'user_routes.player',
+                                                    player_name=player.player_name
+                                                ) }}"
+                                            >
+                                                View
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="osrs-empty-team">
+                        No players assigned
+                    </p>
+                {% endif %}
+            </section>
+        {% endfor %}
+    </main>
 </div>
 {% endblock %}

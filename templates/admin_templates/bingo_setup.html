@@ -72,7 +72,7 @@
 
             <p style="color: #ccc;">
                 These players are already assigned to different
-                DanBot teams:
+                {{ bot_name }} teams:
             </p>
 
             <ul style="color: #ccc;">
@@ -80,7 +80,7 @@
                     <li>
                         <strong>{{ conflict.player_name }}</strong>:
                         WOM = {{ conflict.wom_team }},
-                        DanBot = {{ conflict.danbot_team }}
+                        {{ bot_name }} = {{ conflict.danbot_team }}
                     </li>
                 {% endfor %}
             </ul>

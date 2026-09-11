@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block content %}
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
+
+<div class="osrs-dashboard">
+    <div style="max-width: 900px; margin: 0 auto;">
+        <h1>My Account</h1>
+        {% if request.args.get('link_required') == '1' %}
+        <div style="
+            background: rgba(92, 24, 24, 0.96);
+            border: 2px solid #b35a4a;
+            padding: 16px 18px;
+            margin: 0 0 24px 0;
+            color: #ffd8d2;
+        ">
+            <strong>RuneScape account link required</strong>
+
+            <p style="margin: 8px 0 0 0;">
+                Link your RuneScape account before viewing Player Data.
+            </p>
+        </div>
+        {% endif %}
+
+        <div style="
+            background: rgba(26, 22, 17, 0.96);
+            border: 2px solid #765c32;
+            padding: 22px;
+            margin-bottom: 24px;
+        ">
+            <h2>Account Details</h2>
+
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <th style="text-align: left; padding: 8px;">
+                        Username
+                    </th>
+                    <td style="padding: 8px;">
+                        {{ current_user.username }}
+                    </td>
+                </tr>
+
+                <tr>
+                    <th style="text-align: left; padding: 8px;">
+                        Account Type
+                    </th>
+                    <td style="padding: 8px;">
+                        {{ current_user.account_role.title() }}
+                    </td>
+                </tr>
+
+                <tr>
+                    <th style="text-align: left; padding: 8px;">
+                        RuneScape Account
+                    </th>
+                    <td style="padding: 8px;">
+                        {% if player %}
+                            {{ player.player_name }}
+                        {% else %}
+                            Not linked
+                        {% endif %}
+                    </td>
+                </tr>
+
+                <tr>
+                    <th style="text-align: left; padding: 8px;">
+                        Team
+                    </th>
+                    <td style="padding: 8px;">
+                        {% if team %}
+                            {{ team.team_name }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="
+            background: rgba(26, 22, 17, 0.96);
+            border: 2px solid #765c32;
+            padding: 22px;
+            margin-bottom: 24px;
+        ">
+            <h2>Discord &amp; RuneScape Link</h2>
+
+            {% if player %}
+                <p>
+                    Your {{ bot_name }} account is linked to
+                    <strong>{{ player.player_name }}</strong>
+                    {% if team %}
+                        on <strong>{{ team.team_name }}</strong>
+                    {% endif %}.
+                </p>
+            {% else %}
+                {% if current_user.is_admin %}
+                    <p>
+                        Linking a RuneScape account is optional for
+                        Admin and Organiser accounts.
+                    </p>
+                {% endif %}
+
+                <p>
+                    To link this {{ bot_name }} account:
+                </p>
+
+                <ol>
+                    <li>
+                        In the <strong>{{ discord_server_name }}</strong>
+                        Discord, use <code>/register</code> to link your
+                        Discord account to your RuneScape account.
+                    </li>
+                    <li>
+                        Generate a temporary dashboard link code below.
+                    </li>
+                    <li>
+                        Use that code with
+                        <code>/link dashboard</code> in Discord.
+                    </li>
+                </ol>
+
+                {% if link_code %}
+                    <div style="
+                        border: 1px solid #a5844a;
+                        padding: 18px;
+                        margin: 20px 0;
+                    ">
+                        <p style="margin-top: 0;">
+                            <strong>Your link code</strong>
+                        </p>
+
+                        <div style="
+                            display: flex;
+                            gap: 10px;
+                            align-items: center;
+                            flex-wrap: wrap;
+                            margin-bottom: 16px;
+                        ">
+                            <code
+                                id="dashboard-link-code"
+                                style="font-size: 1.25rem;"
+                            >{{ link_code }}</code>
+
+                            <button
+                                type="button"
+                                onclick="copyLinkCode(this)"
+                            >
+                                Copy Code
+                            </button>
+                        </div>
+
+                        <p>
+                            <strong>Discord command</strong>
+                        </p>
+
+                        <div style="
+                            display: flex;
+                            gap: 10px;
+                            align-items: center;
+                            flex-wrap: wrap;
+                        ">
+                            <code
+                                id="dashboard-link-command"
+                            >/link dashboard code:{{ link_code }}</code>
+
+                            <button
+                                type="button"
+                                onclick="copyLinkCommand(this)"
+                            >
+                                Copy Discord Command
+                            </button>
+                        </div>
+
+                        <p style="margin-bottom: 0; margin-top: 18px;">
+                            This code expires in 10 minutes.
+                            Generating another code invalidates this one.
+                        </p>
+                    </div>
+                {% endif %}
+
+                <form method="POST">
+                    <input
+                        type="hidden"
+                        name="action"
+                        value="generate_link_code"
+                    >
+
+                    <button type="submit">
+                        {% if link_code %}
+                            Generate New Link Code
+                        {% else %}
+                            Generate Link Code
+                        {% endif %}
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+
+        <div style="
+            background: rgba(26, 22, 17, 0.96);
+            border: 2px solid #765c32;
+            padding: 22px;
+        ">
+            <h2>Password</h2>
+
+                <p>
+                    Change the password you use to sign in to {{ bot_name }}.
+                </p>
+
+                <form method="POST">
+                    <input
+                        type="hidden"
+                        name="action"
+                        value="change_password"
+                    >
+
+                    <div style="margin-bottom: 14px;">
+                        <label for="current_password">
+                            Current Password
+                        </label>
+
+                        <input
+                            id="current_password"
+                            type="password"
+                            name="current_password"
+                            autocomplete="current-password"
+                            required
+                            style="
+                                display: block;
+                                width: 100%;
+                                box-sizing: border-box;
+                                margin-top: 6px;
+                                padding: 10px;
+                                background: #211d17;
+                                border: 1px solid #765c32;
+                                color: #fff;
+                            "
+                        >
+                    </div>
+
+                    <div style="margin-bottom: 14px;">
+                        <label for="new_password">
+                            New Password
+                        </label>
+
+                        <input
+                            id="new_password"
+                            type="password"
+                            name="new_password"
+                            autocomplete="new-password"
+                            required
+                            style="
+                                display: block;
+                                width: 100%;
+                                box-sizing: border-box;
+                                margin-top: 6px;
+                                padding: 10px;
+                                background: #211d17;
+                                border: 1px solid #765c32;
+                                color: #fff;
+                            "
+                        >
+                    </div>
+
+                    <div style="margin-bottom: 18px;">
+                        <label for="confirm_password">
+                            Confirm New Password
+                        </label>
+
+                        <input
+                            id="confirm_password"
+                            type="password"
+                            name="confirm_password"
+                            autocomplete="new-password"
+                            required
+                            style="
+                                display: block;
+                                width: 100%;
+                                box-sizing: border-box;
+                                margin-top: 6px;
+                                padding: 10px;
+                                background: #211d17;
+                                border: 1px solid #765c32;
+                                color: #fff;
+                            "
+                        >
+                    </div>
+
+                    <button type="submit">
+                        Change Password
+                    </button>
+                </form>
+        </div>
+    </div>
+</div>
+
+<script>
+async function copyText(text, button) {
+    try {
+        await navigator.clipboard.writeText(text);
+
+        const originalText = button.textContent;
+        button.textContent = "Copied!";
+
+        setTimeout(() => {
+            button.textContent = originalText;
+        }, 1500);
+    } catch (error) {
+        alert(
+            {{ bot_name|tojson }} +
+            " could not copy that automatically. " +
+            "Please copy it manually."
+        );
+    }
+}
+
+function copyLinkCode(button) {
+    const code = document
+        .getElementById("dashboard-link-code")
+        .textContent
+        .trim();
+
+    copyText(code, button);
+}
+
+function copyLinkCommand(button) {
+    const command = document
+        .getElementById("dashboard-link-command")
+        .textContent
+        .trim();
+
+    copyText(command, button);
+}
+</script>
+{% endblock %}

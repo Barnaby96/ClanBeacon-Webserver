@@ -1,248 +1,538 @@
 {% extends "base.html" %}
+
 {% block content %}
-<title>{{ player.player_name }}</title>
-    <style>
-        .main-content {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-        }
+<title>{{ player.player_name }} - Player Data</title>
 
-        .left-column, .right-column {
-            width: 48%; /* Make the columns roughly half the width */
-            display: flex;
-            flex-direction: column;
-        }
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
 
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            font-family: Arial, sans-serif; /* Use a readable font */
-            border-radius: 8px; /* Beveled edges for the table */
-            overflow: hidden; /* Ensure the border-radius affects the table */
-            margin-bottom: 20px; /* Add space between tables */
-            border: 1px solid #ddd; /* Apply border around the table */
-        }
+<div class="osrs-dashboard">
+    <main class="osrs-page">
+        <header class="osrs-player-header">
+            <div class="osrs-player-identity">
+                <p class="osrs-page-subtitle">
+                    Player Data
+                </p>
 
-        th {
-            background-color: #333; /* Darker background for navbar */
-            color: white;
-            font-size: 16px; /* Larger font size for header */
-        }
+                <h1 class="osrs-page-title">
+                    {{ player.player_name }}
+                </h1>
 
-        th, td {
-            border: 1px solid #ddd;
-            padding: 15px;
-            text-align: left;
-        }
+                <a
+                    class="osrs-player-team-link"
+                    href="/user/team/{{ team.team_name }}"
+                >
+                    {{ team.team_name }} →
+                </a>
+            </div>
 
-        /* Ensure border-radius is applied on table corners */
-        th:first-child {
-            border-top-left-radius: 8px;
-        }
-        th:last-child {
-            border-top-right-radius: 8px;
-        }
+            {% if current_user.is_admin %}
+                <form
+                    id="player-search-form"
+                    class="osrs-player-search"
+                >
+                    <datalist id="player-names">
+                        {% for playername in playernames %}
+                            <option value="{{ playername }}">
+                        {% endfor %}
+                    </datalist>
 
-        /* Apply bottom-left and bottom-right radius to the last row */
-        tr:last-child td:first-child {
-            border-bottom-left-radius: 8px;
-        }
-        tr:last-child td:last-child {
-            border-bottom-right-radius: 8px;
-        }
+                    <input
+                        type="text"
+                        id="player-searchbox"
+                        placeholder="Search players..."
+                        list="player-names"
+                        autocomplete="off"
+                        aria-label="Search players"
+                    >
 
-        tr:nth-child(even) {
-            background-color: #1E1E1E;
-        }
+                    <button type="submit">
+                        Search
+                    </button>
+                </form>
+            {% endif %}
+        </header>
 
-        tr:hover {
-            background-color: #444; /* Slightly darker hover effect */
-        }
+        <section
+            class="osrs-player-summary"
+            aria-label="Player bingo summary"
+        >
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">
+                    MVP Points
+                </span>
 
-        tr {
-            margin-bottom: 5px;
-        }
+                <span class="osrs-summary-value">
+                    {{ '%g' | format(player.player_points) }}
+                </span>
+            </div>
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-        }
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">
+                    Relevant Drops
+                </span>
 
-        .search-bar {
-            display: flex;
-        }
+                <span class="osrs-summary-value">
+                    {{ '{:,}'.format(
+                        relevant_drop_summary.total_quantity
+                    ) }}
+                </span>
+            </div>
 
-        .search-bar input[type="text"] {
-            border: none;
-            padding: 10px;
-            color: #000;
-            background-color: #fff;
-        }
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">
+                    Relevant Boss Kills
+                </span>
 
-        .search-bar input[type="submit"] {
-            border: none;
-            padding: 10px;
-            color: #fff;
-            background-color: #444;
-            cursor: pointer;
-        }
+                <span class="osrs-summary-value">
+                    {{ '{:,}'.format(
+                        relevant_boss_kc_summary.total_kc
+                    ) }}
+                </span>
+            </div>
 
-        a {
-            color: white;
-        }
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">
+                    Relevant XP Gained
+                </span>
 
-        /* Ensure buttons are displayed inline */
-        .action-buttons {
-            display: flex;
-            gap: 10px; /* Add space between buttons */
-        }
+                <span class="osrs-summary-value">
+                    {{ '{:,}'.format(
+                        relevant_xp_summary.total_xp
+                    ) }}
+                </span>
+            </div>
 
-        .action-buttons form {
-            display: inline;
-        }
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">
+                    Tile Contribution
+                </span>
 
-        .action-buttons button {
-            padding: 5px 10px;
-            background-color: #6c757d;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 12px;
-        }
+                <span class="osrs-summary-value">
+                    {{ '%.2f' | format(player.tiles_completed) }}
+                </span>
+            </div>
+        </section>
 
-        /* Hover state for edit button */
-        .action-buttons button:hover {
-            background-color: limegreen;
-        }
+        <section class="osrs-player-section">
+            <h2 class="osrs-player-section-heading">
+                Relevant Drops
+            </h2>
 
-        /* Hover state for delete button */
-        .delete-button:hover {
-            background-color: red !important;
-        }
-    </style>
+            {% if relevant_drop_summary.drops %}
+                <div class="osrs-scroll-table">
+                    <table class="osrs-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Quantity</th>
+                            </tr>
+                        </thead>
 
-    <script>
-        function submitForm(event) {
-            event.preventDefault();
-            var player = document.getElementById('searchbox').value;
-            window.location.href = '/user/player/' + player;
-        }
-    </script>
-</head>
-<body>
-    <div class="header">
-        <h1><a href="/user/team/{{ team.team_name }}">{{team.team_name}}</a></h1>
-        <form onsubmit="submitForm(event)" class="search-bar">
-            <datalist id="player-names">
-                {% for playername in playernames %}
-                <option value="{{playername}}">
-                {% endfor %}
-            </datalist>
-            <input type="text" id="searchbox" name="searchboxcontent" placeholder="Search..." list="player-names" autocomplete="off">
-            <input type="submit" value="Search">
-        </form>
-    </div>
-    <div class="header" style="justify-content: center;">
-        <h1>{{player.player_name}}</h1>
-    </div>
+                        <tbody>
+                            {% for drop in relevant_drop_summary.drops %}
+                                <tr>
+                                    <td>
+                                        <span class="osrs-player-name">
+                                            {{ drop.drop_name }}
+                                        </span>
+                                    </td>
 
-    {% if current_user.is_authenticated and current_user.is_admin %}
-    <div class="action-buttons" style="margin-left: 20px;">
-        <form action="/player/edit/{{ player.player_id }}" method="GET">
-            <button>Edit Player</button>
-        </form>
-        <form action="/player/delete/{{ player.player_id }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this player?');">
-            <button class="delete-button">Delete Player</button>
-        </form>
-    </div>
-    {% endif %}
+                                    <td>
+                                        <span class="osrs-number">
+                                            {{ '{:,}'.format(
+                                                drop.quantity
+                                            ) }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="osrs-empty-state">
+                    No relevant drops recorded for this player yet.
+                </p>
+            {% endif %}
+        </section>
 
-    <div class="main-content">
-        <!-- Left Column: Player Stats and Killcounts -->
-        <div class="left-column">
-            <h2>Player Stats</h2>
-            <table>
-                <tr>
-                    <th>Tiles Completed</th>
-                    <th>Gold Gained</th>
-                    <th>Pets Gained</th>
-                    <th>Total Deaths</th>
-                </tr>
-                <tr>
-                    <td>{{ player.tiles_completed }}{% if partial_completions > 0 %} ({{ partial_completions }}){% endif %}</td>
-                    <td>{{player.gp_gained}}</td>
-                    <td>{{player.pet_count}} pets</td>
-                    <td>{{player.deaths}}</td>
-                </tr>
-            </table>
+        <section class="osrs-player-section">
+            <h2 class="osrs-player-section-heading">
+                Relevant Boss KC
+            </h2>
 
-            <h2>Killcount</h2>
-            <table>
-                <tr>
-                    <th>Boss Name</th>
-                    <th>Kill Count</th>
-                </tr>
-                {% for kills in killcount %}
-                <tr>
-                    <td>{{ kills.boss_name }}</td>
-                    <td>{{ kills.kills }}</td>
-                </tr>
-                {% endfor %}
-            </table>
+            {% if relevant_boss_kc_summary.bosses %}
+                <div class="osrs-scroll-table">
+                    <table class="osrs-table">
+                        <thead>
+                            <tr>
+                                <th>Boss</th>
+                                <th>KC Gained</th>
+                                <th>Related Tile(s)</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for boss in relevant_boss_kc_summary.bosses %}
+                                <tr>
+                                    <td>
+                                        <span class="osrs-player-name">
+                                            {{
+                                                boss.metric
+                                                | replace('_', ' ')
+                                                | title
+                                            }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <span class="osrs-number">
+                                            {{ '{:,}'.format(
+                                                boss.kc_gained
+                                            ) }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <div class="osrs-related-tiles">
+                                            {% for tile_name in boss.related_tiles %}
+                                                <span class="osrs-related-tile">
+                                                    {{ tile_name }}
+                                                </span>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="osrs-empty-state">
+                    No relevant boss KC gained during the current bingo.
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="osrs-player-section">
+            <h2 class="osrs-player-section-heading">
+                Relevant XP Gained
+            </h2>
+
+            {% if relevant_xp_summary.skills %}
+                <div class="osrs-scroll-table">
+                    <table class="osrs-table">
+                        <thead>
+                            <tr>
+                                <th>Skill</th>
+                                <th>XP Gained</th>
+                                <th>Related Tile(s)</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for skill in relevant_xp_summary.skills %}
+                                <tr>
+                                    <td>
+                                        <span class="osrs-player-name">
+                                            {{
+                                                skill.metric
+                                                | replace('_', ' ')
+                                                | title
+                                            }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <span class="osrs-number">
+                                            {{ '{:,}'.format(
+                                                skill.xp_gained
+                                            ) }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <div class="osrs-related-tiles">
+                                            {% for tile_name in skill.related_tiles %}
+                                                <span class="osrs-related-tile">
+                                                    {{ tile_name }}
+                                                </span>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="osrs-empty-state">
+                    No relevant XP gained during the current bingo.
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="osrs-player-section">
+            <h2 class="osrs-player-section-heading">
+                Bingo Evidence
+            </h2>
+
+            {% if bingo_evidence %}
+                <div
+                    class="
+                        osrs-scroll-table
+                        osrs-scroll-table--evidence
+                    "
+                >
+                    <table class="osrs-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Tile</th>
+                                <th>Contribution</th>
+                                <th>Source</th>
+                                <th>Evidence</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for evidence in bingo_evidence %}
+                                <tr>
+                                    <td>
+                                        {{
+                                            evidence.date.strftime(
+                                                '%d/%m/%y %H:%M'
+                                            )
+                                        }}
+                                    </td>
+
+                                    <td>
+                                        <span class="osrs-player-name">
+                                            {{ evidence.tile_name }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        {% if evidence.contribution is none %}
+                                            —
+                                        {% else %}
+                                            <span class="osrs-number">
+                                                {{
+                                                    '%.2f'
+                                                    | format(
+                                                        evidence.contribution
+                                                    )
+                                                }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+
+                                    <td>
+                                        <span class="osrs-evidence-source">
+                                            {{ evidence.source }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <button
+                                            type="button"
+                                            class="
+                                                osrs-button
+                                                osrs-evidence-button
+                                            "
+                                            data-evidence-url="{{
+                                                url_for(
+                                                    'user_routes.player_evidence',
+                                                    evidence_type=evidence.evidence_type,
+                                                    evidence_id=evidence.evidence_id
+                                                )
+                                            }}"
+                                            data-evidence-title="{{
+                                                evidence.tile_name
+                                            }}"
+                                        >
+                                            View
+                                        </button>
+                                    </td>
+
+                                    <td class="osrs-evidence-status">
+                                        {{ evidence.status }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="osrs-empty-state">
+                    No screenshot-backed bingo evidence recorded
+                    for this player yet.
+                </p>
+            {% endif %}
+        </section>
+    </main>
+</div>
+
+<div
+    id="evidence-modal"
+    class="osrs-evidence-modal"
+    aria-hidden="true"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="evidence-modal-title"
+>
+    <div
+        class="osrs-evidence-modal-panel"
+        role="document"
+    >
+        <div class="osrs-evidence-modal-header">
+            <h2
+                id="evidence-modal-title"
+                class="osrs-evidence-modal-title"
+            >
+                Bingo Evidence
+            </h2>
+
+            <button
+                type="button"
+                id="evidence-modal-close"
+                class="osrs-evidence-modal-close"
+                aria-label="Close evidence"
+            >
+                ×
+            </button>
         </div>
 
-        <!-- Right Column: Relevant Drops and All Drops -->
-        <div class="right-column">
-            <h2>Relevant Drops</h2>
-            <table>
-                <tr>
-                    <th>Tile Name</th>
-                    <th>Drop Name</th>
-                    {% if current_user.is_authenticated and current_user.is_admin %}
-                    <th>Actions</th>
-                    {% endif %}
-                </tr>
-                {% for relevant_drop in relevant_drops %}
-                <tr>
-                    <td>{{ relevant_drop.tile_name }}</td>
-                    <td>{{ relevant_drop.drop_name }}</td>
-                    {% if current_user.is_authenticated and current_user.is_admin %}
-                    <td>
-                        <div class="action-buttons">
-                            <form action="/relevant_drop/edit/{{ relevant_drop.relevant_drops_pk }}" method="GET">
-                                <button>Edit</button>
-                            </form>
-                            <form action="/relevant_drop/delete/{{ relevant_drop.relevant_drops_pk}}" method="POST" onsubmit="return confirm('Are you sure you want to delete this drop?');">
-                                <button class="delete-button">Delete</button>
-                            </form>
-                        </div>
-                    </td>
-                    {% endif %}
-                </tr>
-                {% endfor %}
-            </table>
-
-            <h2>Drops</h2>
-            <table>
-                <tr>
-                    <th>Item Name</th>
-                    <th>Quantity</th>
-                    <th>Gold Gained</th>
-                </tr>
-                {% for drop in drops %}
-                <tr>
-                    <td>{{ drop[0] }}</td>
-                    <td>{{ drop[1] }}</td>
-                    <td>{{ drop[2] }}</td>
-                </tr>
-                {% endfor %}
-            </table>
+        <div class="osrs-evidence-modal-body">
+            <img
+                id="evidence-modal-image"
+                class="osrs-evidence-modal-image"
+                src=""
+                alt=""
+            >
         </div>
     </div>
-</body>
+</div>
+
+<script>
+    const playerSearchForm = document.getElementById(
+        "player-search-form"
+    );
+
+    if (playerSearchForm) {
+        playerSearchForm.addEventListener(
+            "submit",
+            function (event) {
+                event.preventDefault();
+
+                const searchBox = document.getElementById(
+                    "player-searchbox"
+                );
+
+                const playerName = searchBox.value.trim();
+
+                if (!playerName) {
+                    return;
+                }
+
+                window.location.href =
+                    "/user/player/"
+                    + encodeURIComponent(playerName);
+            }
+        );
+    }
+
+    const evidenceModal = document.getElementById(
+        "evidence-modal"
+    );
+
+    const evidenceModalImage = document.getElementById(
+        "evidence-modal-image"
+    );
+
+    const evidenceModalTitle = document.getElementById(
+        "evidence-modal-title"
+    );
+
+    const evidenceModalClose = document.getElementById(
+        "evidence-modal-close"
+    );
+
+    function openEvidenceModal(button) {
+        const evidenceUrl = button.dataset.evidenceUrl;
+        const evidenceTitle = button.dataset.evidenceTitle;
+
+        evidenceModalImage.src = evidenceUrl;
+        evidenceModalImage.alt =
+            "Bingo evidence for " + evidenceTitle;
+
+        evidenceModalTitle.textContent =
+            evidenceTitle + " — Evidence";
+
+        evidenceModal.classList.add("is-open");
+        evidenceModal.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+
+        evidenceModalClose.focus();
+    }
+
+    function closeEvidenceModal() {
+        evidenceModal.classList.remove("is-open");
+        evidenceModal.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+        evidenceModalImage.src = "";
+        evidenceModalImage.alt = "";
+        evidenceModalTitle.textContent = "Bingo Evidence";
+    }
+
+    document.querySelectorAll(
+        ".osrs-evidence-button"
+    ).forEach(
+        function (button) {
+            button.addEventListener(
+                "click",
+                function () {
+                    openEvidenceModal(button);
+                }
+            );
+        }
+    );
+
+    evidenceModalClose.addEventListener(
+        "click",
+        closeEvidenceModal
+    );
+
+    evidenceModal.addEventListener(
+        "click",
+        function (event) {
+            if (event.target === evidenceModal) {
+                closeEvidenceModal();
+            }
+        }
+    );
+
+    document.addEventListener(
+        "keydown",
+        function (event) {
+            if (
+                event.key === "Escape"
+                && evidenceModal.classList.contains(
+                    "is-open"
+                )
+            ) {
+                closeEvidenceModal();
+            }
+        }
+    );
+</script>
 {% endblock %}

@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import timezone
 from pathlib import Path
 
 import pytest
@@ -42,7 +43,6 @@ def client():
 def create_admin_user():
     database.add_user(
         "Bingo Setup Admin",
-        "bingo-setup-admin@example.test",
         "test-password"
     )
 
@@ -52,10 +52,11 @@ def create_admin_user():
         cursor.execute(
             '''
             UPDATE users
-            SET is_admin = TRUE
-            WHERE email = %s
+            SET account_role = 'ORGANISER'
+            WHERE LOWER(BTRIM(username))
+                = LOWER(BTRIM(%s))
             ''',
-            ("bingo-setup-admin@example.test",)
+            ("Bingo Setup Admin",)
         )
 
 
@@ -63,7 +64,7 @@ def login_admin(client):
     response = client.post(
         "/login",
         data={
-            "email": "bingo-setup-admin@example.test",
+            "username": "Bingo Setup Admin",
             "password": "test-password"
         }
     )
@@ -76,6 +77,8 @@ def mock_wom_competition():
         "id": 123456,
         "title": "Test Bingo Competition",
         "type": "team",
+        "startsAt": "2026-09-05T16:00:00.000Z",
+        "endsAt": "2026-09-12T16:00:00.000Z",
         "participations": [
             {
                 "teamName": "Test Team",
@@ -135,11 +138,17 @@ def test_bingo_config_fields_do_not_overwrite_each_other():
     assert database.get_wom_competition_id() == 123456
 
 
-def test_wom_import_saves_evidence_codeword():
+def test_wom_import_saves_config_and_competition_timing():
     result = database.import_wom_competition(
         123456,
         {},
-        "  Blackout Sky  "
+        "  Blackout Sky  ",
+        competition_starts_at=(
+            "2026-09-05T16:00:00.000Z"
+        ),
+        competition_ends_at=(
+            "2026-09-12T16:00:00.000Z"
+        )
     )
 
     assert result["imported"] is True
@@ -147,6 +156,66 @@ def test_wom_import_saves_evidence_codeword():
     assert database.get_evidence_codeword() == (
         "Blackout Sky"
     )
+
+    timing = database.get_wom_competition_timing()
+
+    assert timing["starts_at"].astimezone(
+        timezone.utc
+    ).isoformat() == (
+        "2026-09-05T16:00:00+00:00"
+    )
+    assert timing["ends_at"].astimezone(
+        timezone.utc
+    ).isoformat() == (
+        "2026-09-12T16:00:00+00:00"
+    )
+
+
+@pytest.mark.parametrize(
+    "new_competition_id",
+    [123456, 654321, None]
+)
+def test_setting_competition_id_handles_existing_timing(
+    new_competition_id
+):
+    database.import_wom_competition(
+        123456,
+        {},
+        "Timing Test",
+        competition_starts_at="2026-09-05T16:00:00.000Z",
+        competition_ends_at="2026-09-12T16:00:00.000Z"
+    )
+
+    original_timing = database.get_wom_competition_timing()
+    assert original_timing is not None
+
+    database.set_wom_competition_id(
+        new_competition_id
+    )
+
+    assert database.get_wom_competition_id() == (
+        new_competition_id
+    )
+    assert database.get_evidence_codeword() == "Timing Test"
+
+    if new_competition_id == 123456:
+        assert database.get_wom_competition_timing() == (
+            original_timing
+        )
+    else:
+        with database.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT wom_competition_starts_at,
+                       wom_competition_ends_at
+                FROM bingo_config
+                WHERE config_id = 1
+                """
+            )
+            assert cursor.fetchone() == (None, None)
+
+        assert database.get_wom_competition_timing() is None
 
 
 def test_wom_import_refuses_blank_evidence_codeword():
@@ -245,6 +314,19 @@ def test_bingo_setup_import_saves_codeword(
 
     assert database.get_evidence_codeword() == (
         "Blackout Sky"
+    )
+
+    timing = database.get_wom_competition_timing()
+
+    assert timing["starts_at"].astimezone(
+        timezone.utc
+    ).isoformat() == (
+        "2026-09-05T16:00:00+00:00"
+    )
+    assert timing["ends_at"].astimezone(
+        timezone.utc
+    ).isoformat() == (
+        "2026-09-12T16:00:00+00:00"
     )
 
     assert database.get_team_by_name(
