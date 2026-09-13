@@ -6,6 +6,7 @@ from discord.ext import commands
 
 from utils import (
     bingo,
+    board_renderer,
     database,
     db_entities,
     manual_evidence_files,
@@ -1588,22 +1589,15 @@ class UserCog(commands.Cog):
 
     @discord.slash_command(
         name="board",
-        description="View your team's bingo board"
+        description="View the current bingo board"
     )
     async def board(
         self,
         ctx: discord.ApplicationContext,
-        board_type: discord.Option(
-            str,
-            "Which version of the board would you like?",
-            autocomplete=discord.utils.basic_autocomplete(
-                [
-                    "All Tiles",
-                    "Completed Tiles",
-                    "Incomplete Tiles",
-                    "Partial Tiles"
-                ]
-            )
+        clean_board: discord.Option(
+            bool,
+            "Show the clean bingo board with no team progress",
+            default=False
         ),
         team_name: discord.Option(
             str,
@@ -1615,24 +1609,32 @@ class UserCog(commands.Cog):
             default=None
         )
     ):
-
         await ctx.defer()
 
+        is_organiser = _is_bingo_organiser(
+            ctx.author
+        )
+
+        linked_team = None
         player_data = database.get_player_by_discord_user_id(
             ctx.author.id
         )
 
-        organiser_role_id = os.getenv(
-            "BINGO_ORGANISER_ROLE_ID"
-        )
-
-        is_organiser = (
-            organiser_role_id is not None
-            and any(
-                str(role.id) == organiser_role_id
-                for role in ctx.author.roles
+        if player_data is not None:
+            player = db_entities.Player(player_data)
+            team_data = database.get_team_by_id(
+                player.team_id
             )
-        )
+
+            if team_data is not None:
+                linked_team = db_entities.Team(team_data)
+
+        if clean_board and team_name is not None:
+            await ctx.respond(
+                "Choose either a clean board or a team board, "
+                "not both."
+            )
+            return
 
         if team_name is not None:
             if not is_organiser:
@@ -1642,7 +1644,9 @@ class UserCog(commands.Cog):
                 )
                 return
 
-            team_data = database.get_team_by_name(team_name)
+            team_data = database.get_team_by_name(
+                team_name
+            )
 
             if team_data is None:
                 await ctx.respond(
@@ -1652,154 +1656,70 @@ class UserCog(commands.Cog):
 
             team = db_entities.Team(team_data)
 
+        elif clean_board:
+            team = None
+
+        elif linked_team is not None:
+            team = linked_team
+
         else:
-            matched_teams = []
+            team = None
 
-            for role in ctx.author.roles:
-                team_data = (
-                    database.get_team_by_discord_role_id(
-                        role.id
-                    )
-                )
+        tile_names_by_coordinate = {}
+        completed_coordinates = set()
+        partial_coordinates = set()
 
-                if team_data is not None:
-                    matched_teams.append(
-                        db_entities.Team(team_data)
-                    )
-
-            if len(matched_teams) == 0:
-                if is_organiser:
-                    await ctx.respond(
-                        "You do not have a bingo team role. "
-                        "Choose a team using the optional "
-                        "`team_name` field."
-                    )
-                else:
-                    await ctx.respond(
-                        "You do not have a recognised bingo "
-                        "team role."
-                    )
-                return
-
-            if len(matched_teams) > 1:
-                await ctx.respond(
-                    "You have more than one bingo team role. "
-                    "Please ask an administrator to correct this."
-                )
-                return
-
-            team = matched_teams[0]
-        tiles = database.get_tiles()
-        completed_tiles = database.get_completed_tiles()
-
-        completion_counts = defaultdict(int)
-
-        for completed_tile_data in completed_tiles:
-            completed_tile = db_entities.CompletedTile(
-                completed_tile_data
-            )
-
-            if completed_tile.team_id == team.team_id:
-                completion_counts[completed_tile.tile_id] += 1
-
-        lines = []
-
-        for tile_data in tiles:
+        for tile_data in database.get_tiles():
             tile = db_entities.Tile(tile_data)
-            completions = completion_counts[tile.tile_id]
 
-            if board_type == "All Tiles":
-                completed_icons = (
-                    ":white_check_mark:"
-                    * min(completions, tile.tile_repetition)
-                )
-                incomplete_icons = (
-                    ":x:"
-                    * max(tile.tile_repetition - completions, 0)
-                )
+            if tile.board_coordinate is None:
+                continue
 
-                lines.append(
-                    f"**{tile.tile_name}:** "
-                    f"{completed_icons}{incomplete_icons}"
-                )
+            tile_names_by_coordinate[
+                tile.board_coordinate
+            ] = tile.tile_name
 
-            elif board_type == "Completed Tiles":
-                if completions > 0:
-                    completed_icons = (
-                        ":white_check_mark:"
-                        * min(completions, tile.tile_repetition)
-                    )
-                    incomplete_icons = (
-                        ":x:"
-                        * max(tile.tile_repetition - completions, 0)
-                    )
+            if team is None:
+                continue
 
-                    lines.append(
-                        f"**{tile.tile_name}:** "
-                        f"{completed_icons}{incomplete_icons}"
-                    )
-
-            elif board_type == "Incomplete Tiles":
-                if completions == 0:
-                    lines.append(
-                        f"**{tile.tile_name}:** "
-                        f"{':x:' * tile.tile_repetition}"
-                    )
-
-            elif board_type == "Partial Tiles":
-                if completions >= tile.tile_repetition:
-                    continue
-
-                tile_progress = bingo.get_progress(
-                    team.team_id,
-                    tile.tile_id
-                )
-
-                if (
-                    tile_progress is not None
-                    and tile_progress.progress_value > 0
-                ):
-                    status_text = tile_progress.status_text
-
-                    status_text = (
-                        status_text
-                        .replace("<p>", "")
-                        .replace("</p>", "")
-                        .replace("<ul>", "\n")
-                        .replace("</ul>", "")
-                        .replace("<li>", "• ")
-                        .replace("</li>", "\n")
-                        .strip()
-                    )
-
-                    lines.append(
-                        f"**{tile.tile_name}**\n{status_text}"
-                    )
-
-        if not lines:
-            lines.append(
-                "There are no tiles matching this board view."
+            tile_progress = bingo.get_progress(
+                team.team_id,
+                tile.tile_id
             )
 
-        header = f"## {board_type} for {team.team_name}"
-        messages = []
-        current_message = header
+            if tile_progress.completions > 0:
+                completed_coordinates.add(
+                    tile.board_coordinate
+                )
 
-        for line in lines:
-            addition = f"\n{line}"
+            elif tile_progress.progress_value > 0:
+                partial_coordinates.add(
+                    tile.board_coordinate
+                )
 
-            if len(current_message) + len(addition) > 1900:
-                messages.append(current_message)
-                current_message = line
-            else:
-                current_message += addition
+        board_image = board_renderer.render_bingo_board(
+            tile_names_by_coordinate,
+            completed_coordinates=completed_coordinates,
+            partial_coordinates=partial_coordinates,
+            show_progress=team is not None
+        )
 
-        messages.append(current_message)
+        board_file = discord.File(
+            board_image,
+            filename="bingo_board.png"
+        )
 
-        await ctx.respond(messages[0])
+        if team is None:
+            board_title = "**Clean Bingo Board**"
+        else:
+            board_title = (
+                f"**{team.team_name} Bingo Board**"
+            )
 
-        for message in messages[1:]:
-            await ctx.followup.send(message)
+        await ctx.respond(
+            board_title,
+            file=board_file
+        )
 
     @discord.slash_command(
         name="leaderboard",
