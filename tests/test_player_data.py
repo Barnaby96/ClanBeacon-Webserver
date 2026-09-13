@@ -116,6 +116,40 @@ def create_team_and_player(
     return team_id, player[0]
 
 
+def test_player_data_links_directly_to_team_board(client):
+    _, player_id = create_team_and_player(
+        team_name="BoardLinkTeam",
+        player_name="BoardLinkPlayer"
+    )
+
+    create_dashboard_user(
+        "Board Link Login",
+        "test-password",
+        player_id=player_id
+    )
+
+    login_response = login_dashboard_user(
+        client,
+        "Board Link Login",
+        "test-password"
+    )
+
+    assert login_response.status_code == 302
+
+    response = client.get(
+        "/user/player/BoardLinkPlayer"
+    )
+
+    assert response.status_code == 200
+
+    html = response.get_data(
+        as_text=True
+    )
+
+    assert 'href="/board/BoardLinkTeam"' in html
+    assert "View Board" in html
+
+
 def create_test_tile(tile_name):
     return database.add_tile(
         tile_name,

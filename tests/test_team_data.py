@@ -374,6 +374,8 @@ def test_staff_can_view_any_team_and_receive_team_controls(
     assert "AlphaTeam" in html
     assert "Edit Team" in html
     assert 'href="/user/player/BetaPlayer"' in html
+    assert 'href="/board/BetaTeam"' in html
+    assert "View Board" in html
 
     missing_response = client.get(
         "/user/team/DoesNotExist"

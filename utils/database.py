@@ -28,6 +28,80 @@ def ensure_schema():
         cursor = conn.cursor()
 
         cursor.execute('''
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_name = 'tiles'
+                      AND column_name = 'board_coordinate'
+                ) THEN
+                    ALTER TABLE tiles
+                    ADD COLUMN board_coordinate TEXT;
+
+                    WITH ordered_tiles AS (
+                        SELECT
+                            tile_id,
+                            ROW_NUMBER() OVER (
+                                ORDER BY tile_id
+                            ) AS board_position
+                        FROM tiles
+                    )
+                    UPDATE tiles
+                    SET board_coordinate =
+                        CHR(
+                            65
+                            + (
+                                (
+                                    ordered_tiles.board_position
+                                    - 1
+                                ) / 5
+                            )::INTEGER
+                        )
+                        || (
+                            (
+                                (
+                                    ordered_tiles.board_position
+                                    - 1
+                                ) % 5
+                            ) + 1
+                        )::TEXT
+                    FROM ordered_tiles
+                    WHERE tiles.tile_id = ordered_tiles.tile_id
+                      AND ordered_tiles.board_position <= 25;
+                END IF;
+            END
+            $$;
+        ''')
+
+        cursor.execute('''
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'tiles_board_coordinate_check'
+                      AND conrelid = 'tiles'::regclass
+                ) THEN
+                    ALTER TABLE tiles
+                    ADD CONSTRAINT tiles_board_coordinate_check
+                    CHECK (
+                        board_coordinate IS NULL
+                        OR board_coordinate ~ '^[A-E][1-5]$'
+                    );
+                END IF;
+            END
+            $$;
+        ''')
+
+        cursor.execute('''
+            CREATE UNIQUE INDEX IF NOT EXISTS
+                idx_tiles_board_coordinate
+            ON tiles (board_coordinate)
+            WHERE board_coordinate IS NOT NULL
+        ''')
+
+        cursor.execute('''
             ALTER TABLE IF EXISTS relevant_drops
             ALTER COLUMN drops_pk DROP NOT NULL
         ''')
@@ -8339,10 +8413,33 @@ def get_completed_tiles_by_team_id_and_tile_id(team_id, tile_id):
         return cursor.fetchall()
 
 
+MAX_BINGO_TILES = 25
+
+
+def _ensure_tile_capacity(cursor):
+    cursor.execute(
+        "LOCK TABLE tiles IN SHARE ROW EXCLUSIVE MODE"
+    )
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM tiles"
+    )
+
+    tile_count = cursor.fetchone()[0]
+
+    if tile_count >= MAX_BINGO_TILES:
+        raise ValueError(
+            "A bingo board can contain a maximum of 25 tiles. "
+            "Unassigned tiles also count towards this limit."
+        )
+
+
 def add_tile(tile_name, tile_type, tile_triggers, tile_trigger_weights, tile_unique_drops, tile_triggers_required,
              tile_repetition, tile_points, tile_rules):
     with connect() as conn:
         cursor = conn.cursor()
+
+        _ensure_tile_capacity(cursor)
 
         # Start at 1 and increment upwards until we find an unused tile_id
         available_id = 1
@@ -8969,6 +9066,8 @@ def add_tile_with_conditions(
 
     with connect() as conn:
         cursor = conn.cursor()
+
+        _ensure_tile_capacity(cursor)
 
         available_id = 1
 
@@ -9862,6 +9961,112 @@ def get_wom_tile_conditions():
 
 
 # ... Repeat similar functions for 'drops', 'killcount', 'drop_whitelist', and 'completed_tiles' tables ...
+
+def set_tile_board_coordinate(tile_id, board_coordinate):
+    if board_coordinate is not None:
+        board_coordinate = str(
+            board_coordinate
+        ).strip().upper()
+
+        if board_coordinate == "":
+            board_coordinate = None
+
+    valid_coordinates = {
+        f"{row}{column}"
+        for row in "ABCDE"
+        for column in range(1, 6)
+    }
+
+    if (
+        board_coordinate is not None
+        and board_coordinate not in valid_coordinates
+    ):
+        raise ValueError(
+            "Board coordinate must be between A1 and E5."
+        )
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT board_coordinate
+            FROM tiles
+            WHERE tile_id = %s
+            FOR UPDATE
+            ''',
+            (tile_id,)
+        )
+
+        tile_row = cursor.fetchone()
+
+        if tile_row is None:
+            raise ValueError(
+                f"Tile {tile_id} does not exist."
+            )
+
+        old_coordinate = tile_row[0]
+
+        if old_coordinate == board_coordinate:
+            return
+
+        displaced_tile = None
+
+        if board_coordinate is not None:
+            cursor.execute(
+                '''
+                SELECT
+                    tile_id,
+                    board_coordinate
+                FROM tiles
+                WHERE board_coordinate = %s
+                  AND tile_id <> %s
+                FOR UPDATE
+                ''',
+                (
+                    board_coordinate,
+                    tile_id
+                )
+            )
+
+            displaced_tile = cursor.fetchone()
+
+        # Free the moving tile's current position first so an
+        # occupied destination can safely be swapped into it.
+        cursor.execute(
+            '''
+            UPDATE tiles
+            SET board_coordinate = NULL
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        if displaced_tile is not None:
+            cursor.execute(
+                '''
+                UPDATE tiles
+                SET board_coordinate = %s
+                WHERE tile_id = %s
+                ''',
+                (
+                    old_coordinate,
+                    displaced_tile[0]
+                )
+            )
+
+        cursor.execute(
+            '''
+            UPDATE tiles
+            SET board_coordinate = %s
+            WHERE tile_id = %s
+            ''',
+            (
+                board_coordinate,
+                tile_id
+            )
+        )
+
 
 def get_tiles():
     with connect() as conn:
@@ -11126,7 +11331,15 @@ def reset_tables():
                 tile_triggers_required int,
                 tile_repetition int,
                 tile_points real,
-                tile_rules text
+                tile_rules text,
+                board_coordinate text,
+                CONSTRAINT tiles_board_coordinate_check
+                CHECK (
+                    board_coordinate IS NULL
+                    OR board_coordinate ~ '^[A-E][1-5]$'
+                ),
+                CONSTRAINT tiles_board_coordinate_unique
+                UNIQUE (board_coordinate)
             )
             ''')
 

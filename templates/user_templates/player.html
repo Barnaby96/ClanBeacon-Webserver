@@ -20,12 +20,21 @@
                     {{ player.player_name }}
                 </h1>
 
-                <a
-                    class="osrs-player-team-link"
-                    href="/user/team/{{ team.team_name }}"
-                >
-                    {{ team.team_name }} →
-                </a>
+                <div class="osrs-team-actions">
+                    <a
+                        class="osrs-player-team-link"
+                        href="/user/team/{{ team.team_name }}"
+                    >
+                        {{ team.team_name }}
+                    </a>
+
+                    <a
+                        class="osrs-action-link"
+                        href="/board/{{ team.team_name }}"
+                    >
+                        View Board
+                    </a>
+                </div>
             </div>
 
             {% if current_user.is_admin %}

@@ -8,6 +8,7 @@ from utils.database import (
     get_tile_completion_paths,
     add_tile_with_conditions,
     update_tile_with_conditions,
+    set_tile_board_coordinate,
     get_tiles
 )
 
@@ -369,6 +370,44 @@ def edit_tile(tile_id):
         conditions=conditions,
         completion_paths=completion_paths
     )
+
+
+@tile_routes.route(
+    '/tiles/board-position/<int:tile_id>',
+    methods=['POST']
+)
+@admin_required
+def update_tile_board_position(tile_id):
+    board_coordinate = request.form.get(
+        'board_coordinate'
+    )
+
+    try:
+        set_tile_board_coordinate(
+            tile_id,
+            board_coordinate
+        )
+    except ValueError as error:
+        flash(str(error), 'danger')
+        return redirect(
+            url_for(
+                'tile_management.edit_tile',
+                tile_id=tile_id
+            )
+        )
+
+    flash(
+        'Board position updated successfully!',
+        'success'
+    )
+
+    return redirect(
+        url_for(
+            'tile_management.edit_tile',
+            tile_id=tile_id
+        )
+    )
+
 
 @tile_routes.route('/tiles/delete/<int:tile_id>', methods=['POST'])
 @admin_required

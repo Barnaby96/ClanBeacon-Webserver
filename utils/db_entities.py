@@ -71,6 +71,11 @@ class Tile:
         self.tile_repetition = tile_tuple[7]
         self.tile_points = tile_tuple[8]
         self.tile_rules = tile_tuple[9]
+        self.board_coordinate = (
+            tile_tuple[10]
+            if len(tile_tuple) > 10
+            else None
+        )
 
 
 class Request:

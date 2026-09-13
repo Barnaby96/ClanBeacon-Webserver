@@ -1203,6 +1203,10 @@
     margin-top: 12px;
 }
 
+.osrs-team-actions .osrs-player-team-link {
+    margin-top: 0;
+}
+
 .osrs-team-search {
     display: flex;
     flex-direction: column;

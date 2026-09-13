@@ -2,306 +2,711 @@
 
 {% block content %}
 
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
+
 <style>
-    table {
-        width: 80%;
-        max-width: 700px;
-        margin: auto;
-        border-collapse: collapse;
+    .osrs-bingo-grid table {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+
+        border-collapse: separate;
+        border-spacing: 3px;
         table-layout: fixed;
-        margin-top: 20px;
-        color: #FFFFFF;
+
+        background: #171512;
+        color: #f4f0e5;
     }
-    th {
-        background-color: #333333; /* Darker background for navbar */
-        color: white;
-    }
-    th {
-        border: 1px solid #ddd;
-        padding: 15px;
+
+    .osrs-bingo-grid th {
+        box-sizing: border-box;
+        padding: 10px 6px;
+
+        border: 2px solid #171512;
+        border-radius: 2px;
+
+        background:
+            linear-gradient(
+                180deg,
+                #393734 0%,
+                #292725 100%
+            );
+
+        box-shadow:
+            inset 1px 1px 0 rgba(255, 255, 255, 0.08),
+            inset -2px -2px 0 rgba(0, 0, 0, 0.28);
+
+        color: #f1d06a;
+        font-family: "RuneScape Bold", Arial, sans-serif;
+        font-size: 16px;
+        font-weight: normal;
         text-align: center;
+        text-shadow: 1px 1px 0 #000;
     }
-    td {
-        border: 1px solid #ddd;
+
+    .osrs-bingo-grid td {
+        padding: 0;
+        border: none;
+        background: #171512;
         text-align: center;
-    }
-    tr:nth-child(even) {
-        background-color: #1E1E1E;
-    }
-    tr:hover {
-        background-color: #333333;
-    }
-    td:hover {
-            background-color: #ADD8E6;
-        }
-    .header {
-        width: 80%;
-        max-width: 700px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin: auto;
-    }
-
-    .search-bar {
-        display: flex;
-    }
-
-    .search-bar select {
-        border: none;
-        padding: 10px;
-        color: #000;
-        background-color: #fff;
-    }
-
-    .search-bar input[type="submit"] {
-        border: none;
-        padding: 10px;
-        color: #fff;
-        background-color: #444;
     }
 
     a {
         color: white;
     }
 
-    td button {
+    .osrs-bingo-grid td button {
         display: block;
+        position: relative;
         width: 100%;
         height: auto;
         aspect-ratio: 1 / 1;
         box-sizing: border-box;
-        padding: 4px;
+        padding: 8px 8px 20px;
+
+        border: 2px solid #171512;
+        border-radius: 3px;
+
+        background-image:
+            linear-gradient(
+                145deg,
+                rgba(255, 255, 255, 0.12) 0%,
+                transparent 28%,
+                transparent 68%,
+                rgba(0, 0, 0, 0.14) 100%
+            );
+
+        box-shadow:
+            inset 1px 1px 0 rgba(255, 255, 255, 0.16),
+            inset -2px -2px 0 rgba(0, 0, 0, 0.24),
+            0 2px 0 #0b0908;
+
+        color: #f4f0e5;
+        font-family: Arial, sans-serif;
+        font-size: clamp(10px, 2.1vw, 15px);
+        line-height: 1.05;
+
         white-space: normal;
         overflow-wrap: anywhere;
         word-break: break-word;
         text-align: center;
-        font-size: clamp(10px, 3vw, 16px);
-        line-height: 1.05;
+
+        cursor: pointer;
+        transition:
+            filter 0.12s ease,
+            transform 0.12s ease;
     }
 
-    .side-panel {
-        height: 100%;
-        width: 0;
-        max-width: 100vw;
-        box-sizing: border-box;
+    .osrs-bingo-grid td button:not(:disabled):hover,
+    .osrs-bingo-grid td button:not(:disabled):focus {
+        filter: brightness(1.08);
+        transform: translateY(-1px);
+    }
+
+    .osrs-bingo-grid td button:disabled {
+        cursor: default;
+    }
+
+    body.osrs-modal-open {
+        overflow: hidden;
+    }
+
+    .osrs-tile-modal {
         position: fixed;
-        z-index: 1;
-        top: 0;
-        right: 0;
-        background-color: #111;
-        overflow-x: hidden;
-        transition: 0.5s;
-        padding-top: 60px;
+        inset: 0;
+        z-index: 1000;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        padding: 24px;
+        box-sizing: border-box;
+
+        background: rgba(8, 6, 4, 0.76);
+
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+
+        transition:
+            opacity 0.16s ease,
+            visibility 0.16s ease;
     }
 
-    .side-panel-content {
-        margin: 30px;
-        color: white;
+    .osrs-tile-modal.is-open {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+
+    .osrs-tile-modal-window {
+        width: min(560px, 100%);
+        max-height: min(720px, 90vh);
+        overflow: hidden;
+
+        border: 3px solid var(--osrs-border-dark);
+        border-radius: 6px;
+
+        background: var(--osrs-stone-dark);
+
+        box-shadow:
+            inset 0 0 0 1px
+                rgba(255, 255, 255, 0.08),
+            0 12px 32px
+                rgba(0, 0, 0, 0.72);
+
+        transform: translateY(8px) scale(0.98);
+
+        transition:
+            transform 0.16s ease;
+    }
+
+    .osrs-tile-modal.is-open
+    .osrs-tile-modal-window {
+        transform: translateY(0) scale(1);
+    }
+
+    .osrs-tile-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+
+        padding: 16px 18px;
+
+        border-bottom:
+            2px solid var(--osrs-border-dark);
+
+        background:
+            linear-gradient(
+                180deg,
+                #5b4328 0%,
+                #392818 100%
+            );
+    }
+
+    .osrs-tile-modal-header h3 {
+        margin: 0;
+
+        color: var(--osrs-gold-bright);
+
+        font-family:
+            "RuneScape Quill Caps",
+            Georgia,
+            serif;
+
+        font-size: clamp(24px, 4vw, 34px);
+        font-weight: normal;
+        line-height: 1.05;
+
+        text-shadow:
+            1px 1px 0 #000;
+    }
+
+    .osrs-tile-modal-close {
+        flex: 0 0 auto;
+
+        width: 36px;
+        height: 36px;
+        padding: 0;
+
+        border: 2px solid #271d13;
+        border-radius: 4px;
+
+        background:
+            linear-gradient(
+                180deg,
+                #8a7252,
+                #665037
+            );
+
+        color: #fff4c7;
+
+        font-family: Arial, sans-serif;
+        font-size: 28px;
+        line-height: 28px;
+
+        cursor: pointer;
+
+        box-shadow:
+            inset 0 0 0 1px
+                rgba(255, 255, 255, 0.12),
+            0 2px 0 #241a11;
+    }
+
+    .osrs-tile-modal-close:hover,
+    .osrs-tile-modal-close:focus {
+        background:
+            linear-gradient(
+                180deg,
+                #9a8160,
+                #745b3f
+            );
+
+        outline: none;
+    }
+
+    .osrs-tile-modal-body {
+        max-height: calc(90vh - 74px);
+        overflow-y: auto;
+
+        padding: 22px;
+
+        background:
+            linear-gradient(
+                180deg,
+                var(--osrs-parchment-light),
+                var(--osrs-parchment)
+            );
+
+        color: var(--osrs-text-dark);
+    }
+
+    .osrs-tile-modal-progress {
+        margin: 0 0 18px;
+        padding: 14px 16px;
+
+        border: 2px solid #80683f;
+        border-radius: 4px;
+
+        background:
+            rgba(255, 248, 218, 0.38);
+
+        font-family:
+            "RuneScape Bold",
+            Arial,
+            sans-serif;
+
+        font-size: 18px;
+        line-height: 1.3;
+    }
+
+    .osrs-tile-modal-details {
+        border-top: 2px solid #9c8254;
+    }
+
+    .osrs-tile-modal-details p {
+        margin: 0;
+        padding: 13px 4px;
+
+        border-bottom:
+            1px solid rgba(92, 69, 37, 0.32);
+
+        font-size: 16px;
+        line-height: 1.4;
+
+        white-space: pre-wrap;
+    }
+
+    .osrs-bingo-scroll {
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* PNG nine-slice bingo frame */
+    .osrs-bingo-frame {
+        box-sizing: border-box;
+        width: min(820px, 96%);
+        min-width: 620px;
+        margin: 24px auto 40px;
+
+        border-style: solid;
+        border-width: 42px 48px;
+
+        border-image-source:
+            url("{{ url_for('static', filename='images/bingo_board/board_frame.png') }}");
+        border-image-slice: 125;
+        border-image-repeat: stretch;
+
+        filter: drop-shadow(
+            0 8px 10px rgba(0, 0, 0, 0.55)
+        );
+    }
+
+    .osrs-bingo-grid {
+        width: 100%;
+        min-width: 0;
+        background: #171717;
+    }
+
+
+    @media (max-width: 700px) {
+        .osrs-bingo-frame {
+            width: 100%;
+        }
     }
 
 </style>
 
-<!-- Add the side panel to your HTML -->
-<div id="mySidePanel" class="side-panel">
-    <div class="side-panel-content">
-        <a href="javascript:void(0)" onclick="closePanel()">X</a>
-        <h3 id="tileName">Tile Name</h3>
-        <p id="progress"></p>
-        <p id="completions"></p>
-        <p id="repetitions"></p>
-        <p id="rules"></p>
-    </div>
+<div
+    id="tileModal"
+    class="osrs-tile-modal"
+    aria-hidden="true"
+>
+    <section
+        class="osrs-tile-modal-window"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tileName"
+    >
+        <header class="osrs-tile-modal-header">
+            <h3 id="tileName">
+                Tile Name
+            </h3>
+
+            <button
+                id="tileModalClose"
+                class="osrs-tile-modal-close"
+                type="button"
+                aria-label="Close tile details"
+                onclick="closePanel()"
+            >
+                &times;
+            </button>
+        </header>
+
+        <div class="osrs-tile-modal-body">
+            <p
+                id="progress"
+                class="osrs-tile-modal-progress"
+                aria-live="polite"
+            ></p>
+
+            <div class="osrs-tile-modal-details">
+                <p id="completions"></p>
+                <p id="rules"></p>
+            </div>
+        </div>
+    </section>
 </div>
 
-<div class="header">
-    <h1>Current Standings</h1>
-    <form class="search-bar" onsubmit="submitForm(event)">
-        <select id="teamselect">
-            {% for name in teamnames %}
-            <option value="{{name}}"
-                    {% if name == teamname %}
-                    selected
-                    console.log(name)
-                    {% endif %}>
-                {{name}}
-            </option>
-            {% endfor %}
-        </select>
-    </form>
-</div>
-<div class="header">
-    {% if teamname in teamnames %}
-    <h2><a href="/user/team/{{teamname}}">{{teamname}}'s</a> Current Board</h2>
-    {% else %}
-    <h2>Bingo Board</h2>
-    {% endif %}
-</div>
-<table>
-    <tr>
-        {% for i in range(0, boardsize) %}
-        <!-- change values for column headers -->
-        <th>{{i+1}}</th>
-        {% endfor %}
-    </tr>
-        {% for x in range(0, boardsize) %}
-    {% set outerloopindex = loop.index0 %}
-    <tr>
-        {% for y in range(0, boardsize) %}
-        {% set tile_index = outerloopindex * boardsize + loop.index0 %}
-        <td>
-            {% if tile_index < tilenames|length %}
-                {% set tile_name = tilenames[tile_index] %}
+<div class="osrs-dashboard osrs-board-page">
+    <main class="osrs-page">
+        <header class="osrs-player-header osrs-team-header">
+            <div class="osrs-player-identity">
+                <p class="osrs-page-subtitle">
+                    Bingo Board
+                </p>
 
-                {% if tile_name in completed_tiles %}
-                    <button
-                        style="background-color: #4CAF50;"
-                        data-tile="{{ tile_name }}"
-                        data-completions="{{ panelData[tile_name].completions }}"
-                        data-repetitions="{{ panelData[tile_name].repetition }}"
-                        data-rules="{{ panelData[tile_name].rules }}"
-                        onclick="openPanel(
-                            this.dataset.tile,
-                            this.dataset.completions,
-                            this.dataset.repetitions,
-                            this.dataset.rules
-                        )"
-                    >
-                        {{ tile_name }}
-                    </button>
+                <h1 class="osrs-page-title">
+                    Current Standings
+                </h1>
 
-                {% elif tile_name in partial_tiles %}
-                    <button
-                        style="background-color: yellow; color: black;"
-                        data-tile="{{ tile_name }}"
-                        data-completions="{{ panelData[tile_name].completions }}"
-                        data-repetitions="{{ panelData[tile_name].repetition }}"
-                        data-rules="{{ panelData[tile_name].rules }}"
-                        onclick="openPanel(
-                            this.dataset.tile,
-                            this.dataset.completions,
-                            this.dataset.repetitions,
-                            this.dataset.rules
-                        )"
-                    >
-                        {{ tile_name }}
-                    </button>
-
-                {% else %}
-                    <button
-                        style="background-color: slategrey;"
-                        data-tile="{{ tile_name }}"
-                        data-completions="{{ panelData[tile_name].completions }}"
-                        data-repetitions="{{ panelData[tile_name].repetition }}"
-                        data-rules="{{ panelData[tile_name].rules }}"
-                        onclick="openPanel(
-                            this.dataset.tile,
-                            this.dataset.completions,
-                            this.dataset.repetitions,
-                            this.dataset.rules
-                        )"
-                    >
-                        {{ tile_name }}
-                    </button>
+                {% if teamname in teamnames %}
+                    <div class="osrs-team-actions">
+                        <a
+                            class="osrs-action-link"
+                            href="/user/team/{{ teamname }}"
+                        >
+                            View {{ teamname }} Team Data
+                        </a>
+                    </div>
                 {% endif %}
+            </div>
 
-            {% else %}
-                <button
-                    type="button"
-                    disabled
-                    aria-label="Empty bingo tile"
-                    style="
-                        background-color: #2f2f2f;
-                        cursor: default;
-                    "
-                ></button>
+            {% if can_view_all_boards %}
+                <form
+                    class="osrs-team-search"
+                    onsubmit="submitForm(event)"
+                >
+                    <label for="teamselect">
+                        Select Team
+                    </label>
+
+                    <div class="osrs-team-search-controls">
+                        <select id="teamselect">
+                            {% for name in teamnames %}
+                                <option
+                                    value="{{ name }}"
+                                    {% if name == teamname %}
+                                        selected
+                                    {% endif %}
+                                >
+                                    {{ name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+
+                        <button type="submit">
+                            View
+                        </button>
+                    </div>
+                </form>
             {% endif %}
-        </td>
+        </header>
+
+        <div class="osrs-page-header">
+            {% if teamname in teamnames %}
+                <p class="osrs-page-subtitle">
+                    {{ teamname }}'s Current Board
+                </p>
+            {% else %}
+                <p class="osrs-page-subtitle">
+                    Current Board
+                </p>
+            {% endif %}
+        </div>
+
+<div class="osrs-bingo-scroll">
+
+<div class="osrs-bingo-frame">
+
+        <div class="osrs-bingo-grid">
+
+<table>
+    <colgroup>
+        <col style="width: 42px;">
+
+        {% for column in range(1, boardsize + 1) %}
+            <col>
+        {% endfor %}
+    </colgroup>
+
+    <tr>
+        <th aria-hidden="true"></th>
+
+        {% for column in range(1, boardsize + 1) %}
+            <th>{{ column }}</th>
         {% endfor %}
     </tr>
+
+    {% for row in ['A', 'B', 'C', 'D', 'E'] %}
+        <tr>
+            <th scope="row">
+                {{ row }}
+            </th>
+
+            {% for column in range(1, boardsize + 1) %}
+                {% set coordinate = row ~ column %}
+                {% set tile = tiles_by_coordinate.get(coordinate) %}
+
+                <td>
+                    {% if tile %}
+                        {% set tile_name = tile.tile_name %}
+
+                        <button
+                            {% if tile_name in completed_tiles %}
+                                style="
+                                    background-color: #5d9a50;
+                                    color: #fff4d2;
+                                "
+                            {% elif tile_name in partial_tiles %}
+                                style="
+                                    background-color: #e1c84f;
+                                    color: #211a08;
+                                "
+                            {% else %}
+                                style="
+                                    background-color: #71808d;
+                                    color: #f4f0e5;
+                                "
+                            {% endif %}
+                            data-tile="{{ tile_name }}"
+                            data-completions="{{ panelData[tile_name].completions }}"
+                            data-rules="{{ panelData[tile_name].rules }}"
+                            onclick="openPanel(
+                                this.dataset.tile,
+                                this.dataset.completions,
+                                this.dataset.rules
+                            )"
+                        >
+                            <span
+                                style="
+                                    position: absolute;
+                                    left: 6px;
+                                    bottom: 4px;
+                                    font-size: 0.65rem;
+                                    line-height: 1;
+                                    opacity: 0.6;
+                                "
+                            >
+                                {{ coordinate }}
+                            </span>
+
+                            <span>
+                                {{ tile_name }}
+                            </span>
+                        </button>
+
+                    {% else %}
+                        <button
+                            type="button"
+                            disabled
+                            aria-label="Empty bingo tile {{ coordinate }}"
+                            style="
+                                background-color: #262522;
+                                cursor: default;
+                            "
+                        ></button>
+                    {% endif %}
+                </td>
+            {% endfor %}
+        </tr>
     {% endfor %}
-
 </table>
-
-<form>
-
-</form>
+        </div>
 
 
+</div>
+</div>
+    </main>
+</div>
 
 
 <script>
-    var tilenames = {{ tilenames | tojson }};
     var teamName = {{ teamname | tojson }};
     var isOpen = false;
 
-    /* Add a function to open the side panel */
-    function openPanel(tileName, completions, repetitions, rules) {
-        if (isOpen) {
-            closePanel();
-            // Wait for the closePanel animation to finish
-            setTimeout(function() {
-                openPanelHelper(tileName, completions, repetitions, rules);
-            }, 350); // Adjust this value based on the duration of your closePanel animation
-        } else {
-            openPanelHelper(tileName, completions, repetitions, rules);
-        }
+    function openPanel(
+        tileName,
+        completions,
+        rules
+    ) {
+        openPanelHelper(
+            tileName,
+            completions,
+            rules
+        );
     }
 
-    function openPanelHelper(tileName, completions, repetitions, rules) {
-        // Make an AJAX request to get the progress data
+    function openPanelHelper(
+        tileName,
+        completions,
+        rules
+    ) {
+        const modal = document.getElementById(
+            "tileModal"
+        );
+
         isOpen = true;
-        document.getElementById("mySidePanel").style.width = "400px";
-        document.getElementById("tileName").innerText = tileName;
-        document.getElementById("completions").innerText = completions;
-        document.getElementById("repetitions").innerText = repetitions;
-        document.getElementById("rules").innerText = rules;
-        document.getElementById("progress").innerHTML = "Processing...";
+
+        document.getElementById(
+            "tileName"
+        ).innerText = tileName;
+
+        document.getElementById(
+            "completions"
+        ).innerText = completions;
+
+        document.getElementById(
+            "rules"
+        ).innerText = rules;
+
+        document.getElementById(
+            "progress"
+        ).innerText = "Processing...";
+
+        modal.classList.add("is-open");
+        modal.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+
+        document.body.classList.add(
+            "osrs-modal-open"
+        );
+
+        document.getElementById(
+            "tileModalClose"
+        ).focus();
 
         $.ajax({
-            url: '/board/get_progress',  // Replace with your Flask route
+            url: '/board/get_progress',
             type: 'GET',
             data: {
                 'tileName': tileName,
                 'teamName': teamName
             },
             success: function(data) {
-                // Use the returned data to update the side panel
-                document.getElementById("progress").innerHTML = data;
+                document.getElementById(
+                    "progress"
+                ).innerText = data;
+            },
+            error: function() {
+                document.getElementById(
+                    "progress"
+                ).innerText =
+                    "Unable to load progress.";
             }
         });
     }
 
-    /* Add a function to close the side panel */
     function closePanel() {
+        const modal = document.getElementById(
+            "tileModal"
+        );
+
         isOpen = false;
-        document.getElementById("mySidePanel").style.width = "0";
+
+        modal.classList.remove("is-open");
+        modal.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+        document.body.classList.remove(
+            "osrs-modal-open"
+        );
     }
 
-    document.addEventListener('click', function(event) {
-        var isClickInside = document.getElementById('mySidePanel').contains(event.target);
-        var isClickOnButton = event.target.tagName === 'BUTTON';
-        if (!isClickInside && !isClickOnButton) {
-            closePanel();
+    document.getElementById(
+        "tileModal"
+    ).addEventListener(
+        "click",
+        function(event) {
+            if (event.target === this) {
+                closePanel();
+            }
         }
-    });
+    );
+
+    document.addEventListener(
+        "keydown",
+        function(event) {
+            if (
+                event.key === "Escape"
+                && isOpen
+            ) {
+                closePanel();
+            }
+        }
+    );
 
 </script>
+{% if can_view_all_boards %}
 <script>
-    const teamnames = {{ teamnames|tojson }}
+    const teamnames = {{ teamnames|tojson }};
 
-    function submitForm() {
-        var team = document.getElementById('teamselect').value;
+    function submitForm(event) {
+        if (event) {
+            event.preventDefault();
+        }
+
+        const team = document.getElementById(
+            'teamselect'
+        ).value;
+
         if (teamnames.includes(team)) {
-            window.location.href = '/board/' + team;
+            window.location.href = (
+                '/board/' + encodeURIComponent(team)
+            );
         } else {
             window.location.href = '/board';
         }
     }
 
-    // Listen for changes in the select element
-    document.getElementById('teamselect').addEventListener('change', function() {
-        submitForm();
-    });
+    document.getElementById(
+        'teamselect'
+    ).addEventListener(
+        'change',
+        submitForm
+    );
 </script>
+{% endif %}
 {% endblock %}
