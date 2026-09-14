@@ -219,49 +219,81 @@ def set_wom_metric_gain(
         )
 
 
-def test_relevant_drop_summary_aggregates_genuine_relevant_drops():
+def test_relevant_drop_summary_aggregates_modern_drop_progress():
     team_id, player_id = create_team_and_player()
-    tile_id = create_test_tile("Relevant Drop Test")
 
-    first_drop_pk = database.add_drop(
-        team_id,
-        player_id,
-        "Player Data Player",
-        "Burning claw",
-        100,
-        2,
-        "Test source"
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Relevant Drop Test",
+        tile_points=1,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Burning claw",
+                "target": 10
+            }
+        ],
+        completion_paths=[
+            {
+                "completion_path": 1,
+                "route_mode": "SUM",
+                "route_target": 10
+            }
+        ]
     )
 
-    second_drop_pk = database.add_drop(
-        team_id,
-        player_id,
-        "Player Data Player",
-        "Burning claw",
-        100,
-        3,
-        "Test source"
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT condition_id
+            FROM tile_conditions
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+        condition_id = cursor.fetchone()[0]
+
+    event_id = database.add_dink_event(
+        event_fingerprint="player-data-relevant-drop-dink",
+        raw_payload={"type": "LOOT"},
+        player_name="Player Data Player",
+        player_id=player_id,
+        event_type="LOOT"
     )
 
-    database.add_relevant_drop(
-        team_id,
-        player_id,
-        tile_id,
-        "Relevant Drop Test",
-        "Burning claw",
-        "Player Data Player",
-        first_drop_pk
+    database.process_dink_event_progress(
+        event_id=event_id,
+        player_id=player_id,
+        event_progress=[
+            {
+                "condition_type": "DROP",
+                "trigger": "Burning claw",
+                "amount": 2
+            }
+        ]
     )
 
-    database.add_relevant_drop(
-        team_id,
-        player_id,
-        tile_id,
-        "Relevant Drop Test",
-        "Burning claw",
-        "Player Data Player",
-        second_drop_pk
+    submission = database.add_manual_evidence(
+        player_id=player_id,
+        condition_id=condition_id,
+        amount=3,
+        evidence_path="manual/relevant-drop-test.png",
+        evidence_sha256="a" * 64,
+        submission_source="DISCORD",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
     )
+
+    review_result = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="DISCORD",
+        reviewer_id=54321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert review_result["status"] == "ACCEPTED"
 
     result = database.get_player_relevant_drop_summary(
         player_id
@@ -488,7 +520,7 @@ def test_relevant_xp_without_competition_is_empty():
 
 
 def test_bingo_evidence_aggregates_dink_progress_by_event_and_tile():
-    _, player_id = create_team_and_player(
+    team_id, player_id = create_team_and_player(
         team_name="Bingo Evidence Dink Team",
         player_name="Bingo Evidence Dink Player"
     )
@@ -553,9 +585,11 @@ def test_bingo_evidence_aggregates_dink_progress_by_event_and_tile():
         amount=1,
         progress_results=[
             {
+                "team_id": team_id,
                 "condition_id": condition_rows[0][0],
                 "tile_id": tile_id,
                 "completion_path": condition_rows[0][1],
+                "counted_amount": 0,
                 "raw_progress": 1,
                 "route_progress": 0.25,
                 "credited": 0.25,
@@ -564,9 +598,11 @@ def test_bingo_evidence_aggregates_dink_progress_by_event_and_tile():
                 "completed": False
             },
             {
+                "team_id": team_id,
                 "condition_id": condition_rows[1][0],
                 "tile_id": tile_id,
                 "completion_path": condition_rows[1][1],
+                "counted_amount": 0,
                 "raw_progress": 1,
                 "route_progress": 0.75,
                 "credited": 0.75,
@@ -578,6 +614,11 @@ def test_bingo_evidence_aggregates_dink_progress_by_event_and_tile():
     )
 
     assert rows_stored == 2
+
+    database.add_completed_tile(
+        tile_id,
+        team_id
+    )
 
     result = database.get_player_bingo_evidence(
         player_id
@@ -877,7 +918,7 @@ def test_bingo_evidence_marks_accepted_manual_tile_completed():
 
 
 def test_bingo_evidence_marks_incomplete_dink_progress_in_progress():
-    _, player_id = create_team_and_player(
+    team_id, player_id = create_team_and_player(
         team_name="Bingo Evidence In Progress Team",
         player_name="Bingo Evidence In Progress Player"
     )
@@ -932,9 +973,11 @@ def test_bingo_evidence_marks_incomplete_dink_progress_in_progress():
         amount=2,
         progress_results=[
             {
+                "team_id": team_id,
                 "condition_id": condition_id,
                 "tile_id": tile_id,
                 "completion_path": 1,
+                "counted_amount": 0,
                 "raw_progress": 2,
                 "route_progress": 0.2,
                 "credited": 0.2,
@@ -964,13 +1007,136 @@ def test_bingo_evidence_marks_incomplete_dink_progress_in_progress():
     assert evidence["date"] is not None
 
 
+    database.add_completed_tile(
+        tile_id,
+        team_id
+    )
+
+    result = database.get_player_bingo_evidence(
+        player_id
+    )
+
+    assert len(result) == 1
+    assert result[0]["status"] == "Tile completed"
+
+
+def test_bingo_evidence_completion_uses_frozen_dink_team_after_player_moves():
+    original_team_id, player_id = create_team_and_player(
+        team_name="Bingo Evidence Original Team",
+        player_name="Bingo Evidence Moved Player"
+    )
+
+    database.add_team(
+        "Bingo Evidence New Team",
+        0,
+        None
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT team_id
+            FROM teams
+            WHERE LOWER(team_name) = LOWER(%s)
+            ''',
+            ("Bingo Evidence New Team",)
+        )
+
+        new_team_id = cursor.fetchone()[0]
+
+    tile_id = create_test_tile(
+        "Bingo Evidence Frozen Team Tile"
+    )
+
+    add_killcount_condition(
+        tile_id,
+        "bingo_evidence_frozen_team_metric",
+        target=10,
+        completion_path=1
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT condition_id
+            FROM tile_conditions
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        condition_id = cursor.fetchone()[0]
+
+    event_id = database.add_dink_event(
+        event_fingerprint="player-data-bingo-evidence-frozen-team",
+        raw_payload={},
+        player_name="Bingo Evidence Moved Player",
+        player_id=player_id,
+        event_type="KILLCOUNT",
+        status="PROCESSED"
+    )
+
+    database.update_dink_event_screenshot(
+        event_id,
+        (
+            Path("uploads")
+            / "dink_evidence"
+            / f"dink_event_{event_id}.png"
+        ).as_posix(),
+        "bingo-evidence-frozen-team-sha"
+    )
+
+    rows_stored = database.add_dink_event_progress(
+        event_id=event_id,
+        trigger="bingo_evidence_frozen_team_metric",
+        amount=10,
+        progress_results=[
+            {
+                "team_id": original_team_id,
+                "condition_id": condition_id,
+                "tile_id": tile_id,
+                "completion_path": 1,
+                "counted_amount": 0,
+                "raw_progress": 10,
+                "route_progress": 1.0,
+                "credited": 1.0,
+                "banked_total": 1.0,
+                "ready": True,
+                "completed": True
+            }
+        ]
+    )
+
+    assert rows_stored == 1
+
+    database.add_completed_tile(
+        tile_id,
+        original_team_id
+    )
+
+    database.change_player_team(
+        player_id,
+        new_team_id
+    )
+
+    result = database.get_player_bingo_evidence(
+        player_id
+    )
+
+    assert len(result) == 1
+    assert result[0]["status"] == "Tile completed"
+
+
 def test_player_data_filters_missing_bingo_evidence_screenshots(
     client,
     monkeypatch
 ):
     player_name = "Bingo Evidence Filter Player"
 
-    _, player_id = create_team_and_player(
+    team_id, player_id = create_team_and_player(
         team_name="Bingo Evidence Filter Team",
         player_name=player_name
     )
@@ -1024,9 +1190,11 @@ def test_player_data_filters_missing_bingo_evidence_screenshots(
         amount=1,
         progress_results=[
             {
+                "team_id": team_id,
                 "condition_id": condition_id,
                 "tile_id": tile_id,
                 "completion_path": 1,
+                "counted_amount": 0,
                 "raw_progress": 1,
                 "route_progress": 0.1,
                 "credited": 0.1,
@@ -1043,9 +1211,11 @@ def test_player_data_filters_missing_bingo_evidence_screenshots(
         amount=1,
         progress_results=[
             {
+                "team_id": team_id,
                 "condition_id": condition_id,
                 "tile_id": tile_id,
                 "completion_path": 1,
+                "counted_amount": 0,
                 "raw_progress": 2,
                 "route_progress": 0.2,
                 "credited": 0.1,

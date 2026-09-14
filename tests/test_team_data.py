@@ -541,7 +541,7 @@ def test_team_page_uses_exact_zero_mvp_message(client):
     }
 
 
-def test_team_summary_aggregates_genuine_relevant_drops():
+def test_team_summary_aggregates_modern_drop_progress():
     team_id = create_team(
         "DropTeam"
     )
@@ -556,57 +556,79 @@ def test_team_summary_aggregates_genuine_relevant_drops():
         team_id
     )
 
-    tile_id = database.add_tile(
-        "Burning Claw Tile",
-        "ITEM",
-        "",
-        "",
-        "FALSE",
-        0,
-        1,
-        0,
-        "Burning Claw Tile"
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Burning Claw Tile",
+        tile_points=1,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Burning claw",
+                "target": 10
+            }
+        ],
+        completion_paths=[
+            {
+                "completion_path": 1,
+                "route_mode": "SUM",
+                "route_target": 10
+            }
+        ]
     )
 
-    first_drop_pk = database.add_drop(
-        team_id,
-        first_player_id,
-        "DropPlayerOne",
-        "Burning claw",
-        100,
-        2,
-        "Test source"
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT condition_id
+            FROM tile_conditions
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        condition_id = cursor.fetchone()[0]
+
+    event_id = database.add_dink_event(
+        event_fingerprint="team-data-relevant-drop-dink",
+        raw_payload={"type": "LOOT"},
+        player_name="DropPlayerOne",
+        player_id=first_player_id,
+        event_type="LOOT"
     )
 
-    second_drop_pk = database.add_drop(
-        team_id,
-        second_player_id,
-        "DropPlayerTwo",
-        "Burning claw",
-        100,
-        3,
-        "Test source"
+    database.process_dink_event_progress(
+        event_id=event_id,
+        player_id=first_player_id,
+        event_progress=[
+            {
+                "condition_type": "DROP",
+                "trigger": "Burning claw",
+                "amount": 2
+            }
+        ]
     )
 
-    database.add_relevant_drop(
-        team_id,
-        first_player_id,
-        tile_id,
-        "Burning Claw Tile",
-        "Burning claw",
-        "DropPlayerOne",
-        first_drop_pk
+    submission = database.add_manual_evidence(
+        player_id=second_player_id,
+        condition_id=condition_id,
+        amount=3,
+        evidence_path="manual/team-relevant-drop-test.png",
+        evidence_sha256="b" * 64,
+        submission_source="DISCORD",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
     )
 
-    database.add_relevant_drop(
-        team_id,
-        second_player_id,
-        tile_id,
-        "Burning Claw Tile",
-        "Burning claw",
-        "DropPlayerTwo",
-        second_drop_pk
+    review_result = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="DISCORD",
+        reviewer_id=54321,
+        reviewer_name="Reviewing Staff"
     )
+
+    assert review_result["status"] == "ACCEPTED"
 
     summary = database.get_team_data_summary(
         team_id

@@ -891,11 +891,13 @@ def ensure_schema():
             CREATE TABLE IF NOT EXISTS dink_event_progress (
                 progress_id BIGSERIAL PRIMARY KEY,
                 event_id BIGINT NOT NULL,
+                team_id INTEGER,
                 condition_id INTEGER NOT NULL,
                 tile_id INTEGER NOT NULL,
                 completion_path INTEGER NOT NULL,
                 trigger TEXT NOT NULL,
                 amount BIGINT NOT NULL,
+                counted_amount BIGINT NOT NULL DEFAULT 0,
                 raw_progress BIGINT NOT NULL,
                 route_progress NUMERIC(18, 12) NOT NULL,
                 credited NUMERIC(18, 12) NOT NULL,
@@ -913,7 +915,8 @@ def ensure_schema():
                 FOREIGN KEY (tile_id)
                     REFERENCES tiles(tile_id)
                     ON DELETE CASCADE,
-                CHECK (amount > 0)
+                CHECK (amount > 0),
+                CHECK (counted_amount >= 0)
             )
         ''')
 
@@ -924,6 +927,36 @@ def ensure_schema():
         ''')
 
         cursor.execute('''
+            ALTER TABLE dink_event_progress
+            ADD COLUMN IF NOT EXISTS team_id INTEGER
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE dink_event_progress
+            ADD COLUMN IF NOT EXISTS counted_amount BIGINT
+                NOT NULL DEFAULT 0
+        ''')
+
+        cursor.execute('''
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname =
+                        'dink_event_progress_counted_amount_nonnegative'
+                )
+                THEN
+                    ALTER TABLE dink_event_progress
+                    ADD CONSTRAINT
+                        dink_event_progress_counted_amount_nonnegative
+                    CHECK (counted_amount >= 0);
+                END IF;
+            END
+            $$
+        ''')
+
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS manual_evidence_progress (
                 progress_id BIGSERIAL PRIMARY KEY,
                 evidence_id BIGINT NOT NULL UNIQUE,
@@ -931,6 +964,7 @@ def ensure_schema():
                 tile_id INTEGER,
                 completion_path INTEGER NOT NULL,
                 amount BIGINT NOT NULL,
+                counted_amount BIGINT NOT NULL DEFAULT 0,
                 raw_progress BIGINT NOT NULL,
                 route_progress NUMERIC(18, 12) NOT NULL,
                 actual_contribution NUMERIC(18, 12) NOT NULL
@@ -957,7 +991,8 @@ def ensure_schema():
                 FOREIGN KEY (tile_id)
                     REFERENCES tiles(tile_id)
                     ON DELETE SET NULL,
-                CHECK (amount > 0)
+                CHECK (amount > 0),
+                CHECK (counted_amount >= 0)
             )
         ''')
 
@@ -1016,6 +1051,31 @@ def ensure_schema():
             ADD COLUMN IF NOT EXISTS
                 lost_mvp_contribution NUMERIC(18, 12)
                 NOT NULL DEFAULT 0
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE manual_evidence_progress
+            ADD COLUMN IF NOT EXISTS counted_amount BIGINT
+                NOT NULL DEFAULT 0
+        ''')
+
+        cursor.execute('''
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname =
+                        'manual_evidence_progress_counted_amount_nonnegative'
+                )
+                THEN
+                    ALTER TABLE manual_evidence_progress
+                    ADD CONSTRAINT
+                        manual_evidence_progress_counted_amount_nonnegative
+                    CHECK (counted_amount >= 0);
+                END IF;
+            END
+            $$
         ''')
 
         cursor.execute('''
@@ -1607,14 +1667,39 @@ def get_leaderboard_summary():
 
         cursor.execute(
             '''
-            SELECT COALESCE(SUM(d.drop_quantity), 0)
-            FROM relevant_drops AS rd
-            JOIN drops AS d
-              ON d.drops_pk = rd.drops_pk
-             AND LOWER(BTRIM(rd.drop_name))
-                 = LOWER(BTRIM(d.drop_name))
+            WITH relevant_drop_progress AS (
+                SELECT
+                    dep.counted_amount AS quantity
+                FROM dink_event_progress AS dep
+                JOIN dink_events AS de
+                  ON de.event_id = dep.event_id
+                WHERE de.status = 'PROCESSED'
+                  AND dep.counted_amount > 0
+
+                UNION ALL
+
+                SELECT
+                    progress.counted_amount AS quantity
+                FROM manual_evidence_progress AS progress
+                JOIN manual_evidence AS evidence
+                  ON evidence.evidence_id =
+                     progress.evidence_id
+                JOIN manual_evidence_condition_snapshots
+                    AS snapshot
+                  ON snapshot.evidence_id =
+                     evidence.evidence_id
+                 AND snapshot.selected_condition = TRUE
+                WHERE evidence.status = 'ACCEPTED'
+                  AND UPPER(
+                      BTRIM(snapshot.condition_type)
+                  ) = 'DROP'
+                  AND progress.counted_amount > 0
+            )
+            SELECT COALESCE(SUM(quantity), 0)
+            FROM relevant_drop_progress
             '''
         )
+
         relevant_drop_quantity = int(
             cursor.fetchone()[0]
         )
@@ -1721,22 +1806,51 @@ def get_team_data_summary(team_id):
 
         cursor.execute(
             '''
+            WITH relevant_drop_progress AS (
+                SELECT
+                    dep.trigger AS drop_name,
+                    dep.counted_amount AS quantity
+                FROM dink_event_progress AS dep
+                JOIN dink_events AS de
+                  ON de.event_id = dep.event_id
+                WHERE dep.team_id = %s
+                  AND de.status = 'PROCESSED'
+                  AND dep.counted_amount > 0
+
+                UNION ALL
+
+                SELECT
+                    snapshot.condition_trigger AS drop_name,
+                    progress.counted_amount AS quantity
+                FROM manual_evidence_progress AS progress
+                JOIN manual_evidence AS evidence
+                  ON evidence.evidence_id =
+                     progress.evidence_id
+                JOIN manual_evidence_condition_snapshots
+                    AS snapshot
+                  ON snapshot.evidence_id =
+                     evidence.evidence_id
+                 AND snapshot.selected_condition = TRUE
+                WHERE evidence.team_id = %s
+                  AND evidence.status = 'ACCEPTED'
+                  AND UPPER(
+                      BTRIM(snapshot.condition_type)
+                  ) = 'DROP'
+                  AND progress.counted_amount > 0
+            )
             SELECT
-                d.drop_name,
-                SUM(d.drop_quantity)::INTEGER AS quantity
-            FROM relevant_drops AS rd
-            JOIN drops AS d
-              ON d.drops_pk = rd.drops_pk
-            WHERE rd.team_id = %s
-              AND LOWER(BTRIM(rd.drop_name))
-                  = LOWER(BTRIM(d.drop_name))
-            GROUP BY
-                LOWER(BTRIM(d.drop_name)),
-                d.drop_name
-            ORDER BY
-                LOWER(d.drop_name)
+                MIN(BTRIM(drop_name)) AS drop_name,
+                SUM(quantity)::INTEGER AS quantity
+            FROM relevant_drop_progress
+            WHERE drop_name IS NOT NULL
+              AND BTRIM(drop_name) <> ''
+            GROUP BY LOWER(BTRIM(drop_name))
+            ORDER BY LOWER(MIN(BTRIM(drop_name)))
             ''',
-            (team_id,)
+            (
+                team_id,
+                team_id
+            )
         )
 
         relevant_drops = [
@@ -7109,6 +7223,7 @@ def accept_pending_manual_evidence(
                     tile_id,
                     completion_path,
                     amount,
+                    counted_amount,
                     raw_progress,
                     route_progress,
                     actual_contribution,
@@ -7125,6 +7240,7 @@ def accept_pending_manual_evidence(
                     %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s,
+                    %s,
                     clock_timestamp()
                 )
                 ''',
@@ -7134,6 +7250,7 @@ def accept_pending_manual_evidence(
                     tile_id,
                     completion_path,
                     amount,
+                    0,
                     current_raw_progress,
                     current_route["progress_fraction"],
                     0.0,
@@ -7231,6 +7348,16 @@ def accept_pending_manual_evidence(
             team_id=team_id,
             condition_id=condition_id,
             amount=amount
+        )
+
+        counted_amount = _calculate_counted_drop_amount(
+            condition_type=compatibility["condition_type"],
+            amount=amount,
+            condition_target=compatibility["target"],
+            condition_progress_before=(
+                raw_progress - amount
+            ),
+            route_state=before
         )
 
         after = _evaluate_completion_path(
@@ -7460,6 +7587,7 @@ def accept_pending_manual_evidence(
                 tile_id,
                 completion_path,
                 amount,
+                counted_amount,
                 raw_progress,
                 route_progress,
                 actual_contribution,
@@ -7476,6 +7604,7 @@ def accept_pending_manual_evidence(
                 %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s,
+                %s,
                 clock_timestamp()
             )
             ''',
@@ -7485,6 +7614,7 @@ def accept_pending_manual_evidence(
                 tile_id,
                 completion_path,
                 amount,
+                counted_amount,
                 raw_progress,
                 after["progress_fraction"],
                 actual_contribution,
@@ -7972,11 +8102,13 @@ def _add_dink_event_progress(
             '''
             INSERT INTO dink_event_progress (
                 event_id,
+                team_id,
                 condition_id,
                 tile_id,
                 completion_path,
                 trigger,
                 amount,
+                counted_amount,
                 raw_progress,
                 route_progress,
                 credited,
@@ -7996,16 +8128,20 @@ def _add_dink_event_progress(
                 %s,
                 %s,
                 %s,
+                %s,
+                %s,
                 %s
             )
             ''',
             (
                 event_id,
+                result["team_id"],
                 result["condition_id"],
                 result["tile_id"],
                 result["completion_path"],
                 trigger,
                 amount,
+                result["counted_amount"],
                 result["raw_progress"],
                 result["route_progress"],
                 result["credited"],
@@ -8059,7 +8195,9 @@ def get_dink_event_progress_by_event_id(event_id):
                 banked_total,
                 ready,
                 completed,
-                processed_at
+                processed_at,
+                team_id,
+                counted_amount
             FROM dink_event_progress
             WHERE event_id = %s
             ORDER BY progress_id
@@ -9493,6 +9631,57 @@ def _evaluate_completion_path(
         conditions=conditions
     )
 
+def _calculate_counted_drop_amount(
+    condition_type,
+    amount,
+    condition_target,
+    condition_progress_before,
+    route_state
+):
+    if str(condition_type).strip().upper() != "DROP":
+        return 0
+
+    amount = int(amount)
+    condition_target = int(condition_target)
+    condition_progress_before = int(
+        condition_progress_before
+    )
+
+    route_mode = route_state["route_mode"]
+
+    if route_mode == "ALL":
+        remaining = max(
+            condition_target - condition_progress_before,
+            0
+        )
+
+        return min(amount, remaining)
+
+    route_remaining = max(
+        int(route_state["target"])
+        - int(route_state["current"]),
+        0
+    )
+
+    if route_mode == "SUM":
+        return min(amount, route_remaining)
+
+    if route_mode == "N_OF":
+        if route_state.get("require_unique"):
+            if (
+                route_remaining > 0
+                and condition_progress_before <= 0
+            ):
+                return 1
+
+            return 0
+
+        return min(amount, route_remaining)
+
+    raise ValueError(
+        f"Unsupported route mode: {route_mode}"
+    )
+
 
 def get_manual_evidence_submission_options(player_id):
     """
@@ -9762,7 +9951,8 @@ def _apply_event_condition_progress(
         SELECT
             condition_id,
             tile_id,
-            completion_path
+            completion_path,
+            target
         FROM tile_conditions
         WHERE condition_type = %s
           AND lower(condition_trigger) = lower(%s)
@@ -9784,7 +9974,8 @@ def _apply_event_condition_progress(
     for (
         condition_id,
         tile_id,
-        completion_path
+        completion_path,
+        condition_target
     ) in conditions:
         # Serialise all progress against this tile so two
         # simultaneous events cannot both claim the same
@@ -9832,6 +10023,16 @@ def _apply_event_condition_progress(
             amount=amount
         )
 
+        counted_amount = _calculate_counted_drop_amount(
+            condition_type=condition_type,
+            amount=amount,
+            condition_target=condition_target,
+            condition_progress_before=(
+                raw_progress - amount
+            ),
+            route_state=before
+        )
+
         after = _evaluate_completion_path(
             cursor=cursor,
             team_id=team_id,
@@ -9873,9 +10074,11 @@ def _apply_event_condition_progress(
 
         results.append(
             {
+                "team_id": team_id,
                 "condition_id": condition_id,
                 "tile_id": tile_id,
                 "completion_path": completion_path,
+                "counted_amount": counted_amount,
                 "raw_progress": raw_progress,
                 "route_progress":
                     after["progress_fraction"],
@@ -10717,22 +10920,51 @@ def get_player_relevant_drop_summary(player_id):
 
         cursor.execute(
             '''
+            WITH relevant_drop_progress AS (
+                SELECT
+                    dep.trigger AS drop_name,
+                    dep.counted_amount AS quantity
+                FROM dink_event_progress AS dep
+                JOIN dink_events AS de
+                  ON de.event_id = dep.event_id
+                WHERE de.player_id = %s
+                  AND de.status = 'PROCESSED'
+                  AND dep.counted_amount > 0
+
+                UNION ALL
+
+                SELECT
+                    snapshot.condition_trigger AS drop_name,
+                    progress.counted_amount AS quantity
+                FROM manual_evidence_progress AS progress
+                JOIN manual_evidence AS evidence
+                  ON evidence.evidence_id =
+                     progress.evidence_id
+                JOIN manual_evidence_condition_snapshots
+                    AS snapshot
+                  ON snapshot.evidence_id =
+                     evidence.evidence_id
+                 AND snapshot.selected_condition = TRUE
+                WHERE evidence.player_id = %s
+                  AND evidence.status = 'ACCEPTED'
+                  AND UPPER(
+                      BTRIM(snapshot.condition_type)
+                  ) = 'DROP'
+                  AND progress.counted_amount > 0
+            )
             SELECT
-                d.drop_name,
-                SUM(d.drop_quantity)::INTEGER AS quantity
-            FROM relevant_drops rd
-            JOIN drops d
-              ON d.drops_pk = rd.drops_pk
-            WHERE rd.player_id = %s
-              AND LOWER(BTRIM(rd.drop_name))
-                  = LOWER(BTRIM(d.drop_name))
-            GROUP BY
-                LOWER(BTRIM(d.drop_name)),
-                d.drop_name
-            ORDER BY
-                LOWER(d.drop_name)
+                MIN(BTRIM(drop_name)) AS drop_name,
+                SUM(quantity)::INTEGER AS quantity
+            FROM relevant_drop_progress
+            WHERE drop_name IS NOT NULL
+              AND BTRIM(drop_name) <> ''
+            GROUP BY LOWER(BTRIM(drop_name))
+            ORDER BY LOWER(MIN(BTRIM(drop_name)))
             ''',
-            (player_id,)
+            (
+                player_id,
+                player_id
+            )
         )
 
         drops = [
@@ -10764,7 +10996,15 @@ def get_player_bingo_evidence(player_id):
                 dep.tile_id,
                 t.tile_name,
                 SUM(dep.credited)::NUMERIC(18, 12),
-                BOOL_OR(dep.completed),
+                EXISTS (
+                    SELECT 1
+                    FROM completed_tiles AS completed
+                    WHERE completed.tile_id = dep.tile_id
+                      AND completed.team_id = COALESCE(
+                          dep.team_id,
+                          player.team_id
+                      )
+                ),
                 de.screenshot_path,
                 de.received_at
             FROM dink_events AS de
@@ -10772,6 +11012,8 @@ def get_player_bingo_evidence(player_id):
               ON dep.event_id = de.event_id
             JOIN tiles AS t
               ON t.tile_id = dep.tile_id
+            JOIN players AS player
+              ON player.player_id = de.player_id
             WHERE de.player_id = %s
               AND de.status = 'PROCESSED'
               AND de.screenshot_path IS NOT NULL
@@ -10779,6 +11021,8 @@ def get_player_bingo_evidence(player_id):
                 de.event_id,
                 dep.tile_id,
                 t.tile_name,
+                player.team_id,
+                dep.team_id,
                 de.screenshot_path,
                 de.received_at
             ''',
@@ -11590,11 +11834,13 @@ def reset_tables():
         CREATE TABLE dink_event_progress (
             progress_id BIGSERIAL PRIMARY KEY,
             event_id BIGINT NOT NULL,
+            team_id INTEGER,
             condition_id INTEGER NOT NULL,
             tile_id INTEGER NOT NULL,
             completion_path INTEGER NOT NULL,
             trigger TEXT NOT NULL,
             amount BIGINT NOT NULL,
+            counted_amount BIGINT NOT NULL DEFAULT 0,
             raw_progress BIGINT NOT NULL,
             route_progress NUMERIC(18, 12) NOT NULL,
             credited NUMERIC(18, 12) NOT NULL,
@@ -11612,7 +11858,8 @@ def reset_tables():
             FOREIGN KEY (tile_id)
                 REFERENCES tiles(tile_id)
                 ON DELETE CASCADE,
-            CHECK (amount > 0)
+            CHECK (amount > 0),
+            CHECK (counted_amount >= 0)
         )
     ''')
 
@@ -11629,6 +11876,7 @@ def reset_tables():
             tile_id INTEGER,
             completion_path INTEGER NOT NULL,
             amount BIGINT NOT NULL,
+            counted_amount BIGINT NOT NULL DEFAULT 0,
             raw_progress BIGINT NOT NULL,
             route_progress NUMERIC(18, 12) NOT NULL,
             actual_contribution NUMERIC(18, 12) NOT NULL
@@ -11655,7 +11903,8 @@ def reset_tables():
             FOREIGN KEY (tile_id)
                 REFERENCES tiles(tile_id)
                 ON DELETE SET NULL,
-            CHECK (amount > 0)
+            CHECK (amount > 0),
+            CHECK (counted_amount >= 0)
         )
     ''')
 

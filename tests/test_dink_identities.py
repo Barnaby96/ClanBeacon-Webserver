@@ -4497,7 +4497,8 @@ def test_accept_pending_manual_evidence_records_incomplete_progress():
                 lost_mvp_contribution,
                 banked_total,
                 ready,
-                completed
+                completed,
+                counted_amount
             FROM manual_evidence_progress
             WHERE evidence_id = %s
             ''',
@@ -4554,6 +4555,7 @@ def test_accept_pending_manual_evidence_records_incomplete_progress():
 
     assert progress_row[9] is False
     assert progress_row[10] is False
+    assert progress_row[11] == 3
 
     assert decision == (
         "ACCEPT",
@@ -5011,7 +5013,8 @@ def test_late_manual_evidence_accepts_without_discretionary_mvp_by_default():
                 lost_mvp_contribution,
                 banked_total,
                 ready,
-                completed
+                completed,
+                counted_amount
             FROM manual_evidence_progress
             WHERE evidence_id = %s
             ''',
@@ -5070,6 +5073,7 @@ def test_late_manual_evidence_accepts_without_discretionary_mvp_by_default():
     assert float(progress_row[5]) == 1.0
     assert progress_row[6] is True
     assert progress_row[7] is True
+    assert progress_row[8] == 0
 
     assert float(player_row[0]) == 0.0
     assert float(player_row[1]) == 0.0

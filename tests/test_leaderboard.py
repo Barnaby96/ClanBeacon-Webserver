@@ -454,35 +454,79 @@ def test_leaderboard_clan_totals_use_current_relevant_competition_data():
                 )
             )
 
-    drop_pk = database.add_drop(
-        team_id,
-        first_player_id,
-        "Clan Totals One",
-        "Burning claw",
-        100,
-        5,
-        "Test source"
+    drop_tile_id = database.add_tile_with_conditions(
+        tile_name="Clan Drop One",
+        tile_points=1,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Burning claw",
+                "target": 10
+            }
+        ],
+        completion_paths=[
+            {
+                "completion_path": 1,
+                "route_mode": "SUM",
+                "route_target": 10
+            }
+        ]
     )
 
-    database.add_relevant_drop(
-        team_id,
-        first_player_id,
-        first_kc_tile,
-        "Clan KC One",
-        "Burning claw",
-        "Clan Totals One",
-        drop_pk
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT condition_id
+            FROM tile_conditions
+            WHERE tile_id = %s
+            ''',
+            (drop_tile_id,)
+        )
+
+        drop_condition_id = cursor.fetchone()[0]
+
+    event_id = database.add_dink_event(
+        event_fingerprint="leaderboard-relevant-drop-dink",
+        raw_payload={"type": "LOOT"},
+        player_name="Clan Totals One",
+        player_id=first_player_id,
+        event_type="LOOT"
     )
 
-    database.add_relevant_drop(
-        team_id,
-        first_player_id,
-        first_kc_tile,
-        "Clan KC One",
-        "Synthetic counter",
-        "Clan Totals One",
-        None
+    database.process_dink_event_progress(
+        event_id=event_id,
+        player_id=first_player_id,
+        event_progress=[
+            {
+                "condition_type": "DROP",
+                "trigger": "Burning claw",
+                "amount": 2
+            }
+        ]
     )
+
+    submission = database.add_manual_evidence(
+        player_id=second_player_id,
+        condition_id=drop_condition_id,
+        amount=3,
+        evidence_path="manual/leaderboard-relevant-drop-test.png",
+        evidence_sha256="c" * 64,
+        submission_source="DISCORD",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
+    )
+
+    review_result = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="DISCORD",
+        reviewer_id=54321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert review_result["status"] == "ACCEPTED"
 
     result = database.get_leaderboard_summary()
 

@@ -1725,6 +1725,16 @@ def test_n_of_unique_does_not_count_same_item_twice(
 
     assert first_data["processing_status"] == "PROCESSED"
 
+    first_audit_rows = (
+        database.get_dink_event_progress_by_event_id(
+            first_data["event_id"]
+        )
+    )
+
+    assert len(first_audit_rows) == 1
+    assert first_audit_rows[0][14] == team.team_id
+    assert first_audit_rows[0][15] == 1
+
     completed_after_first = (
         database.get_completed_tiles_by_team_id_and_tile_id(
             team.team_id,
@@ -1781,6 +1791,64 @@ def test_n_of_unique_does_not_count_same_item_twice(
     )
 
     assert len(completed_after_second) == 1
+
+
+def test_counted_drop_amount_caps_at_route_requirements():
+    all_counted = database._calculate_counted_drop_amount(
+        condition_type="DROP",
+        amount=5,
+        condition_target=10,
+        condition_progress_before=8,
+        route_state={
+            "route_mode": "ALL",
+            "current": 0,
+            "target": 1
+        }
+    )
+
+    sum_counted = database._calculate_counted_drop_amount(
+        condition_type="DROP",
+        amount=5,
+        condition_target=999,
+        condition_progress_before=0,
+        route_state={
+            "route_mode": "SUM",
+            "current": 8,
+            "target": 10
+        }
+    )
+
+    non_unique_n_of_counted = (
+        database._calculate_counted_drop_amount(
+            condition_type="DROP",
+            amount=5,
+            condition_target=999,
+            condition_progress_before=0,
+            route_state={
+                "route_mode": "N_OF",
+                "current": 8,
+                "target": 10,
+                "require_unique": False
+            }
+        )
+    )
+
+    pet_counted = database._calculate_counted_drop_amount(
+        condition_type="PET",
+        amount=1,
+        condition_target=1,
+        condition_progress_before=0,
+        route_state={
+            "route_mode": "ALL",
+            "current": 0,
+            "target": 1
+        }
+    )
+
+    assert all_counted == 2
+    assert sum_counted == 2
+    assert non_unique_n_of_counted == 2
+    assert pet_counted == 0
 
 
 def test_ignored_multipart_event_minimises_evidence(
