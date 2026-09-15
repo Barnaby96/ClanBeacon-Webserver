@@ -498,6 +498,12 @@ def ensure_schema():
         ''')
 
         cursor.execute('''
+            ALTER TABLE completed_tiles
+            ADD COLUMN IF NOT EXISTS points_awarded
+                NUMERIC(18, 12)
+        ''')
+
+        cursor.execute('''
             CREATE UNIQUE INDEX IF NOT EXISTS
                 idx_completed_tiles_team_tile
             ON completed_tiles (
@@ -10447,12 +10453,14 @@ def _complete_tile_with_contributions(
         INSERT INTO completed_tiles (
             tile_id,
             team_id,
-            completed_at
+            completed_at,
+            points_awarded
         )
         VALUES (
             %s,
             %s,
-            clock_timestamp()
+            clock_timestamp(),
+            %s
         )
         ON CONFLICT (team_id, tile_id)
         DO NOTHING
@@ -10460,7 +10468,8 @@ def _complete_tile_with_contributions(
         ''',
         (
             tile_id,
-            team_id
+            team_id,
+            tile_points
         )
     )
 
@@ -11978,6 +11987,7 @@ def reset_tables():
                 completed_tile_pk SERIAL PRIMARY KEY,
                 completed_at TIMESTAMPTZ NOT NULL
                     DEFAULT CURRENT_TIMESTAMP,
+                points_awarded NUMERIC(18, 12),
                 FOREIGN KEY (tile_id) REFERENCES tiles(tile_id) ON DELETE CASCADE,
                 FOREIGN KEY (team_id) REFERENCES teams(team_id) ON DELETE CASCADE
             )

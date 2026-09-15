@@ -1094,6 +1094,27 @@ def test_tile_completion_can_return_detailed_allocation():
             )
         )
 
+        cursor.execute(
+            '''
+            SELECT
+                tile_id,
+                points_awarded
+            FROM completed_tiles
+            WHERE team_id = %s
+              AND tile_id IN (%s, %s)
+            ''',
+            (
+                player[5],
+                detailed_tile_id,
+                boolean_tile_id
+            )
+        )
+
+        completion_points = {
+            int(tile_id): float(points_awarded)
+            for tile_id, points_awarded in cursor.fetchall()
+        }
+
         conn.commit()
 
     assert detailed_result["completed"] is True
@@ -1114,6 +1135,11 @@ def test_tile_completion_can_return_detailed_allocation():
     }
 
     assert boolean_result is True
+
+    assert completion_points == {
+        detailed_tile_id: 4.0,
+        boolean_tile_id: 2.0
+    }
 
 
 def test_banked_contribution_stays_with_original_team():
