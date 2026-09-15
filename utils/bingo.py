@@ -13,6 +13,48 @@ class TileProgress:
         self.completions = 0
 
 
+def get_board_render_state(team_id=None):
+    tile_names_by_coordinate = {}
+    completed_coordinates = set()
+    partial_coordinates = set()
+
+    for tile_data in database.get_tiles():
+        tile = db_entities.Tile(tile_data)
+
+        if tile.board_coordinate is None:
+            continue
+
+        tile_names_by_coordinate[
+            tile.board_coordinate
+        ] = tile.tile_name
+
+        if team_id is None:
+            continue
+
+        tile_progress = get_progress(
+            team_id,
+            tile.tile_id
+        )
+
+        if tile_progress.completions > 0:
+            completed_coordinates.add(
+                tile.board_coordinate
+            )
+
+        elif tile_progress.progress_value > 0:
+            partial_coordinates.add(
+                tile.board_coordinate
+            )
+
+    return {
+        "tile_names_by_coordinate":
+            tile_names_by_coordinate,
+        "completed_coordinates":
+            completed_coordinates,
+        "partial_coordinates":
+            partial_coordinates
+    }
+
 
 def get_drop_progress(tile_progress):
     tile_completion_count = tile_progress.completions

@@ -1537,3 +1537,57 @@ def test_board_visible_flag_no_longer_hides_board(
 
     assert "Always Visible Team" in page_html
     assert "The Tiles Haven't Been Released Yet" not in page_html
+
+
+def test_get_board_render_state_includes_completed_tile():
+    from utils import bingo, database, db_entities
+
+    database.add_team(
+        "Shared Board State Team",
+        0,
+        None
+    )
+
+    team = db_entities.Team(
+        database.get_team_by_name(
+            "Shared Board State Team"
+        )
+    )
+
+    tile_id = database.add_tile_with_conditions(
+        "Shared Board Completed Tile",
+        5,
+        "Shared board-state helper test",
+        [
+            {
+                "completion_path": 1,
+                "condition_type": "MANUAL",
+                "condition_trigger": None,
+                "target": 1
+            }
+        ]
+    )
+
+    database.set_tile_board_coordinate(
+        tile_id,
+        "B2"
+    )
+
+    database.add_completed_tile(
+        tile_id,
+        team.team_id
+    )
+
+    board_state = bingo.get_board_render_state(
+        team.team_id
+    )
+
+    assert board_state["tile_names_by_coordinate"] == {
+        "B2": "Shared Board Completed Tile"
+    }
+
+    assert board_state["completed_coordinates"] == {
+        "B2"
+    }
+
+    assert board_state["partial_coordinates"] == set()

@@ -6,7 +6,11 @@ from collections import defaultdict
 from flask import Blueprint, jsonify, request
 import json
 
-from utils import database, db_entities
+from utils import (
+    completion_notifications,
+    database,
+    db_entities
+)
 from utils.db_entities import Player, Team, Tile, Drop
 from utils.send_webhook import send_webhook
 
@@ -357,6 +361,10 @@ def process_pending_dink_events(
             event_id=event_id,
             player_id=player_id,
             event_progress=event_progress
+        )
+
+        completion_notifications.notify_progress_completions(
+            result["progress"]
         )
 
         if result["status"] == "IGNORED":
@@ -1212,6 +1220,11 @@ def handle_request(provided_secret):
                     player_id=ingestion_result["player_id"],
                     event_progress=event_progress
                 )
+            )
+
+        if processing_result is not None:
+            completion_notifications.notify_progress_completions(
+                processing_result["progress"]
             )
 
             if processing_result["status"] == "IGNORED":

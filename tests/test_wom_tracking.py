@@ -394,3 +394,116 @@ def test_schema_migration_seeds_existing_wom_condition_checkpoint():
         team_id,
         condition_id
     ) == 150
+
+
+def test_process_wom_competition_notifies_completed_tile(
+    monkeypatch
+):
+    from utils import (
+        completion_notifications,
+        wom_tracking
+    )
+
+    team_id = create_team(
+        "WOM Notification Team"
+    )
+
+    create_player(
+        "WOM Notification Player",
+        team_id
+    )
+
+    player_row = database.get_player_by_name(
+        "WOM Notification Player"
+    )
+
+    monkeypatch.setattr(
+        database,
+        "get_wom_competition_id",
+        lambda: 12345
+    )
+
+    monkeypatch.setattr(
+        database,
+        "get_wom_tile_conditions",
+        lambda: [
+            (
+                1,
+                20,
+                1,
+                "EXPERIENCE",
+                "mining",
+                100
+            )
+        ]
+    )
+
+    monkeypatch.setattr(
+        wom_tracking.wom,
+        "get_competition_details",
+        lambda competition_id, metric: {
+            "participations": [
+                {
+                    "playerId": 999,
+                    "progress": {
+                        "gained": 100
+                    }
+                }
+            ]
+        }
+    )
+
+    monkeypatch.setattr(
+        database,
+        "get_player_by_wom_player_id",
+        lambda wom_player_id: player_row
+    )
+
+    monkeypatch.setattr(
+        database,
+        "apply_wom_metric_progress",
+        lambda *args, **kwargs: {
+            "tiles": [
+                {
+                    "ready": True,
+                    "tile_id": 20
+                }
+            ]
+        }
+    )
+
+    monkeypatch.setattr(
+        database,
+        "complete_tile_with_contributions",
+        lambda team_id, tile_id: True
+    )
+
+    notification_calls = []
+
+    monkeypatch.setattr(
+        completion_notifications,
+        "notify_progress_completions",
+        lambda progress_results: notification_calls.append(
+            progress_results
+        )
+    )
+
+    result = wom_tracking.process_wom_competition()
+
+    assert result["tiles_completed"] == [
+        {
+            "tile_id": 20,
+            "team_id": team_id,
+            "metric": "mining"
+        }
+    ]
+
+    assert notification_calls == [
+        [
+            {
+                "team_id": team_id,
+                "tile_id": 20,
+                "completed": True
+            }
+        ]
+    ]

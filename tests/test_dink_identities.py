@@ -4691,6 +4691,7 @@ def test_accept_pending_manual_evidence_completes_tile_with_remainder():
 
     assert result["ready"] is True
     assert result["completed"] is True
+    assert result["newly_completed"] is True
     assert result["player_deleted"] is False
 
     with database.connect() as conn:
@@ -4970,6 +4971,7 @@ def test_late_manual_evidence_accepts_without_discretionary_mvp_by_default():
 
     assert result["ready"] is True
     assert result["completed"] is True
+    assert result["newly_completed"] is False
     assert result["player_deleted"] is False
 
     player_evidence = database.get_player_bingo_evidence(

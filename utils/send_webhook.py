@@ -130,3 +130,67 @@ def send_webhook(url, title, description, color, image):
         }
 
         requests.post(url, data = {'payload_json': json.dumps(payload)})
+
+
+def send_completion_webhook(
+    url,
+    message,
+    board_image,
+    discord_role_id=None
+):
+    url = str(url or "").strip()
+
+    if not validate_discord_webhook_url(url):
+        raise ValueError(
+            "Please enter a valid Discord webhook URL."
+        )
+
+    message = str(message or "").strip()
+
+    payload = {
+        "content": message,
+        "allowed_mentions": {
+            "parse": []
+        }
+    }
+
+    if discord_role_id is not None:
+        role_id = str(discord_role_id)
+
+        payload["content"] = (
+            f"<@&{role_id}>\n"
+            f"{message}"
+        )
+
+        payload["allowed_mentions"]["roles"] = [
+            role_id
+        ]
+
+    try:
+        response = requests.post(
+            url,
+            data={
+                "payload_json": json.dumps(payload)
+            },
+            files={
+                "file": (
+                    "bingo_board.png",
+                    board_image,
+                    "image/png"
+                )
+            },
+            timeout=10
+        )
+    except requests.RequestException as error:
+        raise RuntimeError(
+            "Discord could not be reached to send the "
+            "bingo completion notification."
+        ) from error
+
+    if not response.ok:
+        raise RuntimeError(
+            "Discord rejected the bingo completion "
+            "notification."
+        )
+
+    return True

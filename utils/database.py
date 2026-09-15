@@ -7325,7 +7325,8 @@ def accept_pending_manual_evidence(
                 "ready": bool(
                     current_route["ready"]
                 ),
-                "completed": True
+                "completed": True,
+                "newly_completed": False
             }
 
         condition_id = int(
@@ -7693,6 +7694,7 @@ def accept_pending_manual_evidence(
             "banked_total": banked_total,
             "ready": bool(after["ready"]),
             "completed": completed,
+            "newly_completed": bool(completed),
             "player_deleted": not player_exists
         }
 

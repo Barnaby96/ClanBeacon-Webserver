@@ -6,7 +6,12 @@ from discord.ext import commands
 from discord import default_permissions, guild_only
 
 from routes import dink
-from utils import database, db_entities, scapify
+from utils import (
+    completion_notifications,
+    database,
+    db_entities,
+    scapify
+)
 from utils.branding import BOT_NAME
 from utils.manual_evidence_files import (
     resolve_manual_evidence_path
@@ -678,6 +683,20 @@ class SubmissionReviewView(
             )
             return
 
+        if result.get(
+            "newly_completed",
+            False
+        ):
+            completion_notifications.notify_progress_completions(
+                [
+                    {
+                        "team_id": result["team_id"],
+                        "tile_id": result["tile_id"],
+                        "completed": True
+                    }
+                ]
+            )
+
         status = result.get(
             "status"
         )
@@ -1142,27 +1161,6 @@ class AdminCog(commands.Cog):
         database.add_team_points(team.team_id, -points)
         await ctx.respond(f"Successfully removed {team.team_name} {points} points!")
 
-    @discord.slash_command(name="add_tile_completion", description="Mark a tile as completed for a team")
-    @default_permissions(manage_webhooks=True)
-    @guild_only()
-    async def add_tile_completion(self,
-                                  ctx:discord.ApplicationContext,
-                                  team_name: discord.Option(str, "What team is completing a tile?", autocomplete=lambda ctx: fuzzy_autocomplete(ctx, team_names())),
-                                  tile_name: discord.Option(str, "What tile are they completing", autocomplete=lambda ctx: fuzzy_autocomplete(ctx, tile_names()))):
-        await ctx.defer()
-        team = database.get_team_by_name(team_name)
-        if team is None:
-            await ctx.respond(f"Unable to find team, {team_name}")
-            return False
-        team = db_entities.Team(team)
-        tile = database.get_tile_by_name(tile_name)
-        if tile is None:
-            await ctx.respond(f"Unable to find tile, {tile_name}")
-            return False
-        tile = db_entities.Tile(tile)
-        database.add_completed_tile(tile.tile_id, team.team_id)
-        await ctx.respond(f"I've added a tile completion for {team.team_name} on tile {tile.tile_name}. "
-                          f"NOTE: I did not add any points during this operation! Please use /add_team_points if required")
 
     @discord.slash_command(name="remove_tile_completion", description="Mark a tile as completed for a team")
     @default_permissions(manage_webhooks=True)

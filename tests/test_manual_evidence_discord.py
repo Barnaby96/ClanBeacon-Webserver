@@ -653,6 +653,18 @@ def test_review_submission_accepts_manual_evidence(
 
     accept_calls = []
 
+    from utils import completion_notifications
+
+    notification_calls = []
+
+    monkeypatch.setattr(
+        completion_notifications,
+        "notify_progress_completions",
+        lambda progress_results: notification_calls.append(
+            progress_results
+        )
+    )
+
     def accept_manual_evidence(**kwargs):
         accept_calls.append(
             kwargs
@@ -661,7 +673,10 @@ def test_review_submission_accepts_manual_evidence(
         return {
             "status": "ACCEPTED",
             "audit_only": False,
-            "late_review": False
+            "late_review": False,
+            "team_id": 2,
+            "tile_id": 20,
+            "newly_completed": True
         }
 
     monkeypatch.setattr(
@@ -729,6 +744,16 @@ def test_review_submission_accepts_manual_evidence(
             "reviewer_name": "Review Organiser",
             "award_lost_mvp": False
         }
+    ]
+
+    assert notification_calls == [
+        [
+            {
+                "team_id": 2,
+                "tile_id": 20,
+                "completed": True
+            }
+        ]
     ]
 
     assert len(
@@ -899,6 +924,18 @@ def test_review_submission_accepts_late_review_without_mvp(
         lambda: review_rows
     )
 
+    from utils import completion_notifications
+
+    notification_calls = []
+
+    monkeypatch.setattr(
+        completion_notifications,
+        "notify_progress_completions",
+        lambda progress_results: notification_calls.append(
+            progress_results
+        )
+    )
+
     monkeypatch.setattr(
         database,
         "accept_pending_manual_evidence",
@@ -906,7 +943,8 @@ def test_review_submission_accepts_late_review_without_mvp(
             "status": "ACCEPTED",
             "audit_only": False,
             "late_review": True,
-            "lost_mvp_contribution": 2.5
+            "lost_mvp_contribution": 2.5,
+            "newly_completed": False
         }
     )
 
@@ -978,6 +1016,7 @@ def test_review_submission_accepts_late_review_without_mvp(
     assert edit["embed"] is None
     assert edit["view"] is None
     assert edit["attachments"] == []
+    assert notification_calls == []
 
 
 def test_review_submission_prompts_when_lost_mvp_available(

@@ -1702,6 +1702,31 @@ def test_n_of_unique_does_not_count_same_item_twice(
         "TRUE"
     )
 
+    from utils import completion_notifications
+
+    notified_completions = []
+
+    def fake_notify_progress_completions(
+        progress_results
+    ):
+        for progress_result in progress_results:
+            if progress_result.get(
+                "completed",
+                False
+            ):
+                notified_completions.append(
+                    (
+                        progress_result["team_id"],
+                        progress_result["tile_id"]
+                    )
+                )
+
+    monkeypatch.setattr(
+        completion_notifications,
+        "notify_progress_completions",
+        fake_notify_progress_completions
+    )
+
     first_response = client.post(
         TEST_DINK_ENDPOINT,
         json={
@@ -1791,6 +1816,13 @@ def test_n_of_unique_does_not_count_same_item_twice(
     )
 
     assert len(completed_after_second) == 1
+
+    assert notified_completions == [
+        (
+            team.team_id,
+            tile_id
+        )
+    ]
 
 
 def test_counted_drop_amount_caps_at_route_requirements():

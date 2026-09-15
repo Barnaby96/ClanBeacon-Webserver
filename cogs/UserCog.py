@@ -1665,42 +1665,20 @@ class UserCog(commands.Cog):
         else:
             team = None
 
-        tile_names_by_coordinate = {}
-        completed_coordinates = set()
-        partial_coordinates = set()
-
-        for tile_data in database.get_tiles():
-            tile = db_entities.Tile(tile_data)
-
-            if tile.board_coordinate is None:
-                continue
-
-            tile_names_by_coordinate[
-                tile.board_coordinate
-            ] = tile.tile_name
-
-            if team is None:
-                continue
-
-            tile_progress = bingo.get_progress(
-                team.team_id,
-                tile.tile_id
-            )
-
-            if tile_progress.completions > 0:
-                completed_coordinates.add(
-                    tile.board_coordinate
-                )
-
-            elif tile_progress.progress_value > 0:
-                partial_coordinates.add(
-                    tile.board_coordinate
-                )
+        board_state = bingo.get_board_render_state(
+            team.team_id
+            if team is not None
+            else None
+        )
 
         board_image = board_renderer.render_bingo_board(
-            tile_names_by_coordinate,
-            completed_coordinates=completed_coordinates,
-            partial_coordinates=partial_coordinates,
+            board_state["tile_names_by_coordinate"],
+            completed_coordinates=(
+                board_state["completed_coordinates"]
+            ),
+            partial_coordinates=(
+                board_state["partial_coordinates"]
+            ),
             show_progress=team is not None
         )
 

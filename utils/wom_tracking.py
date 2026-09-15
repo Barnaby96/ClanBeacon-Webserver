@@ -1,4 +1,9 @@
-from utils import database, db_entities, wom
+from utils import (
+    completion_notifications,
+    database,
+    db_entities,
+    wom
+)
 from utils.branding import BOT_NAME
 
 
@@ -144,6 +149,16 @@ def process_wom_competition():
                             "team_id": player.team_id,
                             "metric": metric
                         }
+                    )
+
+                    completion_notifications.notify_progress_completions(
+                        [
+                            {
+                                "team_id": player.team_id,
+                                "tile_id": tile_result["tile_id"],
+                                "completed": True
+                            }
+                        ]
                     )
 
     return result

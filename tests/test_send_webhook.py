@@ -180,3 +180,78 @@ def test_send_test_webhook_reports_connection_failure(
             VALID_WEBHOOK_URL,
             "Test"
         )
+
+
+def test_send_completion_webhook_posts_board_and_role_mention(
+    monkeypatch
+):
+    captured = {}
+
+    class FakeResponse:
+        ok = True
+
+    def fake_post(
+        url,
+        data,
+        files,
+        timeout
+    ):
+        captured["url"] = url
+        captured["data"] = data
+        captured["files"] = files
+        captured["timeout"] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr(
+        send_webhook.requests,
+        "post",
+        fake_post
+    )
+
+    board_image = __import__("io").BytesIO(
+        b"test-board-image"
+    )
+
+    result = send_webhook.send_completion_webhook(
+        VALID_WEBHOOK_URL,
+        (
+            "Congratulations Zamorak, you have completed "
+            "Obtain 30 Feathers at A1! You have gained "
+            "5 Bingo Points!"
+        ),
+        board_image,
+        discord_role_id=123456789012345678
+    )
+
+    assert result is True
+    assert captured["url"] == VALID_WEBHOOK_URL
+    assert captured["timeout"] == 10
+
+    payload = send_webhook.json.loads(
+        captured["data"]["payload_json"]
+    )
+
+    assert payload == {
+        "content": (
+            "<@&123456789012345678>\n"
+            "Congratulations Zamorak, you have completed "
+            "Obtain 30 Feathers at A1! You have gained "
+            "5 Bingo Points!"
+        ),
+        "allowed_mentions": {
+            "parse": [],
+            "roles": [
+                "123456789012345678"
+            ]
+        }
+    }
+
+    assert "file" in captured["files"]
+
+    filename, file_data, content_type = (
+        captured["files"]["file"]
+    )
+
+    assert filename == "bingo_board.png"
+    assert content_type == "image/png"
+    assert file_data.read() == b"test-board-image"
