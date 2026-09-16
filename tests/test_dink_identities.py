@@ -5295,6 +5295,503 @@ def test_late_manual_evidence_accepts_without_discretionary_mvp_by_default():
     assert team_points_after_review == 4.0
 
 
+def test_invalidating_bad_dink_replays_late_accepted_manual_evidence():
+    create_test_player(
+        "Replayed Manual Tester",
+        team_name="Replayed Manual Team"
+    )
+
+    create_test_player(
+        "Bad Dink Finisher",
+        team_name="Replayed Manual Team"
+    )
+
+    manual_player = database.get_player_by_name(
+        "Replayed Manual Tester"
+    )
+
+    dink_player = database.get_player_by_name(
+        "Bad Dink Finisher"
+    )
+
+    assert manual_player is not None
+    assert dink_player is not None
+    assert manual_player[5] == dink_player[5]
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Replayed Manual Evidence Tile",
+        tile_points=4,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Replay Evidence Drop",
+                "target": 10
+            }
+        ],
+        completion_paths=[
+            {
+                "completion_path": 1,
+                "route_mode": "SUM",
+                "route_target": 10
+            }
+        ]
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT condition_id
+            FROM tile_conditions
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        condition_id = cursor.fetchone()[0]
+
+    submission = database.add_manual_evidence(
+        player_id=manual_player[0],
+        condition_id=condition_id,
+        amount=4,
+        evidence_path="manual/replayed-evidence-test.png",
+        evidence_sha256="b" * 64,
+        submission_source="DISCORD",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
+    )
+
+    dink_event_id = database.add_dink_event(
+        event_fingerprint="replayed-manual-bad-dink-event",
+        raw_payload={
+            "playerName": "Bad Dink Finisher",
+            "dinkAccountHash": "replayed-manual-bad-dink-hash",
+            "type": "LOOT"
+        },
+        dink_account_hash="replayed-manual-bad-dink-hash",
+        player_name="Bad Dink Finisher",
+        player_id=dink_player[0],
+        event_type="LOOT",
+        status="RECEIVED"
+    )
+
+    dink_result = database.process_dink_event_progress(
+        event_id=dink_event_id,
+        player_id=dink_player[0],
+        event_progress=[
+            {
+                "condition_type": "DROP",
+                "trigger": "Replay Evidence Drop",
+                "amount": 10
+            }
+        ]
+    )
+
+    assert dink_result["status"] == "PROCESSED"
+    assert len(dink_result["progress"]) == 1
+    assert dink_result["progress"][0]["completed"] is True
+
+    review_result = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="DISCORD",
+        reviewer_id=54321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert review_result["status"] == "ACCEPTED"
+    assert review_result["late_review"] is True
+    assert review_result["actual_contribution"] == 0.0
+    assert review_result["potential_contribution"] == 0.4
+    assert review_result["newly_completed"] is False
+
+    database.invalidate_bingo_evidence(
+        subject_type="DINK_EVENT",
+        subject_id=dink_event_id,
+        reason_code="INCORRECT_EVIDENCE",
+        review_source="DISCORD",
+        reviewer_id=987654321,
+        reviewer_name="Invalidation Reviewer"
+    )
+
+    completed_tiles = (
+        database.get_completed_tiles_by_team_id_and_tile_id(
+            manual_player[5],
+            tile_id
+        )
+    )
+
+    assert completed_tiles == []
+
+    condition_progress = (
+        database.get_tile_condition_progress(
+            manual_player[5],
+            tile_id
+        )
+    )
+
+    assert len(condition_progress) == 1
+    assert float(condition_progress[0][5]) == 4.0
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                player_id,
+                partial_completion
+            FROM partial_completions
+            WHERE team_id = %s
+              AND tile_id = %s
+            ORDER BY partial_completion_pk
+            ''',
+            (
+                manual_player[5],
+                tile_id
+            )
+        )
+
+        partial_rows = [
+            (
+                None if player_id is None else int(player_id),
+                float(partial_completion)
+            )
+            for player_id, partial_completion in cursor.fetchall()
+        ]
+
+        cursor.execute(
+            '''
+            SELECT
+                amount,
+                counted_amount,
+                raw_progress,
+                route_progress,
+                actual_contribution,
+                completion_remainder,
+                normal_player_credit,
+                potential_contribution,
+                lost_mvp_contribution,
+                banked_total,
+                ready,
+                completed
+            FROM manual_evidence_progress
+            WHERE evidence_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        progress_row = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (manual_player[0],)
+        )
+
+        manual_player_totals = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (dink_player[0],)
+        )
+
+        dink_player_totals = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT team_points
+            FROM teams
+            WHERE team_id = %s
+            ''',
+            (manual_player[5],)
+        )
+
+        team_points = float(
+            cursor.fetchone()[0]
+        )
+
+    assert partial_rows == [
+        (
+            manual_player[0],
+            0.4
+        )
+    ]
+
+    assert int(progress_row[0]) == 4
+    assert int(progress_row[1]) == 4
+    assert int(progress_row[2]) == 4
+    assert float(progress_row[3]) == 0.4
+    assert float(progress_row[4]) == 0.4
+    assert float(progress_row[5]) == 0.0
+    assert float(progress_row[6]) == 0.4
+    assert float(progress_row[7]) == 0.4
+    assert float(progress_row[8]) == 0.0
+    assert float(progress_row[9]) == 0.4
+    assert progress_row[10] is False
+    assert progress_row[11] is False
+
+    # The manual contribution is banked but does not award tile
+    # completion points until the tile genuinely reaches 100%.
+    assert float(manual_player_totals[0]) == 0.0
+    assert float(manual_player_totals[1]) == 0.0
+
+    # The invalidated Dink completion credit is fully reversed.
+    assert float(dink_player_totals[0]) == 0.0
+    assert float(dink_player_totals[1]) == 0.0
+
+    assert team_points == 0.0
+
+
+def test_dink_invalidation_recompletion_is_not_reported_as_reopened():
+    create_test_player(
+        "Replay Recompletion Tester",
+        team_name="Replay Recompletion Team"
+    )
+
+    create_test_player(
+        "Replay Bad Dink Finisher",
+        team_name="Replay Recompletion Team"
+    )
+
+    manual_player = database.get_player_by_name(
+        "Replay Recompletion Tester"
+    )
+
+    dink_player = database.get_player_by_name(
+        "Replay Bad Dink Finisher"
+    )
+
+    assert manual_player is not None
+    assert dink_player is not None
+    assert manual_player[5] == dink_player[5]
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Replay Recompletion Tile",
+        tile_points=4,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Replay Recompletion Drop",
+                "target": 10
+            }
+        ],
+        completion_paths=[
+            {
+                "completion_path": 1,
+                "route_mode": "SUM",
+                "route_target": 10
+            }
+        ]
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT condition_id
+            FROM tile_conditions
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        condition_id = cursor.fetchone()[0]
+
+    submission = database.add_manual_evidence(
+        player_id=manual_player[0],
+        condition_id=condition_id,
+        amount=10,
+        evidence_path="manual/replay-recompletion.png",
+        evidence_sha256="c" * 64,
+        submission_source="DISCORD",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
+    )
+
+    dink_event_id = database.add_dink_event(
+        event_fingerprint="replay-recompletion-bad-dink",
+        raw_payload={
+            "playerName": "Replay Bad Dink Finisher",
+            "dinkAccountHash":
+                "replay-recompletion-bad-dink-hash",
+            "type": "LOOT"
+        },
+        dink_account_hash=
+            "replay-recompletion-bad-dink-hash",
+        player_name="Replay Bad Dink Finisher",
+        player_id=dink_player[0],
+        event_type="LOOT",
+        status="RECEIVED"
+    )
+
+    dink_result = database.process_dink_event_progress(
+        event_id=dink_event_id,
+        player_id=dink_player[0],
+        event_progress=[
+            {
+                "condition_type": "DROP",
+                "trigger": "Replay Recompletion Drop",
+                "amount": 10
+            }
+        ]
+    )
+
+    assert dink_result["status"] == "PROCESSED"
+    assert dink_result["progress"][0]["completed"] is True
+
+    review_result = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="DISCORD",
+        reviewer_id=54321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert review_result["status"] == "ACCEPTED"
+    assert review_result["late_review"] is True
+    assert review_result["actual_contribution"] == 0.0
+    assert review_result["potential_contribution"] == 1.0
+    assert review_result["newly_completed"] is False
+
+    invalidation_result = database.invalidate_bingo_evidence(
+        subject_type="DINK_EVENT",
+        subject_id=dink_event_id,
+        reason_code="INCORRECT_EVIDENCE",
+        review_source="DISCORD",
+        reviewer_id=987654321,
+        reviewer_name="Invalidation Reviewer"
+    )
+
+    # The tile was transiently reopened while the bad Dink
+    # completion was removed, but legitimate manual evidence
+    # immediately recompleted it. The final result must therefore
+    # not advertise a reopened tile to notification callers.
+    assert invalidation_result["reopened_tiles"] == []
+
+    assert invalidation_result[
+        "replayed_manual_evidence"
+    ] == [
+        {
+            "evidence_id": submission["evidence_id"],
+            "team_id": manual_player[5],
+            "tile_id": tile_id,
+            "actual_contribution": 1.0,
+            "completed": True
+        }
+    ]
+
+    completed_tiles = (
+        database.get_completed_tiles_by_team_id_and_tile_id(
+            manual_player[5],
+            tile_id
+        )
+    )
+
+    assert len(completed_tiles) == 1
+
+    condition_progress = (
+        database.get_tile_condition_progress(
+            manual_player[5],
+            tile_id
+        )
+    )
+
+    assert len(condition_progress) == 1
+    assert float(condition_progress[0][5]) == 10.0
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT team_points
+            FROM teams
+            WHERE team_id = %s
+            ''',
+            (manual_player[5],)
+        )
+
+        team_points = float(
+            cursor.fetchone()[0]
+        )
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (manual_player[0],)
+        )
+
+        manual_player_totals = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (dink_player[0],)
+        )
+
+        dink_player_totals = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT
+                actual_contribution,
+                normal_player_credit,
+                lost_mvp_contribution,
+                banked_total,
+                ready,
+                completed
+            FROM manual_evidence_progress
+            WHERE evidence_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        progress_row = cursor.fetchone()
+
+    # The bad completion was reversed and the legitimate one was
+    # awarded exactly once.
+    assert team_points == 4.0
+
+    assert float(manual_player_totals[0]) == 4.0
+    assert float(manual_player_totals[1]) == 1.0
+
+    assert float(dink_player_totals[0]) == 0.0
+    assert float(dink_player_totals[1]) == 0.0
+
+    assert float(progress_row[0]) == 1.0
+    assert float(progress_row[1]) == 1.0
+    assert float(progress_row[2]) == 0.0
+    assert float(progress_row[3]) == 1.0
+    assert progress_row[4] is True
+    assert progress_row[5] is True
+
+
 def test_late_manual_evidence_awards_discretionary_mvp_when_requested():
     create_test_player(
         "Late MVP Tester",

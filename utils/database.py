@@ -5408,6 +5408,307 @@ def _reverse_completed_tile_for_invalidation(
     return True
 
 
+def _replay_late_manual_evidence_after_invalidation(
+    cursor,
+    team_id,
+    tile_id,
+    completed_at
+):
+    cursor.execute(
+        '''
+        SELECT
+            e.evidence_id,
+            e.player_id,
+            e.amount,
+            e.submitted_at,
+            p.progress_id,
+            p.potential_contribution
+        FROM manual_evidence AS e
+        INNER JOIN manual_evidence_progress AS p
+            ON p.evidence_id = e.evidence_id
+        WHERE e.team_id = %s
+          AND e.tile_id = %s
+          AND e.status = 'ACCEPTED'
+          AND e.submitted_at <= %s
+          AND p.processed_at >= %s
+          AND p.actual_contribution = 0
+          AND p.completed = TRUE
+          AND NOT EXISTS (
+              SELECT 1
+              FROM evidence_invalidations AS invalidation
+              WHERE invalidation.subject_type =
+                    'MANUAL_EVIDENCE'
+                AND invalidation.subject_id =
+                    e.evidence_id
+          )
+        ORDER BY
+            e.submitted_at,
+            e.evidence_id
+        FOR UPDATE OF e, p
+        ''',
+        (
+            team_id,
+            tile_id,
+            completed_at,
+            completed_at
+        )
+    )
+
+    candidates = cursor.fetchall()
+    replayed_evidence = []
+
+    for (
+        evidence_id,
+        player_id,
+        amount,
+        _,
+        progress_id,
+        potential_contribution
+    ) in candidates:
+        cursor.execute(
+            '''
+            SELECT 1
+            FROM completed_tiles
+            WHERE team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                team_id,
+                tile_id
+            )
+        )
+
+        # An earlier replayed submission has genuinely completed
+        # the tile. Later accepted evidence therefore remains late
+        # evidence and must not add further live progress.
+        if cursor.fetchone() is not None:
+            break
+
+        compatibility = (
+            _check_manual_evidence_live_compatibility(
+                cursor=cursor,
+                evidence_id=evidence_id,
+                tile_id=tile_id
+            )
+        )
+
+        if not compatibility["compatible"]:
+            raise ValueError(
+                "Accepted manual evidence cannot be replayed "
+                "because the tile changed after submission: "
+                f"{compatibility['reason']}."
+            )
+
+        player_exists = False
+
+        if player_id is not None:
+            cursor.execute(
+                '''
+                SELECT player_id
+                FROM players
+                WHERE player_id = %s
+                FOR UPDATE
+                ''',
+                (player_id,)
+            )
+
+            player_exists = (
+                cursor.fetchone() is not None
+            )
+
+        condition_id = int(
+            compatibility["condition_id"]
+        )
+
+        completion_path = int(
+            compatibility["completion_path"]
+        )
+
+        amount = int(amount)
+
+        before = _evaluate_completion_path(
+            cursor=cursor,
+            team_id=team_id,
+            tile_id=tile_id,
+            completion_path=completion_path
+        )
+
+        raw_progress = _add_tile_condition_progress(
+            cursor=cursor,
+            team_id=team_id,
+            condition_id=condition_id,
+            amount=amount
+        )
+
+        counted_amount = _calculate_counted_drop_amount(
+            condition_type=compatibility[
+                "condition_type"
+            ],
+            amount=amount,
+            condition_target=compatibility["target"],
+            condition_progress_before=(
+                raw_progress - amount
+            ),
+            route_state=before
+        )
+
+        after = _evaluate_completion_path(
+            cursor=cursor,
+            team_id=team_id,
+            tile_id=tile_id,
+            completion_path=completion_path
+        )
+
+        route_progress_delta = round(
+            max(
+                0.0,
+                after["progress_fraction"]
+                - before["progress_fraction"]
+            ),
+            12
+        )
+
+        bank_player_id = (
+            player_id
+            if player_exists
+            else None
+        )
+
+        (
+            actual_contribution,
+            banked_total
+        ) = _bank_partial_contribution(
+            cursor=cursor,
+            player_id=bank_player_id,
+            team_id=team_id,
+            tile_id=tile_id,
+            requested_contribution=
+                route_progress_delta
+        )
+
+        completion_details = None
+        completed = False
+
+        if after["ready"]:
+            completion_details = (
+                _complete_tile_with_contributions(
+                    cursor=cursor,
+                    team_id=team_id,
+                    tile_id=tile_id,
+                    finisher_player_id=(
+                        player_id
+                        if player_exists
+                        else None
+                    ),
+                    return_details=True,
+                    uncredited_finisher=(
+                        not player_exists
+                    )
+                )
+            )
+
+            completed = bool(
+                completion_details["completed"]
+            )
+
+        completion_remainder = 0.0
+
+        if (
+            completed
+            and player_exists
+            and completion_details is not None
+        ):
+            completion_remainder = round(
+                float(
+                    completion_details[
+                        "finisher_remainder"
+                    ]
+                ),
+                12
+            )
+
+        if player_exists:
+            normal_player_credit = round(
+                actual_contribution
+                + completion_remainder,
+                12
+            )
+        else:
+            normal_player_credit = 0.0
+
+        potential_contribution = round(
+            float(potential_contribution or 0),
+            12
+        )
+
+        if completed:
+            lost_mvp_contribution = round(
+                max(
+                    0.0,
+                    potential_contribution
+                    - actual_contribution
+                ),
+                12
+            )
+        else:
+            lost_mvp_contribution = 0.0
+
+        cursor.execute(
+            '''
+            UPDATE manual_evidence_progress
+            SET
+                condition_id = %s,
+                tile_id = %s,
+                completion_path = %s,
+                amount = %s,
+                counted_amount = %s,
+                raw_progress = %s,
+                route_progress = %s,
+                actual_contribution = %s,
+                completion_remainder = %s,
+                normal_player_credit = %s,
+                lost_mvp_contribution = %s,
+                banked_total = %s,
+                ready = %s,
+                completed = %s,
+                processed_at = clock_timestamp()
+            WHERE progress_id = %s
+            ''',
+            (
+                condition_id,
+                tile_id,
+                completion_path,
+                amount,
+                counted_amount,
+                raw_progress,
+                after["progress_fraction"],
+                actual_contribution,
+                completion_remainder,
+                normal_player_credit,
+                lost_mvp_contribution,
+                banked_total,
+                after["ready"],
+                completed,
+                progress_id
+            )
+        )
+
+        replayed_evidence.append(
+            {
+                "evidence_id": int(evidence_id),
+                "team_id": int(team_id),
+                "tile_id": int(tile_id),
+                "actual_contribution": round(
+                    float(actual_contribution),
+                    12
+                ),
+                "completed": completed
+            }
+        )
+
+    return replayed_evidence
+
+
 def invalidate_bingo_evidence(
     subject_type,
     subject_id,
@@ -5563,7 +5864,7 @@ def invalidate_bingo_evidence(
         ), tile_state in affected_tiles.items():
             cursor.execute(
                 '''
-                SELECT 1
+                SELECT completed_at
                 FROM completed_tiles
                 WHERE team_id = %s
                   AND tile_id = %s
@@ -5574,8 +5875,16 @@ def invalidate_bingo_evidence(
                 )
             )
 
+            completion_row = cursor.fetchone()
+
+            tile_state["completed_at"] = (
+                None
+                if completion_row is None
+                else completion_row[0]
+            )
+
             if (
-                cursor.fetchone() is not None
+                completion_row is not None
                 and not tile_state[
                     "completed_by_event"
                 ]
@@ -5741,12 +6050,61 @@ def invalidate_bingo_evidence(
                 )
             )
 
+        replayed_manual_evidence = []
+
+        for (
+            team_id,
+            tile_id
+        ), tile_state in affected_tiles.items():
+            completed_at = tile_state.get(
+                "completed_at"
+            )
+
+            if completed_at is None:
+                continue
+
+            replayed_manual_evidence.extend(
+                _replay_late_manual_evidence_after_invalidation(
+                    cursor=cursor,
+                    team_id=team_id,
+                    tile_id=tile_id,
+                    completed_at=completed_at
+                )
+            )
+
+        final_reopened_tiles = []
+
+        for reopened_tile in reopened_tiles:
+            cursor.execute(
+                '''
+                SELECT 1
+                FROM completed_tiles
+                WHERE team_id = %s
+                  AND tile_id = %s
+                ''',
+                (
+                    reopened_tile["team_id"],
+                    reopened_tile["tile_id"]
+                )
+            )
+
+            # A tile should only be reported as reopened if it is
+            # still open after all reconciliation/replay has finished.
+            if cursor.fetchone() is None:
+                final_reopened_tiles.append(
+                    reopened_tile
+                )
+
+        reopened_tiles = final_reopened_tiles
+
         conn.commit()
 
     return {
         "status": "INVALIDATED",
         "invalidation_id": invalidation_id,
-        "reopened_tiles": reopened_tiles
+        "reopened_tiles": reopened_tiles,
+        "replayed_manual_evidence":
+            replayed_manual_evidence
     }
 
 
@@ -11761,6 +12119,14 @@ def get_player_relevant_drop_summary(player_id):
                 WHERE de.player_id = %s
                   AND de.status = 'PROCESSED'
                   AND dep.counted_amount > 0
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM evidence_invalidations AS invalidation
+                      WHERE invalidation.subject_type =
+                            'DINK_EVENT'
+                        AND invalidation.subject_id =
+                            de.event_id
+                  )
 
                 UNION ALL
 
@@ -11782,6 +12148,14 @@ def get_player_relevant_drop_summary(player_id):
                       BTRIM(snapshot.condition_type)
                   ) = 'DROP'
                   AND progress.counted_amount > 0
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM evidence_invalidations AS invalidation
+                      WHERE invalidation.subject_type =
+                            'MANUAL_EVIDENCE'
+                        AND invalidation.subject_id =
+                            evidence.evidence_id
+                  )
             )
             SELECT
                 MIN(BTRIM(drop_name)) AS drop_name,

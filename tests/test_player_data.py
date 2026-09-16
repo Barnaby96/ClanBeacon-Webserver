@@ -310,6 +310,105 @@ def test_relevant_drop_summary_aggregates_modern_drop_progress():
     }
 
 
+def test_relevant_drop_summary_ignores_invalidated_dink_progress():
+    _, player_id = create_team_and_player()
+
+    database.add_tile_with_conditions(
+        tile_name="Invalidated Relevant Drop Test",
+        tile_points=1,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Invalidated claw",
+                "target": 10
+            }
+        ],
+        completion_paths=[
+            {
+                "completion_path": 1,
+                "route_mode": "SUM",
+                "route_target": 10
+            }
+        ]
+    )
+
+    event_id = database.add_dink_event(
+        event_fingerprint=(
+            "player-data-invalidated-relevant-drop-dink"
+        ),
+        raw_payload={"type": "LOOT"},
+        player_name="Player Data Player",
+        player_id=player_id,
+        event_type="LOOT"
+    )
+
+    database.process_dink_event_progress(
+        event_id=event_id,
+        player_id=player_id,
+        event_progress=[
+            {
+                "condition_type": "DROP",
+                "trigger": "Invalidated claw",
+                "amount": 2
+            }
+        ]
+    )
+
+    before_invalidation = (
+        database.get_player_relevant_drop_summary(
+            player_id
+        )
+    )
+
+    assert before_invalidation == {
+        "total_quantity": 2,
+        "drops": [
+            {
+                "drop_name": "Invalidated claw",
+                "quantity": 2
+            }
+        ]
+    }
+
+    database.invalidate_bingo_evidence(
+        subject_type="DINK_EVENT",
+        subject_id=event_id,
+        reason_code="INCORRECT_EVIDENCE",
+        review_source="DISCORD",
+        reviewer_id=987654321,
+        reviewer_name="Invalidation Reviewer"
+    )
+
+    # Invalidation is deliberately separate from the original
+    # Dink processing status, so reporting must explicitly exclude
+    # invalidated evidence rather than relying on status changes.
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT status
+            FROM dink_events
+            WHERE event_id = %s
+            ''',
+            (event_id,)
+        )
+
+        assert cursor.fetchone()[0] == "PROCESSED"
+
+    after_invalidation = (
+        database.get_player_relevant_drop_summary(
+            player_id
+        )
+    )
+
+    assert after_invalidation == {
+        "total_quantity": 0,
+        "drops": []
+    }
+
+
 def test_relevant_drop_summary_ignores_non_relevant_and_synthetic_rows():
     team_id, player_id = create_team_and_player()
     tile_id = create_test_tile("Relevant Drop Test")
