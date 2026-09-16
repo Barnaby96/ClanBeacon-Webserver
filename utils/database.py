@@ -678,6 +678,48 @@ def ensure_schema():
         ''')
 
         cursor.execute('''
+            CREATE TABLE IF NOT EXISTS evidence_invalidations (
+                invalidation_id BIGSERIAL PRIMARY KEY,
+                subject_type TEXT NOT NULL,
+                subject_id BIGINT NOT NULL,
+                reason_code TEXT NOT NULL,
+                details TEXT,
+                review_source TEXT NOT NULL,
+                reviewer_id BIGINT NOT NULL,
+                reviewer_name TEXT NOT NULL,
+                invalidated_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (
+                    subject_type,
+                    subject_id
+                ),
+                CHECK (
+                    subject_type IN (
+                        'DINK_EVENT',
+                        'MANUAL_EVIDENCE'
+                    )
+                ),
+                CHECK (
+                    reason_code IN (
+                        'INCORRECT_EVIDENCE',
+                        'WRONG_ITEM_OR_ACTIVITY',
+                        'DUPLICATE_EVIDENCE',
+                        'WRONG_PLAYER_OR_ACCOUNT',
+                        'WRONG_TILE_OR_CONDITION',
+                        'ADMINISTRATIVE_TEST_CORRECTION',
+                        'OTHER'
+                    )
+                ),
+                CHECK (
+                    review_source IN (
+                        'WEB',
+                        'DISCORD'
+                    )
+                )
+            )
+        ''')
+
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS manual_evidence (
                 evidence_id BIGSERIAL PRIMARY KEY,
                 player_id INTEGER,
@@ -4951,6 +4993,145 @@ def _record_staff_review_decision(
             reviewer_name,
             reason,
             bool(audit_only)
+        )
+    )
+
+    return cursor.fetchone()[0]
+
+
+def _record_evidence_invalidation(
+    cursor,
+    subject_type,
+    subject_id,
+    reason_code,
+    review_source,
+    reviewer_id,
+    reviewer_name,
+    details=None
+):
+    valid_subject_types = {
+        "DINK_EVENT",
+        "MANUAL_EVIDENCE"
+    }
+
+    valid_reason_codes = {
+        "INCORRECT_EVIDENCE",
+        "WRONG_ITEM_OR_ACTIVITY",
+        "DUPLICATE_EVIDENCE",
+        "WRONG_PLAYER_OR_ACCOUNT",
+        "WRONG_TILE_OR_CONDITION",
+        "ADMINISTRATIVE_TEST_CORRECTION",
+        "OTHER"
+    }
+
+    valid_review_sources = {
+        "WEB",
+        "DISCORD"
+    }
+
+    subject_type = str(subject_type).strip().upper()
+    reason_code = str(reason_code).strip().upper()
+    review_source = str(review_source).strip().upper()
+
+    if subject_type not in valid_subject_types:
+        raise ValueError(
+            f"Unsupported invalidation subject type: {subject_type}"
+        )
+
+    if reason_code not in valid_reason_codes:
+        raise ValueError(
+            f"Unsupported invalidation reason code: {reason_code}"
+        )
+
+    if review_source not in valid_review_sources:
+        raise ValueError(
+            f"Unsupported invalidation review source: {review_source}"
+        )
+
+    if subject_id is None:
+        raise ValueError(
+            "Invalidation subject ID is required."
+        )
+
+    if reviewer_id is None:
+        raise ValueError(
+            "Reviewer ID is required."
+        )
+
+    if reviewer_name is None:
+        raise ValueError(
+            "Reviewer name is required."
+        )
+
+    reviewer_name = str(reviewer_name).strip()
+
+    if not reviewer_name:
+        raise ValueError(
+            "Reviewer name is required."
+        )
+
+    if details is not None:
+        details = str(details).strip()
+
+        if not details:
+            details = None
+
+    if reason_code == "OTHER" and details is None:
+        raise ValueError(
+            "Additional details are required when the "
+            "invalidation reason is Other."
+        )
+
+    cursor.execute(
+        '''
+        SELECT invalidation_id
+        FROM evidence_invalidations
+        WHERE subject_type = %s
+          AND subject_id = %s
+        ''',
+        (
+            subject_type,
+            subject_id
+        )
+    )
+
+    if cursor.fetchone() is not None:
+        raise ValueError(
+            "This evidence has already been invalidated."
+        )
+
+    cursor.execute(
+        '''
+        INSERT INTO evidence_invalidations (
+            subject_type,
+            subject_id,
+            reason_code,
+            details,
+            review_source,
+            reviewer_id,
+            reviewer_name,
+            invalidated_at
+        )
+        VALUES (
+            %s,
+            %s,
+            %s,
+            %s,
+            %s,
+            %s,
+            %s,
+            clock_timestamp()
+        )
+        RETURNING invalidation_id
+        ''',
+        (
+            subject_type,
+            subject_id,
+            reason_code,
+            details,
+            review_source,
+            reviewer_id,
+            reviewer_name
         )
     )
 
@@ -11979,6 +12160,48 @@ def reset_tables():
                 tile_id int,
                 FOREIGN KEY (tile_id) REFERENCES tiles(tile_id) ON DELETE CASCADE
             )''')
+
+    cursor.execute('''
+        CREATE TABLE evidence_invalidations (
+            invalidation_id BIGSERIAL PRIMARY KEY,
+            subject_type TEXT NOT NULL,
+            subject_id BIGINT NOT NULL,
+            reason_code TEXT NOT NULL,
+            details TEXT,
+            review_source TEXT NOT NULL,
+            reviewer_id BIGINT NOT NULL,
+            reviewer_name TEXT NOT NULL,
+            invalidated_at TIMESTAMPTZ NOT NULL
+                DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (
+                subject_type,
+                subject_id
+            ),
+            CHECK (
+                subject_type IN (
+                    'DINK_EVENT',
+                    'MANUAL_EVIDENCE'
+                )
+            ),
+            CHECK (
+                reason_code IN (
+                    'INCORRECT_EVIDENCE',
+                    'WRONG_ITEM_OR_ACTIVITY',
+                    'DUPLICATE_EVIDENCE',
+                    'WRONG_PLAYER_OR_ACCOUNT',
+                    'WRONG_TILE_OR_CONDITION',
+                    'ADMINISTRATIVE_TEST_CORRECTION',
+                    'OTHER'
+                )
+            ),
+            CHECK (
+                review_source IN (
+                    'WEB',
+                    'DISCORD'
+                )
+            )
+        )
+    ''')
 
     cursor.execute('''
             CREATE TABLE completed_tiles (

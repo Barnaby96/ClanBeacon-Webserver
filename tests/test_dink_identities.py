@@ -1014,6 +1014,150 @@ def test_admin_can_accept_historical_dink_event(client):
     assert review_rows == []
 
 
+def test_evidence_invalidation_preserves_original_review_decision():
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        decision_id = database._record_staff_review_decision(
+            cursor=cursor,
+            subject_type="DINK_EVENT",
+            subject_id=123456,
+            decision="ACCEPT",
+            review_source="WEB",
+            reviewer_id=11111,
+            reviewer_name="Original Reviewer"
+        )
+
+        invalidation_id = database._record_evidence_invalidation(
+            cursor=cursor,
+            subject_type="DINK_EVENT",
+            subject_id=123456,
+            reason_code="WRONG_ITEM_OR_ACTIVITY",
+            details="The submitted drop was not the required item.",
+            review_source="DISCORD",
+            reviewer_id=22222,
+            reviewer_name="Correction Reviewer"
+        )
+
+        conn.commit()
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                subject_type,
+                subject_id,
+                reason_code,
+                details,
+                review_source,
+                reviewer_id,
+                reviewer_name,
+                invalidated_at
+            FROM evidence_invalidations
+            WHERE invalidation_id = %s
+            ''',
+            (invalidation_id,)
+        )
+
+        invalidation = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT
+                decision,
+                review_source,
+                reviewer_id,
+                reviewer_name
+            FROM staff_review_decisions
+            WHERE decision_id = %s
+            ''',
+            (decision_id,)
+        )
+
+        original_decision = cursor.fetchone()
+
+    assert invalidation is not None
+    assert invalidation[0] == "DINK_EVENT"
+    assert invalidation[1] == 123456
+    assert invalidation[2] == "WRONG_ITEM_OR_ACTIVITY"
+    assert invalidation[3] == (
+        "The submitted drop was not the required item."
+    )
+    assert invalidation[4] == "DISCORD"
+    assert invalidation[5] == 22222
+    assert invalidation[6] == "Correction Reviewer"
+    assert invalidation[7] is not None
+
+    assert original_decision == (
+        "ACCEPT",
+        "WEB",
+        11111,
+        "Original Reviewer"
+    )
+
+
+def test_evidence_invalidation_other_requires_details():
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        with pytest.raises(
+            ValueError,
+            match=(
+                "Additional details are required when the "
+                "invalidation reason is Other."
+            )
+        ):
+            database._record_evidence_invalidation(
+                cursor=cursor,
+                subject_type="MANUAL_EVIDENCE",
+                subject_id=987654,
+                reason_code="OTHER",
+                details="   ",
+                review_source="WEB",
+                reviewer_id=33333,
+                reviewer_name="Validation Reviewer"
+            )
+
+        conn.rollback()
+
+
+def test_evidence_cannot_be_invalidated_twice():
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        first_invalidation_id = (
+            database._record_evidence_invalidation(
+                cursor=cursor,
+                subject_type="MANUAL_EVIDENCE",
+                subject_id=987655,
+                reason_code="INCORRECT_EVIDENCE",
+                review_source="DISCORD",
+                reviewer_id=44444,
+                reviewer_name="First Correction Reviewer"
+            )
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="This evidence has already been invalidated."
+        ):
+            database._record_evidence_invalidation(
+                cursor=cursor,
+                subject_type="MANUAL_EVIDENCE",
+                subject_id=987655,
+                reason_code="DUPLICATE_EVIDENCE",
+                review_source="DISCORD",
+                reviewer_id=55555,
+                reviewer_name="Second Correction Reviewer"
+            )
+
+        conn.rollback()
+
+    assert first_invalidation_id is not None
+
+
 def test_tile_completion_can_return_detailed_allocation():
     create_test_player(
         "Detailed Completion Tester",
