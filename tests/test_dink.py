@@ -1625,6 +1625,651 @@ def test_dink_progress_transaction_rolls_back_on_error():
     assert stored_event[3] == player.player_id
 
 
+def test_invalidating_dink_completion_reopens_tile_and_reverses_awards():
+    database.add_team(
+        "Dink Invalidation Team",
+        0,
+        ""
+    )
+
+    team = db_entities.Team(
+        database.get_team_by_name("Dink Invalidation Team")
+    )
+
+    database.add_player(
+        "Dink Invalidation Tester",
+        0,
+        0,
+        0,
+        team.team_id,
+        0
+    )
+
+    player = db_entities.Player(
+        database.get_player_by_name(
+            "Dink Invalidation Tester"
+        )
+    )
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Dink Invalidation Tile",
+        tile_points=6,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Invalidation Test Drop",
+                "target": 1
+            }
+        ]
+    )
+
+    payload = {
+        "playerName": "Dink Invalidation Tester",
+        "dinkAccountHash": "test-dink-invalidation-hash",
+        "type": "LOOT",
+        "extra": {
+            "items": [
+                {
+                    "name": "Invalidation Test Drop",
+                    "quantity": 1
+                }
+            ]
+        }
+    }
+
+    fingerprint = dink.create_dink_event_fingerprint(
+        payload
+    )
+
+    event_id = database.add_dink_event(
+        event_fingerprint=fingerprint,
+        raw_payload=payload,
+        dink_account_hash="test-dink-invalidation-hash",
+        player_name="Dink Invalidation Tester",
+        player_id=player.player_id,
+        event_type="LOOT",
+        status="RECEIVED"
+    )
+
+    database.process_dink_event_progress(
+        event_id=event_id,
+        player_id=player.player_id,
+        event_progress=[
+            {
+                "condition_type": "DROP",
+                "trigger": "Invalidation Test Drop",
+                "amount": 1
+            }
+        ]
+    )
+
+    completed_tiles = (
+        database.get_completed_tiles_by_team_id_and_tile_id(
+            team.team_id,
+            tile_id
+        )
+    )
+
+    assert len(completed_tiles) == 1
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT team_points
+            FROM teams
+            WHERE team_id = %s
+            ''',
+            (team.team_id,)
+        )
+
+        assert float(cursor.fetchone()[0]) == 6.0
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (player.player_id,)
+        )
+
+        player_points, tiles_completed = cursor.fetchone()
+
+        assert float(player_points) == 6.0
+        assert float(tiles_completed) == 1.0
+
+    database.invalidate_bingo_evidence(
+        subject_type="DINK_EVENT",
+        subject_id=event_id,
+        reason_code="INCORRECT_EVIDENCE",
+        review_source="DISCORD",
+        reviewer_id=987654321,
+        reviewer_name="Invalidation Reviewer",
+        details="Automated invalidation test."
+    )
+
+    completed_tiles = (
+        database.get_completed_tiles_by_team_id_and_tile_id(
+            team.team_id,
+            tile_id
+        )
+    )
+
+    assert completed_tiles == []
+
+    condition_progress = (
+        database.get_tile_condition_progress(
+            team.team_id,
+            tile_id
+        )
+    )
+
+    assert len(condition_progress) == 1
+    assert float(condition_progress[0][5]) == 0.0
+
+    stored_event = (
+        database.get_recent_dink_event_by_fingerprint(
+            fingerprint
+        )
+    )
+
+    assert stored_event is not None
+    assert stored_event[2] == "PROCESSED"
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT team_points
+            FROM teams
+            WHERE team_id = %s
+            ''',
+            (team.team_id,)
+        )
+
+        assert float(cursor.fetchone()[0]) == 0.0
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (player.player_id,)
+        )
+
+        player_points, tiles_completed = cursor.fetchone()
+
+        assert float(player_points) == 0.0
+        assert float(tiles_completed) == 0.0
+
+        cursor.execute(
+            '''
+            SELECT
+                reason_code,
+                review_source,
+                reviewer_id,
+                reviewer_name,
+                details
+            FROM evidence_invalidations
+            WHERE subject_type = 'DINK_EVENT'
+              AND subject_id = %s
+            ''',
+            (event_id,)
+        )
+
+        assert cursor.fetchone() == (
+            "INCORRECT_EVIDENCE",
+            "DISCORD",
+            987654321,
+            "Invalidation Reviewer",
+            "Automated invalidation test."
+        )
+
+
+def test_invalidating_incomplete_dink_progress_removes_banked_contribution():
+    database.add_team(
+        "Incomplete Dink Invalidation Team",
+        0,
+        ""
+    )
+
+    team = db_entities.Team(
+        database.get_team_by_name(
+            "Incomplete Dink Invalidation Team"
+        )
+    )
+
+    database.add_player(
+        "Incomplete Dink Invalidation Tester",
+        0,
+        0,
+        0,
+        team.team_id,
+        0
+    )
+
+    player = db_entities.Player(
+        database.get_player_by_name(
+            "Incomplete Dink Invalidation Tester"
+        )
+    )
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Incomplete Dink Invalidation Tile",
+        tile_points=6,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Incomplete Invalidation Drop",
+                "target": 2
+            }
+        ]
+    )
+
+    payload = {
+        "playerName": "Incomplete Dink Invalidation Tester",
+        "dinkAccountHash": "test-incomplete-invalidation-hash",
+        "type": "LOOT",
+        "extra": {
+            "items": [
+                {
+                    "name": "Incomplete Invalidation Drop",
+                    "quantity": 1
+                }
+            ]
+        }
+    }
+
+    fingerprint = dink.create_dink_event_fingerprint(
+        payload
+    )
+
+    event_id = database.add_dink_event(
+        event_fingerprint=fingerprint,
+        raw_payload=payload,
+        dink_account_hash="test-incomplete-invalidation-hash",
+        player_name="Incomplete Dink Invalidation Tester",
+        player_id=player.player_id,
+        event_type="LOOT",
+        status="RECEIVED"
+    )
+
+    result = database.process_dink_event_progress(
+        event_id=event_id,
+        player_id=player.player_id,
+        event_progress=[
+            {
+                "condition_type": "DROP",
+                "trigger": "Incomplete Invalidation Drop",
+                "amount": 1
+            }
+        ]
+    )
+
+    assert result["status"] == "PROCESSED"
+    assert len(result["progress"]) == 1
+    assert result["progress"][0]["credited"] == 0.5
+    assert result["progress"][0]["completed"] is False
+
+    completed_tiles = (
+        database.get_completed_tiles_by_team_id_and_tile_id(
+            team.team_id,
+            tile_id
+        )
+    )
+
+    assert completed_tiles == []
+
+    condition_progress = (
+        database.get_tile_condition_progress(
+            team.team_id,
+            tile_id
+        )
+    )
+
+    assert len(condition_progress) == 1
+    assert float(condition_progress[0][5]) == 1.0
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT partial_completion
+            FROM partial_completions
+            WHERE team_id = %s
+              AND tile_id = %s
+              AND player_id = %s
+            ''',
+            (
+                team.team_id,
+                tile_id,
+                player.player_id
+            )
+        )
+
+        assert float(cursor.fetchone()[0]) == 0.5
+
+    database.invalidate_bingo_evidence(
+        subject_type="DINK_EVENT",
+        subject_id=event_id,
+        reason_code="INCORRECT_EVIDENCE",
+        review_source="WEB",
+        reviewer_id=123456789,
+        reviewer_name="Web Reviewer"
+    )
+
+    completed_tiles = (
+        database.get_completed_tiles_by_team_id_and_tile_id(
+            team.team_id,
+            tile_id
+        )
+    )
+
+    assert completed_tiles == []
+
+    condition_progress = (
+        database.get_tile_condition_progress(
+            team.team_id,
+            tile_id
+        )
+    )
+
+    assert len(condition_progress) == 1
+    assert float(condition_progress[0][5]) == 0.0
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT partial_completion
+            FROM partial_completions
+            WHERE team_id = %s
+              AND tile_id = %s
+              AND player_id = %s
+            ''',
+            (
+                team.team_id,
+                tile_id,
+                player.player_id
+            )
+        )
+
+        assert cursor.fetchone() is None
+
+        cursor.execute(
+            '''
+            SELECT
+                team_points
+            FROM teams
+            WHERE team_id = %s
+            ''',
+            (team.team_id,)
+        )
+
+        assert float(cursor.fetchone()[0]) == 0.0
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (player.player_id,)
+        )
+
+        player_points, tiles_completed = cursor.fetchone()
+
+        assert float(player_points) == 0.0
+        assert float(tiles_completed) == 0.0
+
+        cursor.execute(
+            '''
+            SELECT invalidation_id
+            FROM evidence_invalidations
+            WHERE subject_type = 'DINK_EVENT'
+              AND subject_id = %s
+            ''',
+            (event_id,)
+        )
+
+        assert cursor.fetchone() is not None
+
+
+def test_dink_invalidation_refuses_completed_tile_with_late_review_credit():
+    database.add_team(
+        "Dink Late Review Guard Team",
+        0,
+        ""
+    )
+
+    team = db_entities.Team(
+        database.get_team_by_name(
+            "Dink Late Review Guard Team"
+        )
+    )
+
+    database.add_player(
+        "Dink Late Review Guard Tester",
+        0,
+        0,
+        0,
+        team.team_id,
+        0
+    )
+
+    player = db_entities.Player(
+        database.get_player_by_name(
+            "Dink Late Review Guard Tester"
+        )
+    )
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Dink Late Review Guard Tile",
+        tile_points=6,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Late Review Guard Drop",
+                "target": 1
+            }
+        ]
+    )
+
+    payload = {
+        "playerName": "Dink Late Review Guard Tester",
+        "dinkAccountHash": "test-late-review-guard-hash",
+        "type": "LOOT",
+        "extra": {
+            "items": [
+                {
+                    "name": "Late Review Guard Drop",
+                    "quantity": 1
+                }
+            ]
+        }
+    }
+
+    fingerprint = dink.create_dink_event_fingerprint(
+        payload
+    )
+
+    event_id = database.add_dink_event(
+        event_fingerprint=fingerprint,
+        raw_payload=payload,
+        dink_account_hash="test-late-review-guard-hash",
+        player_name="Dink Late Review Guard Tester",
+        player_id=player.player_id,
+        event_type="LOOT",
+        status="RECEIVED"
+    )
+
+    database.process_dink_event_progress(
+        event_id=event_id,
+        player_id=player.player_id,
+        event_progress=[
+            {
+                "condition_type": "DROP",
+                "trigger": "Late Review Guard Drop",
+                "amount": 1
+            }
+        ]
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            INSERT INTO player_tile_credits (
+                player_id,
+                team_id,
+                tile_id,
+                contribution,
+                points_awarded,
+                credit_type,
+                evidence_id
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                0.25,
+                1.5,
+                'LATE_REVIEW',
+                999999
+            )
+            ''',
+            (
+                player.player_id,
+                team.team_id,
+                tile_id
+            )
+        )
+
+        cursor.execute(
+            '''
+            UPDATE players
+            SET
+                tiles_completed =
+                    COALESCE(tiles_completed, 0) + 0.25,
+                player_points =
+                    COALESCE(player_points, 0) + 1.5
+            WHERE player_id = %s
+            ''',
+            (player.player_id,)
+        )
+
+        conn.commit()
+
+    with pytest.raises(
+        ValueError,
+        match="late-review credit"
+    ):
+        database.invalidate_bingo_evidence(
+            subject_type="DINK_EVENT",
+            subject_id=event_id,
+            reason_code="INCORRECT_EVIDENCE",
+            review_source="DISCORD",
+            reviewer_id=987654321,
+            reviewer_name="Invalidation Reviewer"
+        )
+
+    completed_tiles = (
+        database.get_completed_tiles_by_team_id_and_tile_id(
+            team.team_id,
+            tile_id
+        )
+    )
+
+    assert len(completed_tiles) == 1
+
+    condition_progress = (
+        database.get_tile_condition_progress(
+            team.team_id,
+            tile_id
+        )
+    )
+
+    assert len(condition_progress) == 1
+    assert float(condition_progress[0][5]) == 1.0
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT team_points
+            FROM teams
+            WHERE team_id = %s
+            ''',
+            (team.team_id,)
+        )
+
+        assert float(cursor.fetchone()[0]) == 6.0
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (player.player_id,)
+        )
+
+        player_points, tiles_completed = cursor.fetchone()
+
+        assert float(player_points) == 7.5
+        assert float(tiles_completed) == 1.25
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM player_tile_credits
+            WHERE team_id = %s
+              AND tile_id = %s
+              AND credit_type = 'LATE_REVIEW'
+            ''',
+            (
+                team.team_id,
+                tile_id
+            )
+        )
+
+        assert cursor.fetchone()[0] == 1
+
+        cursor.execute(
+            '''
+            SELECT invalidation_id
+            FROM evidence_invalidations
+            WHERE subject_type = 'DINK_EVENT'
+              AND subject_id = %s
+            ''',
+            (event_id,)
+        )
+
+        assert cursor.fetchone() is None
+
+
 def test_n_of_unique_does_not_count_same_item_twice(
     client,
     monkeypatch

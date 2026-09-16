@@ -5159,6 +5159,597 @@ def _record_evidence_invalidation(
     return cursor.fetchone()[0]
 
 
+def _reverse_completed_tile_for_invalidation(
+    cursor,
+    team_id,
+    tile_id
+):
+    cursor.execute(
+        '''
+        SELECT
+            completed_tile_pk,
+            points_awarded
+        FROM completed_tiles
+        WHERE team_id = %s
+          AND tile_id = %s
+        FOR UPDATE
+        ''',
+        (
+            team_id,
+            tile_id
+        )
+    )
+
+    completion = cursor.fetchone()
+
+    if completion is None:
+        return False
+
+    completed_tile_pk, points_awarded = completion
+
+    if points_awarded is None:
+        raise ValueError(
+            "This tile completion predates frozen point awards "
+            "and cannot be safely invalidated automatically."
+        )
+
+    points_awarded = float(points_awarded)
+
+    cursor.execute(
+        '''
+        SELECT
+            credit_id,
+            player_id,
+            contribution,
+            points_awarded
+        FROM player_tile_credits
+        WHERE team_id = %s
+          AND tile_id = %s
+          AND credit_type = 'TILE_COMPLETION'
+        ORDER BY credit_id
+        FOR UPDATE
+        ''',
+        (
+            team_id,
+            tile_id
+        )
+    )
+
+    completion_credits = cursor.fetchall()
+
+    cursor.execute(
+        '''
+        SELECT 1
+        FROM player_tile_credits
+        WHERE team_id = %s
+          AND tile_id = %s
+          AND credit_type = 'LATE_REVIEW'
+        LIMIT 1
+        ''',
+        (
+            team_id,
+            tile_id
+        )
+    )
+
+    if cursor.fetchone() is not None:
+        raise ValueError(
+            "This completed tile has a late-review credit "
+            "and cannot be safely invalidated until "
+            "late-review reconciliation is implemented."
+        )
+
+    for (
+        _,
+        player_id,
+        contribution,
+        player_points_awarded
+    ) in completion_credits:
+        contribution = float(contribution)
+        player_points_awarded = float(
+            player_points_awarded
+        )
+
+        cursor.execute(
+            '''
+            SELECT
+                tiles_completed,
+                player_points
+            FROM players
+            WHERE player_id = %s
+            FOR UPDATE
+            ''',
+            (player_id,)
+        )
+
+        player_row = cursor.fetchone()
+
+        if player_row is None:
+            continue
+
+        tiles_completed = float(
+            player_row[0] or 0
+        )
+        player_points = float(
+            player_row[1] or 0
+        )
+
+        if (
+            tiles_completed + 0.000000001
+            < contribution
+        ):
+            raise ValueError(
+                "Player tile completion total is smaller than "
+                "the stored completion credit."
+            )
+
+        if (
+            player_points + 0.000000001
+            < player_points_awarded
+        ):
+            raise ValueError(
+                "Player point total is smaller than the "
+                "stored completion credit."
+            )
+
+    cursor.execute(
+        '''
+        SELECT team_points
+        FROM teams
+        WHERE team_id = %s
+        FOR UPDATE
+        ''',
+        (team_id,)
+    )
+
+    team_row = cursor.fetchone()
+
+    if team_row is None:
+        raise ValueError(
+            f"Team {team_id} does not exist."
+        )
+
+    team_points = float(
+        team_row[0] or 0
+    )
+
+    if (
+        team_points + 0.000000001
+        < points_awarded
+    ):
+        raise ValueError(
+            "Team point total is smaller than the frozen "
+            "tile completion award."
+        )
+
+    # Restore the exact contribution bank that existed immediately
+    # before completion consumed it. The completion snapshot must be
+    # read before deleting completed_tiles because it is cascaded.
+    cursor.execute(
+        '''
+        INSERT INTO partial_completions (
+            team_id,
+            tile_id,
+            player_id,
+            partial_completion
+        )
+        SELECT
+            %s,
+            %s,
+            player_id,
+            partial_completion
+        FROM completed_tile_partial_snapshot
+        WHERE completed_tile_pk = %s
+        ORDER BY snapshot_id
+        ''',
+        (
+            team_id,
+            tile_id,
+            completed_tile_pk
+        )
+    )
+
+    for (
+        _,
+        player_id,
+        contribution,
+        player_points_awarded
+    ) in completion_credits:
+        cursor.execute(
+            '''
+            UPDATE players
+            SET
+                tiles_completed =
+                    COALESCE(tiles_completed, 0) - %s,
+                player_points =
+                    COALESCE(player_points, 0) - %s
+            WHERE player_id = %s
+            ''',
+            (
+                contribution,
+                player_points_awarded,
+                player_id
+            )
+        )
+
+    cursor.execute(
+        '''
+        DELETE FROM player_tile_credits
+        WHERE team_id = %s
+          AND tile_id = %s
+          AND credit_type = 'TILE_COMPLETION'
+        ''',
+        (
+            team_id,
+            tile_id
+        )
+    )
+
+    cursor.execute(
+        '''
+        UPDATE teams
+        SET team_points = team_points - %s
+        WHERE team_id = %s
+        ''',
+        (
+            points_awarded,
+            team_id
+        )
+    )
+
+    cursor.execute(
+        '''
+        DELETE FROM completed_tiles
+        WHERE completed_tile_pk = %s
+        ''',
+        (completed_tile_pk,)
+    )
+
+    return True
+
+
+def invalidate_bingo_evidence(
+    subject_type,
+    subject_id,
+    reason_code,
+    review_source,
+    reviewer_id,
+    reviewer_name,
+    details=None
+):
+    subject_type = str(
+        subject_type
+    ).strip().upper()
+
+    if subject_type != "DINK_EVENT":
+        raise ValueError(
+            "Manual evidence reconciliation is not yet "
+            "implemented."
+        )
+
+    subject_id = int(subject_id)
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                player_id,
+                status,
+                duplicate_of_event_id
+            FROM dink_events
+            WHERE event_id = %s
+            FOR UPDATE
+            ''',
+            (subject_id,)
+        )
+
+        event = cursor.fetchone()
+
+        if event is None:
+            raise ValueError(
+                f"Dink event {subject_id} was not found."
+            )
+
+        (
+            player_id,
+            event_status,
+            duplicate_of_event_id
+        ) = event
+
+        if duplicate_of_event_id is not None:
+            raise ValueError(
+                "Duplicate Dink events do not contain "
+                "independent bingo progress."
+            )
+
+        if event_status != "PROCESSED":
+            raise ValueError(
+                "Only processed Dink evidence can be "
+                "invalidated."
+            )
+
+        if player_id is None:
+            raise ValueError(
+                "Processed Dink evidence has no linked player."
+            )
+
+        cursor.execute(
+            '''
+            SELECT
+                progress_id,
+                team_id,
+                condition_id,
+                tile_id,
+                amount,
+                credited,
+                completed
+            FROM dink_event_progress
+            WHERE event_id = %s
+            ORDER BY progress_id
+            FOR UPDATE
+            ''',
+            (subject_id,)
+        )
+
+        progress_rows = cursor.fetchall()
+
+        if not progress_rows:
+            raise ValueError(
+                "This Dink event has no stored bingo progress."
+            )
+
+        affected_tiles = {}
+        condition_amounts = {}
+
+        for (
+            _,
+            team_id,
+            condition_id,
+            tile_id,
+            amount,
+            credited,
+            completed
+        ) in progress_rows:
+            if team_id is None:
+                raise ValueError(
+                    "Historical Dink progress without a frozen "
+                    "team cannot be safely invalidated."
+                )
+
+            tile_key = (
+                int(team_id),
+                int(tile_id)
+            )
+
+            if tile_key not in affected_tiles:
+                affected_tiles[tile_key] = {
+                    "credited": 0.0,
+                    "completed_by_event": False
+                }
+
+            affected_tiles[tile_key]["credited"] = round(
+                affected_tiles[tile_key]["credited"]
+                + float(credited or 0),
+                12
+            )
+
+            if completed:
+                affected_tiles[
+                    tile_key
+                ]["completed_by_event"] = True
+
+            condition_key = (
+                int(team_id),
+                int(condition_id)
+            )
+
+            condition_amounts[condition_key] = (
+                condition_amounts.get(
+                    condition_key,
+                    0
+                )
+                + int(amount)
+            )
+
+        # This first implementation only reverses a completion when
+        # this Dink event was itself the finisher. If an earlier source
+        # is being invalidated after some later source completed the
+        # tile, the later evidence must be replayed instead.
+        for (
+            team_id,
+            tile_id
+        ), tile_state in affected_tiles.items():
+            cursor.execute(
+                '''
+                SELECT 1
+                FROM completed_tiles
+                WHERE team_id = %s
+                  AND tile_id = %s
+                ''',
+                (
+                    team_id,
+                    tile_id
+                )
+            )
+
+            if (
+                cursor.fetchone() is not None
+                and not tile_state[
+                    "completed_by_event"
+                ]
+            ):
+                raise ValueError(
+                    "This invalidation requires later evidence "
+                    "to be replayed before it can be applied "
+                    "safely."
+                )
+
+        invalidation_id = (
+            _record_evidence_invalidation(
+                cursor=cursor,
+                subject_type=subject_type,
+                subject_id=subject_id,
+                reason_code=reason_code,
+                review_source=review_source,
+                reviewer_id=reviewer_id,
+                reviewer_name=reviewer_name,
+                details=details
+            )
+        )
+
+        reopened_tiles = []
+
+        for (
+            team_id,
+            tile_id
+        ), tile_state in affected_tiles.items():
+            reopened = (
+                _reverse_completed_tile_for_invalidation(
+                    cursor=cursor,
+                    team_id=team_id,
+                    tile_id=tile_id
+                )
+            )
+
+            if reopened:
+                reopened_tiles.append(
+                    {
+                        "team_id": team_id,
+                        "tile_id": tile_id
+                    }
+                )
+
+            credited = tile_state["credited"]
+
+            if credited <= 0:
+                continue
+
+            cursor.execute(
+                '''
+                SELECT
+                    partial_completion_pk,
+                    partial_completion
+                FROM partial_completions
+                WHERE team_id = %s
+                  AND tile_id = %s
+                  AND player_id = %s
+                FOR UPDATE
+                ''',
+                (
+                    team_id,
+                    tile_id,
+                    player_id
+                )
+            )
+
+            partial_row = cursor.fetchone()
+
+            if partial_row is None:
+                raise ValueError(
+                    "The invalidated Dink contribution could "
+                    "not be found in the tile contribution bank."
+                )
+
+            (
+                partial_completion_pk,
+                partial_completion
+            ) = partial_row
+
+            remaining = round(
+                float(partial_completion)
+                - credited,
+                12
+            )
+
+            if remaining < -0.000000001:
+                raise ValueError(
+                    "The invalidated Dink contribution exceeds "
+                    "the stored tile contribution."
+                )
+
+            if remaining <= 0:
+                cursor.execute(
+                    '''
+                    DELETE FROM partial_completions
+                    WHERE partial_completion_pk = %s
+                    ''',
+                    (partial_completion_pk,)
+                )
+            else:
+                cursor.execute(
+                    '''
+                    UPDATE partial_completions
+                    SET partial_completion = %s
+                    WHERE partial_completion_pk = %s
+                    ''',
+                    (
+                        remaining,
+                        partial_completion_pk
+                    )
+                )
+
+        for (
+            team_id,
+            condition_id
+        ), amount in condition_amounts.items():
+            cursor.execute(
+                '''
+                SELECT progress
+                FROM tile_condition_progress
+                WHERE team_id = %s
+                  AND condition_id = %s
+                FOR UPDATE
+                ''',
+                (
+                    team_id,
+                    condition_id
+                )
+            )
+
+            condition_row = cursor.fetchone()
+
+            if condition_row is None:
+                raise ValueError(
+                    "The invalidated Dink condition progress "
+                    "could not be found."
+                )
+
+            remaining = (
+                int(condition_row[0])
+                - int(amount)
+            )
+
+            if remaining < 0:
+                raise ValueError(
+                    "The invalidated Dink amount exceeds the "
+                    "stored condition progress."
+                )
+
+            cursor.execute(
+                '''
+                UPDATE tile_condition_progress
+                SET progress = %s
+                WHERE team_id = %s
+                  AND condition_id = %s
+                ''',
+                (
+                    remaining,
+                    team_id,
+                    condition_id
+                )
+            )
+
+        conn.commit()
+
+    return {
+        "status": "INVALIDATED",
+        "invalidation_id": invalidation_id,
+        "reopened_tiles": reopened_tiles
+    }
+
+
 def add_manual_evidence(
     player_id,
     condition_id,
