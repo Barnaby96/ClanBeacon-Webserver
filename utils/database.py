@@ -512,6 +512,27 @@ def ensure_schema():
             )
         ''')
 
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS
+                completed_tile_partial_snapshot (
+                    snapshot_id BIGSERIAL PRIMARY KEY,
+                    completed_tile_pk INTEGER NOT NULL,
+                    player_id INTEGER,
+                    partial_completion NUMERIC(18, 12) NOT NULL,
+                    FOREIGN KEY (completed_tile_pk)
+                        REFERENCES completed_tiles(completed_tile_pk)
+                        ON DELETE CASCADE,
+                    CHECK (partial_completion > 0)
+                )
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS
+                idx_completed_tile_partial_snapshot_completion
+            ON completed_tile_partial_snapshot (
+                completed_tile_pk
+            )
+        ''')
 
         cursor.execute('''
             ALTER TABLE teams
@@ -10654,7 +10675,9 @@ def _complete_tile_with_contributions(
         )
     )
 
-    if cursor.fetchone() is None:
+    completion_row = cursor.fetchone()
+
+    if completion_row is None:
         if return_details:
             return {
                 "completed": False,
@@ -10667,6 +10690,8 @@ def _complete_tile_with_contributions(
             }
 
         return False
+
+    completed_tile_pk = int(completion_row[0])
 
     cursor.execute(
         '''
@@ -10877,6 +10902,29 @@ def _complete_tile_with_contributions(
         raise ValueError(
             f"Team {team_id} does not exist."
         )
+
+    cursor.execute(
+        '''
+        INSERT INTO completed_tile_partial_snapshot (
+            completed_tile_pk,
+            player_id,
+            partial_completion
+        )
+        SELECT
+            %s,
+            player_id,
+            partial_completion
+        FROM partial_completions
+        WHERE team_id = %s
+          AND tile_id = %s
+        ORDER BY partial_completion_pk
+        ''',
+        (
+            completed_tile_pk,
+            team_id,
+            tile_id
+        )
+    )
 
     cursor.execute(
         '''
@@ -12224,6 +12272,27 @@ def reset_tables():
                 tile_id
             )
             ''')
+
+    cursor.execute('''
+        CREATE TABLE completed_tile_partial_snapshot (
+            snapshot_id BIGSERIAL PRIMARY KEY,
+            completed_tile_pk INTEGER NOT NULL,
+            player_id INTEGER,
+            partial_completion NUMERIC(18, 12) NOT NULL,
+            FOREIGN KEY (completed_tile_pk)
+                REFERENCES completed_tiles(completed_tile_pk)
+                ON DELETE CASCADE,
+            CHECK (partial_completion > 0)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE INDEX
+            idx_completed_tile_partial_snapshot_completion
+        ON completed_tile_partial_snapshot (
+            completed_tile_pk
+        )
+    ''')
 
     cursor.execute('''
             CREATE TABLE manual_tile_progress (

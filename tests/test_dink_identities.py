@@ -1241,6 +1241,7 @@ def test_tile_completion_can_return_detailed_allocation():
         cursor.execute(
             '''
             SELECT
+                completed_tile_pk,
                 tile_id,
                 points_awarded
             FROM completed_tiles
@@ -1254,10 +1255,39 @@ def test_tile_completion_can_return_detailed_allocation():
             )
         )
 
+        completed_rows = cursor.fetchall()
+
         completion_points = {
             int(tile_id): float(points_awarded)
-            for tile_id, points_awarded in cursor.fetchall()
+            for _, tile_id, points_awarded in completed_rows
         }
+
+        detailed_completion_id = next(
+            int(completed_tile_pk)
+            for completed_tile_pk, tile_id, _
+            in completed_rows
+            if int(tile_id) == detailed_tile_id
+        )
+
+        cursor.execute(
+            '''
+            SELECT
+                player_id,
+                partial_completion
+            FROM completed_tile_partial_snapshot
+            WHERE completed_tile_pk = %s
+            ORDER BY snapshot_id
+            ''',
+            (detailed_completion_id,)
+        )
+
+        completion_snapshot = [
+            (
+                None if player_id is None else int(player_id),
+                float(partial_completion)
+            )
+            for player_id, partial_completion in cursor.fetchall()
+        ]
 
         conn.commit()
 
@@ -1284,6 +1314,13 @@ def test_tile_completion_can_return_detailed_allocation():
         detailed_tile_id: 4.0,
         boolean_tile_id: 2.0
     }
+
+    assert completion_snapshot == [
+        (
+            player[0],
+            0.25
+        )
+    ]
 
 
 def test_banked_contribution_stays_with_original_team():
