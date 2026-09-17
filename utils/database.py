@@ -973,6 +973,13 @@ def ensure_schema():
                 banked_total NUMERIC(18, 12) NOT NULL,
                 ready BOOLEAN NOT NULL,
                 completed BOOLEAN NOT NULL,
+                condition_type_snapshot TEXT,
+                condition_trigger_snapshot TEXT,
+                condition_target_snapshot BIGINT,
+                route_mode_snapshot TEXT,
+                route_target_snapshot BIGINT,
+                require_unique_snapshot BOOLEAN,
+                state TEXT NOT NULL DEFAULT 'APPLIED',
                 processed_at TIMESTAMPTZ NOT NULL
                     DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (event_id)
@@ -985,7 +992,15 @@ def ensure_schema():
                     REFERENCES tiles(tile_id)
                     ON DELETE CASCADE,
                 CHECK (amount > 0),
-                CHECK (counted_amount >= 0)
+                CHECK (counted_amount >= 0),
+                CONSTRAINT dink_event_progress_state_valid
+                CHECK (
+                    state IN (
+                        'APPLIED',
+                        'SUPPRESSED_COMPLETED',
+                        'INVALIDATED'
+                    )
+                )
             )
         ''')
 
@@ -1023,6 +1038,53 @@ def ensure_schema():
                 END IF;
             END
             $$
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE dink_event_progress
+            ADD COLUMN IF NOT EXISTS state TEXT
+                NOT NULL DEFAULT 'APPLIED'
+        ''')
+
+        cursor.execute('''
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname =
+                        'dink_event_progress_state_valid'
+                )
+                THEN
+                    ALTER TABLE dink_event_progress
+                    ADD CONSTRAINT
+                        dink_event_progress_state_valid
+                    CHECK (
+                        state IN (
+                            'APPLIED',
+                            'SUPPRESSED_COMPLETED',
+                            'INVALIDATED'
+                        )
+                    );
+                END IF;
+            END
+            $$
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE dink_event_progress
+            ADD COLUMN IF NOT EXISTS
+                condition_type_snapshot TEXT,
+            ADD COLUMN IF NOT EXISTS
+                condition_trigger_snapshot TEXT,
+            ADD COLUMN IF NOT EXISTS
+                condition_target_snapshot BIGINT,
+            ADD COLUMN IF NOT EXISTS
+                route_mode_snapshot TEXT,
+            ADD COLUMN IF NOT EXISTS
+                route_target_snapshot BIGINT,
+            ADD COLUMN IF NOT EXISTS
+                require_unique_snapshot BOOLEAN
         ''')
 
         cursor.execute('''
@@ -5709,6 +5771,328 @@ def _replay_late_manual_evidence_after_invalidation(
     return replayed_evidence
 
 
+def _replay_suppressed_dink_progress_after_invalidation(
+    cursor,
+    team_id,
+    tile_id,
+    completed_at
+):
+    cursor.execute(
+        '''
+        SELECT
+            dep.progress_id,
+            dep.event_id,
+            de.player_id,
+            dep.condition_id,
+            dep.completion_path,
+            dep.amount,
+            dep.condition_type_snapshot,
+            dep.condition_trigger_snapshot,
+            dep.condition_target_snapshot,
+            dep.route_mode_snapshot,
+            dep.route_target_snapshot,
+            dep.require_unique_snapshot
+        FROM dink_event_progress AS dep
+        INNER JOIN dink_events AS de
+            ON de.event_id = dep.event_id
+        WHERE dep.team_id = %s
+          AND dep.tile_id = %s
+          AND dep.state = 'SUPPRESSED_COMPLETED'
+          AND de.status = 'PROCESSED'
+          AND de.received_at >= %s
+          AND NOT EXISTS (
+              SELECT 1
+              FROM evidence_invalidations AS invalidation
+              WHERE invalidation.subject_type = 'DINK_EVENT'
+                AND invalidation.subject_id = dep.event_id
+          )
+        ORDER BY
+            de.received_at,
+            dep.event_id,
+            dep.progress_id
+        FOR UPDATE OF dep, de
+        ''',
+        (
+            team_id,
+            tile_id,
+            completed_at
+        )
+    )
+
+    candidates = cursor.fetchall()
+    replayed_progress = []
+
+    for (
+        progress_id,
+        event_id,
+        player_id,
+        condition_id,
+        completion_path,
+        amount,
+        condition_type_snapshot,
+        condition_trigger_snapshot,
+        condition_target_snapshot,
+        route_mode_snapshot,
+        route_target_snapshot,
+        require_unique_snapshot
+    ) in candidates:
+        cursor.execute(
+            '''
+            SELECT 1
+            FROM completed_tiles
+            WHERE team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                team_id,
+                tile_id
+            )
+        )
+
+        # An earlier replay has genuinely completed the tile.
+        # Any later Dink evidence remains suppressed.
+        if cursor.fetchone() is not None:
+            break
+
+        if (
+            condition_type_snapshot is None
+            or condition_trigger_snapshot is None
+            or condition_target_snapshot is None
+            or route_mode_snapshot is None
+            or require_unique_snapshot is None
+        ):
+            raise ValueError(
+                "Suppressed Dink evidence cannot be replayed "
+                "because its frozen tile definition is incomplete."
+            )
+
+        cursor.execute(
+            '''
+            SELECT tile_id
+            FROM tiles
+            WHERE tile_id = %s
+            FOR UPDATE
+            ''',
+            (tile_id,)
+        )
+
+        if cursor.fetchone() is None:
+            raise ValueError(
+                "Suppressed Dink evidence cannot be replayed "
+                "because the tile no longer exists."
+            )
+
+        cursor.execute(
+            '''
+            SELECT
+                condition.condition_type,
+                condition.condition_trigger,
+                condition.target,
+                path.route_mode,
+                path.route_target,
+                path.require_unique
+            FROM tile_conditions AS condition
+            INNER JOIN tile_completion_paths AS path
+                ON path.tile_id = condition.tile_id
+               AND path.completion_path =
+                   condition.completion_path
+            WHERE condition.condition_id = %s
+              AND condition.tile_id = %s
+              AND condition.completion_path = %s
+            FOR UPDATE OF condition, path
+            ''',
+            (
+                condition_id,
+                tile_id,
+                completion_path
+            )
+        )
+
+        live_definition = cursor.fetchone()
+
+        if live_definition is None:
+            raise ValueError(
+                "Suppressed Dink evidence cannot be replayed "
+                "because its tile condition or path no longer "
+                "exists."
+            )
+
+        (
+            live_condition_type,
+            live_condition_trigger,
+            live_condition_target,
+            live_route_mode,
+            live_route_target,
+            live_require_unique
+        ) = live_definition
+
+        frozen_definition = (
+            str(condition_type_snapshot),
+            str(condition_trigger_snapshot),
+            int(condition_target_snapshot),
+            str(route_mode_snapshot),
+            (
+                None
+                if route_target_snapshot is None
+                else int(route_target_snapshot)
+            ),
+            bool(require_unique_snapshot)
+        )
+
+        current_definition = (
+            str(live_condition_type),
+            str(live_condition_trigger),
+            int(live_condition_target),
+            str(live_route_mode),
+            (
+                None
+                if live_route_target is None
+                else int(live_route_target)
+            ),
+            bool(live_require_unique)
+        )
+
+        if current_definition != frozen_definition:
+            raise ValueError(
+                "Suppressed Dink evidence cannot be replayed "
+                "because the tile changed after the event was "
+                "received."
+            )
+
+        amount = int(amount)
+
+        if amount < 1:
+            raise ValueError(
+                "Suppressed Dink evidence has an invalid amount."
+            )
+
+        before = _evaluate_completion_path(
+            cursor=cursor,
+            team_id=team_id,
+            tile_id=tile_id,
+            completion_path=completion_path
+        )
+
+        raw_progress = _add_tile_condition_progress(
+            cursor=cursor,
+            team_id=team_id,
+            condition_id=condition_id,
+            amount=amount
+        )
+
+        counted_amount = _calculate_counted_drop_amount(
+            condition_type=condition_type_snapshot,
+            amount=amount,
+            condition_target=condition_target_snapshot,
+            condition_progress_before=(
+                raw_progress - amount
+            ),
+            route_state=before
+        )
+
+        after = _evaluate_completion_path(
+            cursor=cursor,
+            team_id=team_id,
+            tile_id=tile_id,
+            completion_path=completion_path
+        )
+
+        progress_delta = round(
+            max(
+                0.0,
+                after["progress_fraction"]
+                - before["progress_fraction"]
+            ),
+            12
+        )
+
+        player_exists = False
+
+        if player_id is not None:
+            cursor.execute(
+                '''
+                SELECT player_id
+                FROM players
+                WHERE player_id = %s
+                FOR UPDATE
+                ''',
+                (player_id,)
+            )
+
+            player_exists = (
+                cursor.fetchone() is not None
+            )
+
+        (
+            contribution,
+            banked_after
+        ) = _bank_partial_contribution(
+            cursor=cursor,
+            player_id=(
+                player_id
+                if player_exists
+                else None
+            ),
+            team_id=team_id,
+            tile_id=tile_id,
+            requested_contribution=progress_delta
+        )
+
+        completed = False
+
+        if after["ready"]:
+            completed = (
+                _complete_tile_with_contributions(
+                    cursor=cursor,
+                    team_id=team_id,
+                    tile_id=tile_id
+                )
+            )
+
+        cursor.execute(
+            '''
+            UPDATE dink_event_progress
+            SET
+                counted_amount = %s,
+                raw_progress = %s,
+                route_progress = %s,
+                credited = %s,
+                banked_total = %s,
+                ready = %s,
+                completed = %s,
+                state = 'APPLIED'
+            WHERE progress_id = %s
+            ''',
+            (
+                counted_amount,
+                raw_progress,
+                after["progress_fraction"],
+                contribution,
+                banked_after,
+                after["ready"],
+                completed,
+                progress_id
+            )
+        )
+
+        replayed_progress.append(
+            {
+                "event_id": int(event_id),
+                "progress_id": int(progress_id),
+                "team_id": int(team_id),
+                "tile_id": int(tile_id),
+                "counted_amount": int(counted_amount),
+                "credited": round(
+                    float(contribution),
+                    12
+                ),
+                "completed": completed
+            }
+        )
+
+    return replayed_progress
+
+
 def invalidate_bingo_evidence(
     subject_type,
     subject_id,
@@ -5785,7 +6169,8 @@ def invalidate_bingo_evidence(
                 tile_id,
                 amount,
                 credited,
-                completed
+                completed,
+                state
             FROM dink_event_progress
             WHERE event_id = %s
             ORDER BY progress_id
@@ -5811,12 +6196,36 @@ def invalidate_bingo_evidence(
             tile_id,
             amount,
             credited,
-            completed
+            completed,
+            progress_state
         ) in progress_rows:
             if team_id is None:
                 raise ValueError(
                     "Historical Dink progress without a frozen "
                     "team cannot be safely invalidated."
+                )
+
+            progress_state = str(
+                progress_state
+            ).strip().upper()
+
+            if progress_state == "INVALIDATED":
+                raise ValueError(
+                    "This Dink progress has already been "
+                    "invalidated."
+                )
+
+            # Suppressed evidence was retained for possible future
+            # replay, but it never altered live progress, contribution
+            # banking or completion state. There is therefore nothing
+            # to reverse for that row.
+            if progress_state == "SUPPRESSED_COMPLETED":
+                continue
+
+            if progress_state != "APPLIED":
+                raise ValueError(
+                    "This Dink progress has an unsupported "
+                    f"lifecycle state: {progress_state}."
                 )
 
             tile_key = (
@@ -6050,6 +6459,15 @@ def invalidate_bingo_evidence(
                 )
             )
 
+        cursor.execute(
+            '''
+            UPDATE dink_event_progress
+            SET state = 'INVALIDATED'
+            WHERE event_id = %s
+            ''',
+            (subject_id,)
+        )
+
         replayed_manual_evidence = []
 
         for (
@@ -6065,6 +6483,28 @@ def invalidate_bingo_evidence(
 
             replayed_manual_evidence.extend(
                 _replay_late_manual_evidence_after_invalidation(
+                    cursor=cursor,
+                    team_id=team_id,
+                    tile_id=tile_id,
+                    completed_at=completed_at
+                )
+            )
+
+        replayed_dink_progress = []
+
+        for (
+            team_id,
+            tile_id
+        ), tile_state in affected_tiles.items():
+            completed_at = tile_state.get(
+                "completed_at"
+            )
+
+            if completed_at is None:
+                continue
+
+            replayed_dink_progress.extend(
+                _replay_suppressed_dink_progress_after_invalidation(
                     cursor=cursor,
                     team_id=team_id,
                     tile_id=tile_id,
@@ -9273,9 +9713,23 @@ def _add_dink_event_progress(
                 credited,
                 banked_total,
                 ready,
-                completed
+                completed,
+                condition_type_snapshot,
+                condition_trigger_snapshot,
+                condition_target_snapshot,
+                route_mode_snapshot,
+                route_target_snapshot,
+                require_unique_snapshot,
+                state
             )
             VALUES (
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
                 %s,
                 %s,
                 %s,
@@ -9306,7 +9760,29 @@ def _add_dink_event_progress(
                 result["credited"],
                 result["banked_total"],
                 result["ready"],
-                result["completed"]
+                result["completed"],
+                result.get(
+                    "condition_type_snapshot"
+                ),
+                result.get(
+                    "condition_trigger_snapshot"
+                ),
+                result.get(
+                    "condition_target_snapshot"
+                ),
+                result.get(
+                    "route_mode_snapshot"
+                ),
+                result.get(
+                    "route_target_snapshot"
+                ),
+                result.get(
+                    "require_unique_snapshot"
+                ),
+                result.get(
+                    "state",
+                    "APPLIED"
+                )
             )
         )
 
@@ -11108,17 +11584,26 @@ def _apply_event_condition_progress(
     cursor.execute(
         '''
         SELECT
-            condition_id,
-            tile_id,
-            completion_path,
-            target
-        FROM tile_conditions
-        WHERE condition_type = %s
-          AND lower(condition_trigger) = lower(%s)
+            condition.condition_id,
+            condition.tile_id,
+            condition.completion_path,
+            condition.target,
+            condition.condition_type,
+            condition.condition_trigger,
+            path.route_mode,
+            path.route_target,
+            path.require_unique
+        FROM tile_conditions AS condition
+        JOIN tile_completion_paths AS path
+          ON path.tile_id = condition.tile_id
+         AND path.completion_path =
+             condition.completion_path
+        WHERE condition.condition_type = %s
+          AND lower(condition.condition_trigger) = lower(%s)
         ORDER BY
-            tile_id,
-            completion_path,
-            condition_id
+            condition.tile_id,
+            condition.completion_path,
+            condition.condition_id
         ''',
         (
             condition_type,
@@ -11134,7 +11619,12 @@ def _apply_event_condition_progress(
         condition_id,
         tile_id,
         completion_path,
-        condition_target
+        condition_target,
+        condition_type_snapshot,
+        condition_trigger_snapshot,
+        route_mode_snapshot,
+        route_target_snapshot,
+        require_unique_snapshot
     ) in conditions:
         # Serialise all progress against this tile so two
         # simultaneous events cannot both claim the same
@@ -11166,6 +11656,64 @@ def _apply_event_condition_progress(
         )
 
         if cursor.fetchone() is not None:
+            cursor.execute(
+                '''
+                SELECT COALESCE(progress, 0)
+                FROM tile_condition_progress
+                WHERE team_id = %s
+                  AND condition_id = %s
+                ''',
+                (
+                    team_id,
+                    condition_id
+                )
+            )
+
+            raw_progress_row = cursor.fetchone()
+
+            raw_progress = (
+                int(raw_progress_row[0])
+                if raw_progress_row is not None
+                else 0
+            )
+
+            route_state = _evaluate_completion_path(
+                cursor=cursor,
+                team_id=team_id,
+                tile_id=tile_id,
+                completion_path=completion_path
+            )
+
+            results.append(
+                {
+                    "team_id": team_id,
+                    "condition_id": condition_id,
+                    "tile_id": tile_id,
+                    "completion_path": completion_path,
+                    "counted_amount": 0,
+                    "raw_progress": raw_progress,
+                    "route_progress":
+                        route_state["progress_fraction"],
+                    "credited": 0.0,
+                    "banked_total": 0.0,
+                    "ready": route_state["ready"],
+                    "completed": False,
+                    "condition_type_snapshot":
+                        condition_type_snapshot,
+                    "condition_trigger_snapshot":
+                        condition_trigger_snapshot,
+                    "condition_target_snapshot":
+                        condition_target,
+                    "route_mode_snapshot":
+                        route_mode_snapshot,
+                    "route_target_snapshot":
+                        route_target_snapshot,
+                    "require_unique_snapshot":
+                        require_unique_snapshot,
+                    "state": "SUPPRESSED_COMPLETED"
+                }
+            )
+
             continue
 
         before = _evaluate_completion_path(
@@ -11244,7 +11792,20 @@ def _apply_event_condition_progress(
                 "credited": contribution,
                 "banked_total": banked_after,
                 "ready": after["ready"],
-                "completed": completed
+                "completed": completed,
+                "condition_type_snapshot":
+                    condition_type_snapshot,
+                "condition_trigger_snapshot":
+                    condition_trigger_snapshot,
+                "condition_target_snapshot":
+                    condition_target,
+                "route_mode_snapshot":
+                    route_mode_snapshot,
+                "route_target_snapshot":
+                    route_target_snapshot,
+                "require_unique_snapshot":
+                    require_unique_snapshot,
+                "state": "APPLIED"
             }
         )
 
@@ -13052,6 +13613,13 @@ def reset_tables():
             banked_total NUMERIC(18, 12) NOT NULL,
             ready BOOLEAN NOT NULL,
             completed BOOLEAN NOT NULL,
+            condition_type_snapshot TEXT,
+            condition_trigger_snapshot TEXT,
+            condition_target_snapshot BIGINT,
+            route_mode_snapshot TEXT,
+            route_target_snapshot BIGINT,
+            require_unique_snapshot BOOLEAN,
+            state TEXT NOT NULL DEFAULT 'APPLIED',
             processed_at TIMESTAMPTZ NOT NULL
                 DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (event_id)
@@ -13064,7 +13632,14 @@ def reset_tables():
                 REFERENCES tiles(tile_id)
                 ON DELETE CASCADE,
             CHECK (amount > 0),
-            CHECK (counted_amount >= 0)
+            CHECK (counted_amount >= 0),
+            CHECK (
+                state IN (
+                    'APPLIED',
+                    'SUPPRESSED_COMPLETED',
+                    'INVALIDATED'
+                )
+            )
         )
     ''')
 

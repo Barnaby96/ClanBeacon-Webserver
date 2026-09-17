@@ -5556,6 +5556,331 @@ def test_invalidating_bad_dink_replays_late_accepted_manual_evidence():
     assert team_points == 0.0
 
 
+def test_invalidation_replays_manual_before_later_suppressed_dink():
+    create_test_player(
+        "Mixed Replay Manual Tester",
+        team_name="Mixed Replay Team"
+    )
+
+    create_test_player(
+        "Mixed Replay Bad Dink",
+        team_name="Mixed Replay Team"
+    )
+
+    create_test_player(
+        "Mixed Replay Legit Dink",
+        team_name="Mixed Replay Team"
+    )
+
+    manual_player = database.get_player_by_name(
+        "Mixed Replay Manual Tester"
+    )
+
+    bad_dink_player = database.get_player_by_name(
+        "Mixed Replay Bad Dink"
+    )
+
+    legit_dink_player = database.get_player_by_name(
+        "Mixed Replay Legit Dink"
+    )
+
+    assert manual_player is not None
+    assert bad_dink_player is not None
+    assert legit_dink_player is not None
+
+    assert manual_player[5] == bad_dink_player[5]
+    assert manual_player[5] == legit_dink_player[5]
+
+    team_id = manual_player[5]
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Mixed Manual Dink Replay Tile",
+        tile_points=10,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Mixed Replay Drop",
+                "target": 10
+            }
+        ],
+        completion_paths=[
+            {
+                "completion_path": 1,
+                "route_mode": "SUM",
+                "route_target": 10
+            }
+        ]
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT condition_id
+            FROM tile_conditions
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        condition_id = cursor.fetchone()[0]
+
+    # The manual evidence is submitted before the bad completion,
+    # but is not reviewed until afterwards.
+    submission = database.add_manual_evidence(
+        player_id=manual_player[0],
+        condition_id=condition_id,
+        amount=4,
+        evidence_path="manual/mixed-replay-evidence.png",
+        evidence_sha256="c" * 64,
+        submission_source="DISCORD",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
+    )
+
+    bad_event_id = database.add_dink_event(
+        event_fingerprint="mixed-replay-bad-dink-event",
+        raw_payload={
+            "playerName": "Mixed Replay Bad Dink",
+            "dinkAccountHash": "mixed-replay-bad-dink-hash",
+            "type": "LOOT"
+        },
+        dink_account_hash="mixed-replay-bad-dink-hash",
+        player_name="Mixed Replay Bad Dink",
+        player_id=bad_dink_player[0],
+        event_type="LOOT",
+        status="RECEIVED"
+    )
+
+    bad_result = database.process_dink_event_progress(
+        event_id=bad_event_id,
+        player_id=bad_dink_player[0],
+        event_progress=[
+            {
+                "condition_type": "DROP",
+                "trigger": "Mixed Replay Drop",
+                "amount": 10
+            }
+        ]
+    )
+
+    assert bad_result["status"] == "PROCESSED"
+    assert bad_result["progress"][0]["completed"] is True
+
+    review_result = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="DISCORD",
+        reviewer_id=54321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert review_result["status"] == "ACCEPTED"
+    assert review_result["late_review"] is True
+    assert review_result["actual_contribution"] == 0.0
+    assert review_result["potential_contribution"] == 0.4
+
+    # This legitimate Dink evidence arrives after the bad event has
+    # completed the tile, so it must be retained as suppressed evidence.
+    legit_event_id = database.add_dink_event(
+        event_fingerprint="mixed-replay-legit-dink-event",
+        raw_payload={
+            "playerName": "Mixed Replay Legit Dink",
+            "dinkAccountHash": "mixed-replay-legit-dink-hash",
+            "type": "LOOT"
+        },
+        dink_account_hash="mixed-replay-legit-dink-hash",
+        player_name="Mixed Replay Legit Dink",
+        player_id=legit_dink_player[0],
+        event_type="LOOT",
+        status="RECEIVED"
+    )
+
+    legit_result = database.process_dink_event_progress(
+        event_id=legit_event_id,
+        player_id=legit_dink_player[0],
+        event_progress=[
+            {
+                "condition_type": "DROP",
+                "trigger": "Mixed Replay Drop",
+                "amount": 6
+            }
+        ]
+    )
+
+    assert legit_result["status"] == "PROCESSED"
+    assert legit_result["progress"][0]["state"] == (
+        "SUPPRESSED_COMPLETED"
+    )
+    assert legit_result["progress"][0]["counted_amount"] == 0
+    assert legit_result["progress"][0]["credited"] == 0.0
+
+    invalidation_result = database.invalidate_bingo_evidence(
+        subject_type="DINK_EVENT",
+        subject_id=bad_event_id,
+        reason_code="INCORRECT_EVIDENCE",
+        review_source="DISCORD",
+        reviewer_id=987654321,
+        reviewer_name="Invalidation Reviewer"
+    )
+
+    # The manual evidence was submitted before the original completion,
+    # so it must replay before the later suppressed Dink event. Together
+    # they immediately restore a legitimate 4/10 + 6/10 completion.
+    assert invalidation_result["reopened_tiles"] == []
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT progress
+            FROM tile_condition_progress
+            WHERE team_id = %s
+              AND condition_id = %s
+            ''',
+            (
+                team_id,
+                condition_id
+            )
+        )
+
+        assert cursor.fetchone()[0] == 10
+
+        cursor.execute(
+            '''
+            SELECT
+                actual_contribution,
+                normal_player_credit,
+                banked_total,
+                completed
+            FROM manual_evidence_progress
+            WHERE evidence_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        manual_progress = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT
+                state,
+                counted_amount,
+                credited,
+                completed
+            FROM dink_event_progress
+            WHERE event_id = %s
+            ''',
+            (legit_event_id,)
+        )
+
+        legit_progress = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (manual_player[0],)
+        )
+
+        manual_totals = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (bad_dink_player[0],)
+        )
+
+        bad_totals = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (legit_dink_player[0],)
+        )
+
+        legit_totals = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT team_points
+            FROM teams
+            WHERE team_id = %s
+            ''',
+            (team_id,)
+        )
+
+        team_points = cursor.fetchone()[0]
+
+        cursor.execute(
+            '''
+            SELECT points_awarded
+            FROM completed_tiles
+            WHERE team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                team_id,
+                tile_id
+            )
+        )
+
+        completion = cursor.fetchone()
+
+    assert float(manual_progress[0]) == 0.4
+    assert float(manual_progress[1]) == 0.4
+    assert float(manual_progress[2]) == 0.4
+    assert manual_progress[3] is False
+
+    assert legit_progress[0] == "APPLIED"
+    assert int(legit_progress[1]) == 6
+    assert float(legit_progress[2]) == 0.6
+    assert legit_progress[3] is True
+
+    assert float(manual_totals[0]) == 4.0
+    assert float(manual_totals[1]) == 0.4
+
+    assert float(bad_totals[0]) == 0.0
+    assert float(bad_totals[1]) == 0.0
+
+    assert float(legit_totals[0]) == 6.0
+    assert float(legit_totals[1]) == 0.6
+
+    assert float(team_points) == 10.0
+
+    assert completion is not None
+    assert float(completion[0]) == 10.0
+
+    assert database.get_player_relevant_drop_summary(
+        manual_player[0]
+    )["total_quantity"] == 4
+
+    assert database.get_player_relevant_drop_summary(
+        bad_dink_player[0]
+    )["total_quantity"] == 0
+
+    assert database.get_player_relevant_drop_summary(
+        legit_dink_player[0]
+    )["total_quantity"] == 6
+
+
 def test_dink_invalidation_recompletion_is_not_reported_as_reopened():
     create_test_player(
         "Replay Recompletion Tester",

@@ -1,5 +1,6 @@
 import os
 import sys
+from decimal import Decimal
 from pathlib import Path
 import hashlib
 import io
@@ -1834,6 +1835,598 @@ def test_invalidating_dink_completion_reopens_tile_and_reverses_awards():
             "Invalidation Reviewer",
             "Automated invalidation test."
         )
+
+
+def test_invalidating_bad_dink_replays_later_suppressed_dink_event():
+    database.add_team(
+        "Suppressed Dink Replay Team",
+        0,
+        ""
+    )
+
+    team = db_entities.Team(
+        database.get_team_by_name(
+            "Suppressed Dink Replay Team"
+        )
+    )
+
+    database.add_player(
+        "Bad Suppressed Dink Tester",
+        0,
+        0,
+        0,
+        team.team_id,
+        0
+    )
+
+    database.add_player(
+        "Legit Suppressed Dink Tester",
+        0,
+        0,
+        0,
+        team.team_id,
+        0
+    )
+
+    bad_player = db_entities.Player(
+        database.get_player_by_name(
+            "Bad Suppressed Dink Tester"
+        )
+    )
+
+    legit_player = db_entities.Player(
+        database.get_player_by_name(
+            "Legit Suppressed Dink Tester"
+        )
+    )
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Suppressed Dink Replay Tile",
+        tile_points=6,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Suppressed Replay Drop",
+                "target": 1
+            }
+        ]
+    )
+
+    bad_event_id = database.add_dink_event(
+        event_fingerprint=(
+            "bad-suppressed-dink-replay-event"
+        ),
+        raw_payload={
+            "playerName": "Bad Suppressed Dink Tester",
+            "type": "LOOT"
+        },
+        dink_account_hash=(
+            "bad-suppressed-dink-replay-hash"
+        ),
+        player_name="Bad Suppressed Dink Tester",
+        player_id=bad_player.player_id,
+        event_type="LOOT",
+        status="RECEIVED"
+    )
+
+    bad_result = database.process_dink_event_progress(
+        event_id=bad_event_id,
+        player_id=bad_player.player_id,
+        event_progress=[
+            {
+                "condition_type": "DROP",
+                "trigger": "Suppressed Replay Drop",
+                "amount": 1
+            }
+        ]
+    )
+
+    assert bad_result["status"] == "PROCESSED"
+    assert len(bad_result["progress"]) == 1
+    assert bad_result["progress"][0]["completed"] is True
+
+    legit_event_id = database.add_dink_event(
+        event_fingerprint=(
+            "legit-suppressed-dink-replay-event"
+        ),
+        raw_payload={
+            "playerName": "Legit Suppressed Dink Tester",
+            "type": "LOOT"
+        },
+        dink_account_hash=(
+            "legit-suppressed-dink-replay-hash"
+        ),
+        player_name="Legit Suppressed Dink Tester",
+        player_id=legit_player.player_id,
+        event_type="LOOT",
+        status="RECEIVED"
+    )
+
+    legit_result = database.process_dink_event_progress(
+        event_id=legit_event_id,
+        player_id=legit_player.player_id,
+        event_progress=[
+            {
+                "condition_type": "DROP",
+                "trigger": "Suppressed Replay Drop",
+                "amount": 1
+            }
+        ]
+    )
+
+    # Evidence received while the tile is already complete must
+    # remain replayable rather than being minimised as IGNORED.
+    assert legit_result["status"] == "PROCESSED"
+    assert len(legit_result["progress"]) == 1
+
+    suppressed_result = legit_result["progress"][0]
+
+    assert suppressed_result["state"] == (
+        "SUPPRESSED_COMPLETED"
+    )
+    assert suppressed_result["counted_amount"] == 0
+    assert suppressed_result["credited"] == 0.0
+    assert suppressed_result["completed"] is False
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                state,
+                counted_amount,
+                credited,
+                completed,
+                condition_type_snapshot,
+                condition_trigger_snapshot,
+                condition_target_snapshot,
+                route_mode_snapshot,
+                route_target_snapshot,
+                require_unique_snapshot
+            FROM dink_event_progress
+            WHERE event_id = %s
+            ''',
+            (legit_event_id,)
+        )
+
+        assert cursor.fetchone() == (
+            "SUPPRESSED_COMPLETED",
+            0,
+            0,
+            False,
+            "DROP",
+            "Suppressed Replay Drop",
+            1,
+            "ALL",
+            None,
+            False
+        )
+
+    invalidation_result = (
+        database.invalidate_bingo_evidence(
+            subject_type="DINK_EVENT",
+            subject_id=bad_event_id,
+            reason_code="INCORRECT_EVIDENCE",
+            review_source="DISCORD",
+            reviewer_id=987654321,
+            reviewer_name="Invalidation Reviewer"
+        )
+    )
+
+    # Removing the bad completion allows the later legitimate event
+    # to replay immediately, so the tile's final state is completed
+    # rather than reopened.
+    assert invalidation_result["reopened_tiles"] == []
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                event_id,
+                state,
+                counted_amount,
+                credited,
+                completed
+            FROM dink_event_progress
+            WHERE event_id IN (%s, %s)
+            ORDER BY event_id
+            ''',
+            (
+                bad_event_id,
+                legit_event_id
+            )
+        )
+
+        progress_rows = cursor.fetchall()
+
+        assert progress_rows == [
+            (
+                bad_event_id,
+                "INVALIDATED",
+                1,
+                Decimal("1.000000000000"),
+                True
+            ),
+            (
+                legit_event_id,
+                "APPLIED",
+                1,
+                Decimal("1.000000000000"),
+                True
+            )
+        ]
+
+        cursor.execute(
+            '''
+            SELECT
+                points_awarded
+            FROM completed_tiles
+            WHERE team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                team.team_id,
+                tile_id
+            )
+        )
+
+        completion = cursor.fetchone()
+
+        assert completion is not None
+        assert float(completion[0]) == 6.0
+
+        cursor.execute(
+            '''
+            SELECT progress
+            FROM tile_condition_progress
+            WHERE team_id = %s
+              AND condition_id = (
+                  SELECT condition_id
+                  FROM tile_conditions
+                  WHERE tile_id = %s
+              )
+            ''',
+            (
+                team.team_id,
+                tile_id
+            )
+        )
+
+        assert cursor.fetchone()[0] == 1
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (bad_player.player_id,)
+        )
+
+        bad_totals = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (legit_player.player_id,)
+        )
+
+        legit_totals = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT team_points
+            FROM teams
+            WHERE team_id = %s
+            ''',
+            (team.team_id,)
+        )
+
+        team_points = cursor.fetchone()[0]
+
+        cursor.execute(
+            '''
+            SELECT status
+            FROM dink_events
+            WHERE event_id = %s
+            ''',
+            (legit_event_id,)
+        )
+
+        legit_event_status = cursor.fetchone()[0]
+
+    assert float(bad_totals[0]) == 0.0
+    assert float(bad_totals[1]) == 0.0
+
+    assert float(legit_totals[0]) == 6.0
+    assert float(legit_totals[1]) == 1.0
+
+    assert float(team_points) == 6.0
+
+    # The event itself remains historically PROCESSED; its progress
+    # row carries the scoring lifecycle.
+    assert legit_event_status == "PROCESSED"
+
+    assert database.get_player_relevant_drop_summary(
+        bad_player.player_id
+    )["total_quantity"] == 0
+
+    assert database.get_player_relevant_drop_summary(
+        legit_player.player_id
+    )["total_quantity"] == 1
+
+
+def test_invalidating_suppressed_dink_event_does_not_reverse_live_progress():
+    database.add_team(
+        "Suppressed Dink Invalidation Team",
+        0,
+        ""
+    )
+
+    team = db_entities.Team(
+        database.get_team_by_name(
+            "Suppressed Dink Invalidation Team"
+        )
+    )
+
+    database.add_player(
+        "Original Suppressed Dink Tester",
+        0,
+        0,
+        0,
+        team.team_id,
+        0
+    )
+
+    database.add_player(
+        "Suppressed Invalidation Tester",
+        0,
+        0,
+        0,
+        team.team_id,
+        0
+    )
+
+    original_player = db_entities.Player(
+        database.get_player_by_name(
+            "Original Suppressed Dink Tester"
+        )
+    )
+
+    suppressed_player = db_entities.Player(
+        database.get_player_by_name(
+            "Suppressed Invalidation Tester"
+        )
+    )
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Suppressed Invalidation Tile",
+        tile_points=5,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Suppressed Invalidation Drop",
+                "target": 1
+            }
+        ]
+    )
+
+    original_event_id = database.add_dink_event(
+        event_fingerprint=(
+            "original-suppressed-invalidation-event"
+        ),
+        raw_payload={
+            "playerName": "Original Suppressed Dink Tester",
+            "type": "LOOT"
+        },
+        dink_account_hash=(
+            "original-suppressed-invalidation-hash"
+        ),
+        player_name="Original Suppressed Dink Tester",
+        player_id=original_player.player_id,
+        event_type="LOOT",
+        status="RECEIVED"
+    )
+
+    original_result = database.process_dink_event_progress(
+        event_id=original_event_id,
+        player_id=original_player.player_id,
+        event_progress=[
+            {
+                "condition_type": "DROP",
+                "trigger": "Suppressed Invalidation Drop",
+                "amount": 1
+            }
+        ]
+    )
+
+    assert original_result["status"] == "PROCESSED"
+    assert original_result["progress"][0]["completed"] is True
+
+    suppressed_event_id = database.add_dink_event(
+        event_fingerprint=(
+            "suppressed-invalidation-event"
+        ),
+        raw_payload={
+            "playerName": "Suppressed Invalidation Tester",
+            "type": "LOOT"
+        },
+        dink_account_hash=(
+            "suppressed-invalidation-hash"
+        ),
+        player_name="Suppressed Invalidation Tester",
+        player_id=suppressed_player.player_id,
+        event_type="LOOT",
+        status="RECEIVED"
+    )
+
+    suppressed_result = database.process_dink_event_progress(
+        event_id=suppressed_event_id,
+        player_id=suppressed_player.player_id,
+        event_progress=[
+            {
+                "condition_type": "DROP",
+                "trigger": "Suppressed Invalidation Drop",
+                "amount": 1
+            }
+        ]
+    )
+
+    assert suppressed_result["status"] == "PROCESSED"
+    assert suppressed_result["progress"][0]["state"] == (
+        "SUPPRESSED_COMPLETED"
+    )
+    assert suppressed_result["progress"][0]["counted_amount"] == 0
+    assert suppressed_result["progress"][0]["credited"] == 0.0
+
+    invalidation_result = database.invalidate_bingo_evidence(
+        subject_type="DINK_EVENT",
+        subject_id=suppressed_event_id,
+        reason_code="INCORRECT_EVIDENCE",
+        review_source="DISCORD",
+        reviewer_id=987654321,
+        reviewer_name="Invalidation Reviewer"
+    )
+
+    assert invalidation_result["status"] == "INVALIDATED"
+    assert invalidation_result["reopened_tiles"] == []
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT progress
+            FROM tile_condition_progress
+            WHERE team_id = %s
+              AND condition_id = (
+                  SELECT condition_id
+                  FROM tile_conditions
+                  WHERE tile_id = %s
+              )
+            ''',
+            (
+                team.team_id,
+                tile_id
+            )
+        )
+
+        assert cursor.fetchone()[0] == 1
+
+        cursor.execute(
+            '''
+            SELECT points_awarded
+            FROM completed_tiles
+            WHERE team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                team.team_id,
+                tile_id
+            )
+        )
+
+        assert cursor.fetchone()[0] == Decimal(
+            "5.000000000000"
+        )
+
+        cursor.execute(
+            '''
+            SELECT
+                event_id,
+                state,
+                counted_amount,
+                credited,
+                completed
+            FROM dink_event_progress
+            WHERE event_id IN (%s, %s)
+            ORDER BY event_id
+            ''',
+            (
+                original_event_id,
+                suppressed_event_id
+            )
+        )
+
+        assert cursor.fetchall() == [
+            (
+                original_event_id,
+                "APPLIED",
+                1,
+                Decimal("1.000000000000"),
+                True
+            ),
+            (
+                suppressed_event_id,
+                "INVALIDATED",
+                0,
+                Decimal("0E-12"),
+                False
+            )
+        ]
+
+        cursor.execute(
+            '''
+            SELECT player_points, tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (original_player.player_id,)
+        )
+
+        original_totals = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT player_points, tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (suppressed_player.player_id,)
+        )
+
+        suppressed_totals = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT team_points
+            FROM teams
+            WHERE team_id = %s
+            ''',
+            (team.team_id,)
+        )
+
+        team_points = cursor.fetchone()[0]
+
+    assert float(original_totals[0]) == 5.0
+    assert float(original_totals[1]) == 1.0
+
+    assert float(suppressed_totals[0]) == 0.0
+    assert float(suppressed_totals[1]) == 0.0
+
+    assert float(team_points) == 5.0
+
+    assert database.get_player_relevant_drop_summary(
+        original_player.player_id
+    )["total_quantity"] == 1
+
+    assert database.get_player_relevant_drop_summary(
+        suppressed_player.player_id
+    )["total_quantity"] == 0
 
 
 def test_invalidating_incomplete_dink_progress_removes_banked_contribution():
