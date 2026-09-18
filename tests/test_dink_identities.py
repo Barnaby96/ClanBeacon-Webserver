@@ -4774,6 +4774,2068 @@ def test_accept_pending_manual_evidence_records_incomplete_progress():
     assert completed_tile is None
 
 
+def test_invalidating_incomplete_manual_evidence_reverses_contribution():
+    create_test_player(
+        "Manual Invalidation Tester",
+        team_name="Manual Invalidation Team"
+    )
+
+    player = database.get_player_by_name(
+        "Manual Invalidation Tester"
+    )
+
+    assert player is not None
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Manual Invalidation Tile",
+        tile_points=4,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Manual Invalidation Drop",
+                "target": 10
+            }
+        ],
+        completion_paths=[
+            {
+                "completion_path": 1,
+                "route_mode": "SUM",
+                "route_target": 10
+            }
+        ]
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT condition_id
+            FROM tile_conditions
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        condition_id = cursor.fetchone()[0]
+
+        # Preserve unrelated pre-existing team progress so the
+        # invalidation must remove only this evidence's amount.
+        cursor.execute(
+            '''
+            INSERT INTO tile_condition_progress (
+                team_id,
+                condition_id,
+                progress
+            )
+            VALUES (%s, %s, %s)
+            ''',
+            (
+                player[5],
+                condition_id,
+                2
+            )
+        )
+
+        conn.commit()
+
+    submission = database.add_manual_evidence(
+        player_id=player[0],
+        condition_id=condition_id,
+        amount=3,
+        evidence_path="manual/invalidation-test.png",
+        evidence_sha256="d" * 64,
+        submission_source="DISCORD",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
+    )
+
+    accepted = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="DISCORD",
+        reviewer_id=54321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert accepted["status"] == "ACCEPTED"
+    assert accepted["actual_contribution"] == 0.3
+    assert accepted["completed"] is False
+
+    assert database.get_player_relevant_drop_summary(
+        player[0]
+    )["total_quantity"] == 3
+
+    result = database.invalidate_bingo_evidence(
+        subject_type="MANUAL_EVIDENCE",
+        subject_id=submission["evidence_id"],
+        reason_code="WRONG_ITEM_OR_ACTIVITY",
+        details="The evidence was accepted against the wrong drop.",
+        review_source="WEB",
+        reviewer_id=987654321,
+        reviewer_name="Correction Reviewer"
+    )
+
+    assert result["status"] == "INVALIDATED"
+    assert result["reopened_tiles"] == []
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT status
+            FROM manual_evidence
+            WHERE evidence_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        evidence_status = cursor.fetchone()[0]
+
+        cursor.execute(
+            '''
+            SELECT
+                decision,
+                review_source,
+                reviewer_id,
+                reviewer_name
+            FROM staff_review_decisions
+            WHERE subject_type = 'MANUAL_EVIDENCE'
+              AND subject_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        original_decision = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT
+                subject_type,
+                subject_id,
+                reason_code,
+                details,
+                review_source,
+                reviewer_id,
+                reviewer_name,
+                invalidated_at
+            FROM evidence_invalidations
+            WHERE subject_type = 'MANUAL_EVIDENCE'
+              AND subject_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        invalidation = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT progress
+            FROM tile_condition_progress
+            WHERE team_id = %s
+              AND condition_id = %s
+            ''',
+            (
+                player[5],
+                condition_id
+            )
+        )
+
+        live_progress = cursor.fetchone()[0]
+
+        cursor.execute(
+            '''
+            SELECT COALESCE(
+                SUM(partial_completion),
+                0
+            )
+            FROM partial_completions
+            WHERE team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                player[5],
+                tile_id
+            )
+        )
+
+        banked_contribution = float(
+            cursor.fetchone()[0]
+        )
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (player[0],)
+        )
+
+        player_totals = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT team_points
+            FROM teams
+            WHERE team_id = %s
+            ''',
+            (player[5],)
+        )
+
+        team_points = cursor.fetchone()[0]
+
+        cursor.execute(
+            '''
+            SELECT 1
+            FROM completed_tiles
+            WHERE team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                player[5],
+                tile_id
+            )
+        )
+
+        completed_tile = cursor.fetchone()
+
+    # Invalidation is a correction record, not a rewrite of the
+    # original staff decision or evidence history.
+    assert evidence_status == "ACCEPTED"
+
+    assert original_decision == (
+        "ACCEPT",
+        "DISCORD",
+        54321,
+        "Reviewing Staff"
+    )
+
+    assert invalidation is not None
+    assert invalidation[0] == "MANUAL_EVIDENCE"
+    assert invalidation[1] == submission["evidence_id"]
+    assert invalidation[2] == "WRONG_ITEM_OR_ACTIVITY"
+    assert invalidation[3] == (
+        "The evidence was accepted against the wrong drop."
+    )
+    assert invalidation[4] == "WEB"
+    assert invalidation[5] == 987654321
+    assert invalidation[6] == "Correction Reviewer"
+    assert invalidation[7] is not None
+
+    # Only the invalidated evidence's 3 drops and 30% personal
+    # contribution are reversed; the unrelated starting progress stays.
+    assert int(live_progress) == 2
+    assert banked_contribution == 0.0
+
+    assert float(player_totals[0]) == 0.0
+    assert float(player_totals[1]) == 0.0
+    assert float(team_points) == 0.0
+
+    assert completed_tile is None
+
+    assert database.get_player_relevant_drop_summary(
+        player[0]
+    )["total_quantity"] == 0
+
+
+def test_invalidating_manual_completion_reopens_tile_and_reverses_awards():
+    create_test_player(
+        "Manual Completion Invalidation Tester",
+        team_name="Manual Completion Invalidation Team"
+    )
+
+    player = database.get_player_by_name(
+        "Manual Completion Invalidation Tester"
+    )
+
+    assert player is not None
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Manual Completion Invalidation Tile",
+        tile_points=4,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": (
+                    "Manual Completion Invalidation Drop"
+                ),
+                "target": 10
+            }
+        ],
+        completion_paths=[
+            {
+                "completion_path": 1,
+                "route_mode": "SUM",
+                "route_target": 10
+            }
+        ]
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT condition_id
+            FROM tile_conditions
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        condition_id = cursor.fetchone()[0]
+
+        # The route already has unrelated progress and contribution.
+        # Invalidating the later finisher must restore this state.
+        cursor.execute(
+            '''
+            INSERT INTO tile_condition_progress (
+                team_id,
+                condition_id,
+                progress
+            )
+            VALUES (%s, %s, %s)
+            ''',
+            (
+                player[5],
+                condition_id,
+                6
+            )
+        )
+
+        cursor.execute(
+            '''
+            INSERT INTO partial_completions (
+                player_id,
+                team_id,
+                tile_id,
+                partial_completion
+            )
+            VALUES (%s, %s, %s, %s)
+            ''',
+            (
+                player[0],
+                player[5],
+                tile_id,
+                0.2
+            )
+        )
+
+        conn.commit()
+
+    submission = database.add_manual_evidence(
+        player_id=player[0],
+        condition_id=condition_id,
+        amount=4,
+        evidence_path=(
+            "manual/completion-invalidation-test.png"
+        ),
+        evidence_sha256="e" * 64,
+        submission_source="DISCORD",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
+    )
+
+    accepted = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="DISCORD",
+        reviewer_id=54321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert accepted["status"] == "ACCEPTED"
+    assert accepted["actual_contribution"] == 0.4
+    assert accepted["completion_remainder"] == 0.4
+    assert accepted["completed"] is True
+
+    result = database.invalidate_bingo_evidence(
+        subject_type="MANUAL_EVIDENCE",
+        subject_id=submission["evidence_id"],
+        reason_code="INCORRECT_EVIDENCE",
+        details="The accepted completion evidence was incorrect.",
+        review_source="WEB",
+        reviewer_id=987654321,
+        reviewer_name="Correction Reviewer"
+    )
+
+    assert result["status"] == "INVALIDATED"
+    assert result["reopened_tiles"] == [
+        {
+            "team_id": player[5],
+            "tile_id": tile_id
+        }
+    ]
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT status
+            FROM manual_evidence
+            WHERE evidence_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        evidence_status = cursor.fetchone()[0]
+
+        cursor.execute(
+            '''
+            SELECT
+                decision,
+                review_source,
+                reviewer_id,
+                reviewer_name
+            FROM staff_review_decisions
+            WHERE subject_type = 'MANUAL_EVIDENCE'
+              AND subject_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        original_decision = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT
+                reason_code,
+                details,
+                review_source,
+                reviewer_id,
+                reviewer_name
+            FROM evidence_invalidations
+            WHERE subject_type = 'MANUAL_EVIDENCE'
+              AND subject_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        invalidation = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT progress
+            FROM tile_condition_progress
+            WHERE team_id = %s
+              AND condition_id = %s
+            ''',
+            (
+                player[5],
+                condition_id
+            )
+        )
+
+        live_progress = cursor.fetchone()[0]
+
+        cursor.execute(
+            '''
+            SELECT partial_completion
+            FROM partial_completions
+            WHERE player_id = %s
+              AND team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                player[0],
+                player[5],
+                tile_id
+            )
+        )
+
+        restored_partial = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (player[0],)
+        )
+
+        player_totals = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT team_points
+            FROM teams
+            WHERE team_id = %s
+            ''',
+            (player[5],)
+        )
+
+        team_points = cursor.fetchone()[0]
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM completed_tiles
+            WHERE team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                player[5],
+                tile_id
+            )
+        )
+
+        completed_count = int(
+            cursor.fetchone()[0]
+        )
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM player_tile_credits
+            WHERE team_id = %s
+              AND tile_id = %s
+              AND credit_type = 'TILE_COMPLETION'
+            ''',
+            (
+                player[5],
+                tile_id
+            )
+        )
+
+        completion_credit_count = int(
+            cursor.fetchone()[0]
+        )
+
+    assert evidence_status == "ACCEPTED"
+
+    assert original_decision == (
+        "ACCEPT",
+        "DISCORD",
+        54321,
+        "Reviewing Staff"
+    )
+
+    assert invalidation == (
+        "INCORRECT_EVIDENCE",
+        "The accepted completion evidence was incorrect.",
+        "WEB",
+        987654321,
+        "Correction Reviewer"
+    )
+
+    # The invalidated 4/10 is removed, while the unrelated 6/10
+    # and its original 20% contribution are restored.
+    assert int(live_progress) == 6
+    assert restored_partial is not None
+    assert float(restored_partial[0]) == 0.2
+
+    assert float(player_totals[0]) == 0.0
+    assert float(player_totals[1]) == 0.0
+    assert float(team_points) == 0.0
+
+    assert completed_count == 0
+    assert completion_credit_count == 0
+
+    assert database.get_player_relevant_drop_summary(
+        player[0]
+    )["total_quantity"] == 0
+
+
+def test_invalidating_manual_completion_replays_later_manual_evidence():
+    create_test_player(
+        "Bad Manual Finisher",
+        team_name="Manual Replay Completion Team"
+    )
+
+    create_test_player(
+        "Legit Manual Replay Tester",
+        team_name="Manual Replay Completion Team"
+    )
+
+    bad_player = database.get_player_by_name(
+        "Bad Manual Finisher"
+    )
+
+    legit_player = database.get_player_by_name(
+        "Legit Manual Replay Tester"
+    )
+
+    assert bad_player is not None
+    assert legit_player is not None
+    assert bad_player[5] == legit_player[5]
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Manual Replay Completion Tile",
+        tile_points=4,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Manual Replay Completion Drop",
+                "target": 10
+            }
+        ],
+        completion_paths=[
+            {
+                "completion_path": 1,
+                "route_mode": "SUM",
+                "route_target": 10
+            }
+        ]
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT condition_id
+            FROM tile_conditions
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        condition_id = cursor.fetchone()[0]
+
+    bad_submission = database.add_manual_evidence(
+        player_id=bad_player[0],
+        condition_id=condition_id,
+        amount=10,
+        evidence_path="manual/bad-manual-finisher.png",
+        evidence_sha256="f" * 64,
+        submission_source="DISCORD",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
+    )
+
+    legit_submission = database.add_manual_evidence(
+        player_id=legit_player[0],
+        condition_id=condition_id,
+        amount=10,
+        evidence_path="manual/legit-manual-replay.png",
+        evidence_sha256="a" * 64,
+        submission_source="DISCORD",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
+    )
+
+    bad_accept = database.accept_pending_manual_evidence(
+        evidence_id=bad_submission["evidence_id"],
+        review_source="DISCORD",
+        reviewer_id=54321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert bad_accept["status"] == "ACCEPTED"
+    assert bad_accept["completed"] is True
+    assert bad_accept["actual_contribution"] == 1.0
+
+    legit_accept = database.accept_pending_manual_evidence(
+        evidence_id=legit_submission["evidence_id"],
+        review_source="DISCORD",
+        reviewer_id=54321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert legit_accept["status"] == "ACCEPTED"
+    assert legit_accept["late_review"] is True
+    assert legit_accept["actual_contribution"] == 0.0
+    assert legit_accept["potential_contribution"] == 0.0
+    assert legit_accept["newly_completed"] is False
+
+    result = database.invalidate_bingo_evidence(
+        subject_type="MANUAL_EVIDENCE",
+        subject_id=bad_submission["evidence_id"],
+        reason_code="INCORRECT_EVIDENCE",
+        review_source="WEB",
+        reviewer_id=987654321,
+        reviewer_name="Correction Reviewer",
+        details="The original manual completion was incorrect."
+    )
+
+    # The bad completion is transiently removed, but the later
+    # legitimate manual evidence should immediately recomplete it.
+    assert result["reopened_tiles"] == []
+
+    assert result["replayed_manual_evidence"] == [
+        {
+            "evidence_id": legit_submission["evidence_id"],
+            "team_id": legit_player[5],
+            "tile_id": tile_id,
+            "actual_contribution": 1.0,
+            "completed": True
+        }
+    ]
+
+    completed_tiles = (
+        database.get_completed_tiles_by_team_id_and_tile_id(
+            legit_player[5],
+            tile_id
+        )
+    )
+
+    assert len(completed_tiles) == 1
+
+    condition_progress = (
+        database.get_tile_condition_progress(
+            legit_player[5],
+            tile_id
+        )
+    )
+
+    assert len(condition_progress) == 1
+    assert float(condition_progress[0][5]) == 10.0
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (bad_player[0],)
+        )
+
+        bad_totals = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (legit_player[0],)
+        )
+
+        legit_totals = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT team_points
+            FROM teams
+            WHERE team_id = %s
+            ''',
+            (legit_player[5],)
+        )
+
+        team_points = float(
+            cursor.fetchone()[0]
+        )
+
+        cursor.execute(
+            '''
+            SELECT
+                actual_contribution,
+                normal_player_credit,
+                lost_mvp_contribution,
+                banked_total,
+                ready,
+                completed
+            FROM manual_evidence_progress
+            WHERE evidence_id = %s
+            ''',
+            (legit_submission["evidence_id"],)
+        )
+
+        replayed_progress = cursor.fetchone()
+
+    assert float(bad_totals[0]) == 0.0
+    assert float(bad_totals[1]) == 0.0
+
+    assert float(legit_totals[0]) == 4.0
+    assert float(legit_totals[1]) == 1.0
+
+    assert team_points == 4.0
+
+    assert float(replayed_progress[0]) == 1.0
+    assert float(replayed_progress[1]) == 1.0
+    assert float(replayed_progress[2]) == 0.0
+    assert float(replayed_progress[3]) == 1.0
+    assert replayed_progress[4] is True
+    assert replayed_progress[5] is True
+
+    assert database.get_player_relevant_drop_summary(
+        bad_player[0]
+    )["total_quantity"] == 0
+
+    assert database.get_player_relevant_drop_summary(
+        legit_player[0]
+    )["total_quantity"] == 10
+
+
+def test_manual_invalidation_refuses_completed_tile_with_late_review_credit():
+    create_test_player(
+        "Manual Late Review Finisher",
+        team_name="Manual Late Review Guard Team"
+    )
+
+    create_test_player(
+        "Manual Late Review Tester",
+        team_name="Manual Late Review Guard Team"
+    )
+
+    finisher = database.get_player_by_name(
+        "Manual Late Review Finisher"
+    )
+
+    late_player = database.get_player_by_name(
+        "Manual Late Review Tester"
+    )
+
+    assert finisher is not None
+    assert late_player is not None
+    assert finisher[5] == late_player[5]
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Manual Late Review Guard Tile",
+        tile_points=4,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Manual Late Review Guard Drop",
+                "target": 10
+            }
+        ],
+        completion_paths=[
+            {
+                "completion_path": 1,
+                "route_mode": "SUM",
+                "route_target": 10
+            }
+        ]
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT condition_id
+            FROM tile_conditions
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        condition_id = cursor.fetchone()[0]
+
+    finisher_submission = database.add_manual_evidence(
+        player_id=finisher[0],
+        condition_id=condition_id,
+        amount=10,
+        evidence_path="manual/late-review-finisher.png",
+        evidence_sha256="c" * 64,
+        submission_source="DISCORD",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
+    )
+
+    finisher_result = database.accept_pending_manual_evidence(
+        evidence_id=finisher_submission["evidence_id"],
+        review_source="DISCORD",
+        reviewer_id=54321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert finisher_result["status"] == "ACCEPTED"
+    assert finisher_result["completed"] is True
+    assert finisher_result["actual_contribution"] == 1.0
+
+    # Seed the persisted discretionary-credit state directly.
+    # The invalidation safety rule is tile-wide: no completion may
+    # be reversed while a LATE_REVIEW award still exists.
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            INSERT INTO player_tile_credits (
+                player_id,
+                team_id,
+                tile_id,
+                contribution,
+                points_awarded,
+                credit_type,
+                evidence_id
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                0.4,
+                1.6,
+                'LATE_REVIEW',
+                999999
+            )
+            ''',
+            (
+                late_player[0],
+                late_player[5],
+                tile_id
+            )
+        )
+
+        cursor.execute(
+            '''
+            UPDATE players
+            SET player_points =
+                COALESCE(player_points, 0) + 1.6
+            WHERE player_id = %s
+            ''',
+            (late_player[0],)
+        )
+
+        conn.commit()
+
+    with pytest.raises(
+        ValueError,
+        match="late-review credit"
+    ):
+        database.invalidate_bingo_evidence(
+            subject_type="MANUAL_EVIDENCE",
+            subject_id=finisher_submission["evidence_id"],
+            reason_code="INCORRECT_EVIDENCE",
+            review_source="WEB",
+            reviewer_id=987654321,
+            reviewer_name="Correction Reviewer",
+            details="Atomic refusal test."
+        )
+
+    completed_tiles = (
+        database.get_completed_tiles_by_team_id_and_tile_id(
+            finisher[5],
+            tile_id
+        )
+    )
+
+    assert len(completed_tiles) == 1
+
+    condition_progress = (
+        database.get_tile_condition_progress(
+            finisher[5],
+            tile_id
+        )
+    )
+
+    assert len(condition_progress) == 1
+    assert float(condition_progress[0][5]) == 10.0
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (finisher[0],)
+        )
+
+        finisher_totals = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT
+                player_points,
+                tiles_completed
+            FROM players
+            WHERE player_id = %s
+            ''',
+            (late_player[0],)
+        )
+
+        late_totals = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT team_points
+            FROM teams
+            WHERE team_id = %s
+            ''',
+            (finisher[5],)
+        )
+
+        team_points = float(
+            cursor.fetchone()[0]
+        )
+
+        cursor.execute(
+            '''
+            SELECT
+                contribution,
+                points_awarded,
+                credit_type,
+                evidence_id
+            FROM player_tile_credits
+            WHERE team_id = %s
+              AND tile_id = %s
+              AND credit_type = 'LATE_REVIEW'
+            ''',
+            (
+                finisher[5],
+                tile_id
+            )
+        )
+
+        late_credit = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT status
+            FROM manual_evidence
+            WHERE evidence_id = %s
+            ''',
+            (finisher_submission["evidence_id"],)
+        )
+
+        finisher_status = cursor.fetchone()[0]
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM evidence_invalidations
+            WHERE subject_type = 'MANUAL_EVIDENCE'
+              AND subject_id = %s
+            ''',
+            (finisher_submission["evidence_id"],)
+        )
+
+        invalidation_count = int(
+            cursor.fetchone()[0]
+        )
+
+    assert float(finisher_totals[0]) == 4.0
+    assert float(finisher_totals[1]) == 1.0
+
+    assert float(late_totals[0]) == 1.6
+    assert float(late_totals[1]) == 0.0
+
+    assert team_points == 4.0
+
+    assert late_credit is not None
+    assert float(late_credit[0]) == 0.4
+    assert float(late_credit[1]) == 1.6
+    assert late_credit[2] == "LATE_REVIEW"
+    assert late_credit[3] == 999999
+
+    assert finisher_status == "ACCEPTED"
+    assert invalidation_count == 0
+
+
+def test_invalidating_manual_completion_after_player_deleted():
+    create_test_player(
+        "Manual Deleted Invalidation Player",
+        team_name="Manual Deleted Invalidation Team"
+    )
+
+    player = database.get_player_by_name(
+        "Manual Deleted Invalidation Player"
+    )
+
+    assert player is not None
+
+    player_id = player[0]
+    team_id = player[5]
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Manual Deleted Invalidation Tile",
+        tile_points=4,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": (
+                    "Manual Deleted Invalidation Drop"
+                ),
+                "target": 10
+            }
+        ],
+        completion_paths=[
+            {
+                "completion_path": 1,
+                "route_mode": "SUM",
+                "route_target": 10
+            }
+        ]
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT condition_id
+            FROM tile_conditions
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        condition_id = cursor.fetchone()[0]
+
+        # Unrelated team progress existed before this evidence.
+        cursor.execute(
+            '''
+            INSERT INTO tile_condition_progress (
+                team_id,
+                condition_id,
+                progress
+            )
+            VALUES (%s, %s, %s)
+            ''',
+            (
+                team_id,
+                condition_id,
+                6
+            )
+        )
+
+        conn.commit()
+
+    submission = database.add_manual_evidence(
+        player_id=player_id,
+        condition_id=condition_id,
+        amount=4,
+        evidence_path="manual/deleted-invalidation.png",
+        evidence_sha256="d" * 64,
+        submission_source="DISCORD",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            DELETE FROM players
+            WHERE player_id = %s
+            ''',
+            (player_id,)
+        )
+
+        conn.commit()
+
+    accepted = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="DISCORD",
+        reviewer_id=54321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert accepted["status"] == "ACCEPTED"
+    assert accepted["player_id"] is None
+    assert accepted["player_deleted"] is True
+    assert accepted["team_id"] == team_id
+    assert accepted["actual_contribution"] == 0.4
+    assert accepted["normal_player_credit"] == 0.0
+    assert accepted["completed"] is True
+
+    result = database.invalidate_bingo_evidence(
+        subject_type="MANUAL_EVIDENCE",
+        subject_id=submission["evidence_id"],
+        reason_code="INCORRECT_EVIDENCE",
+        review_source="WEB",
+        reviewer_id=987654321,
+        reviewer_name="Correction Reviewer",
+        details="Deleted-player invalidation test."
+    )
+
+    assert result["status"] == "INVALIDATED"
+    assert result["reopened_tiles"] == [
+        {
+            "team_id": team_id,
+            "tile_id": tile_id
+        }
+    ]
+    assert result["replayed_manual_evidence"] == []
+
+    completed_tiles = (
+        database.get_completed_tiles_by_team_id_and_tile_id(
+            team_id,
+            tile_id
+        )
+    )
+
+    assert completed_tiles == []
+
+    condition_progress = (
+        database.get_tile_condition_progress(
+            team_id,
+            tile_id
+        )
+    )
+
+    assert len(condition_progress) == 1
+    assert float(condition_progress[0][5]) == 6.0
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                player_id,
+                credited_player_name,
+                team_id,
+                status
+            FROM manual_evidence
+            WHERE evidence_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        evidence_row = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT team_points
+            FROM teams
+            WHERE team_id = %s
+            ''',
+            (team_id,)
+        )
+
+        team_points = float(
+            cursor.fetchone()[0]
+        )
+
+        cursor.execute(
+            '''
+            SELECT
+                player_id,
+                partial_completion
+            FROM partial_completions
+            WHERE team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                team_id,
+                tile_id
+            )
+        )
+
+        partial_row = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM player_tile_credits
+            WHERE team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                team_id,
+                tile_id
+            )
+        )
+
+        personal_credit_count = int(
+            cursor.fetchone()[0]
+        )
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM evidence_invalidations
+            WHERE subject_type = 'MANUAL_EVIDENCE'
+              AND subject_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        invalidation_count = int(
+            cursor.fetchone()[0]
+        )
+
+    # Historical evidence attribution is preserved even though the
+    # live player row no longer exists.
+    assert evidence_row == (
+        None,
+        "Manual Deleted Invalidation Player",
+        team_id,
+        "ACCEPTED"
+    )
+
+    assert team_points == 0.0
+    assert partial_row is None
+    assert personal_credit_count == 0
+    assert invalidation_count == 1
+
+
+def test_invalidating_manual_evidence_after_player_moves_uses_frozen_team():
+    create_test_player(
+        "Manual Moved Invalidation Player",
+        team_name="Manual Moved Invalidation Original Team"
+    )
+
+    create_test_player(
+        "Manual Moved Invalidation New Team Member",
+        team_name="Manual Moved Invalidation New Team"
+    )
+
+    player = database.get_player_by_name(
+        "Manual Moved Invalidation Player"
+    )
+
+    new_team_member = database.get_player_by_name(
+        "Manual Moved Invalidation New Team Member"
+    )
+
+    assert player is not None
+    assert new_team_member is not None
+
+    original_team_id = player[5]
+    new_team_id = new_team_member[5]
+
+    assert original_team_id != new_team_id
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Manual Moved Invalidation Tile",
+        tile_points=4,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": (
+                    "Manual Moved Invalidation Drop"
+                ),
+                "target": 10
+            }
+        ],
+        completion_paths=[
+            {
+                "completion_path": 1,
+                "route_mode": "SUM",
+                "route_target": 10
+            }
+        ]
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT condition_id
+            FROM tile_conditions
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        condition_id = cursor.fetchone()[0]
+
+    submission = database.add_manual_evidence(
+        player_id=player[0],
+        condition_id=condition_id,
+        amount=3,
+        evidence_path="manual/moved-invalidation.png",
+        evidence_sha256="f" * 64,
+        submission_source="DISCORD",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
+    )
+
+    assert submission["team_id"] == original_team_id
+
+    database.change_player_team(
+        player[0],
+        new_team_id
+    )
+
+    accepted = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="DISCORD",
+        reviewer_id=54321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert accepted["status"] == "ACCEPTED"
+    assert accepted["team_id"] == original_team_id
+    assert accepted["actual_contribution"] == 0.3
+    assert accepted["completed"] is False
+
+    result = database.invalidate_bingo_evidence(
+        subject_type="MANUAL_EVIDENCE",
+        subject_id=submission["evidence_id"],
+        reason_code="INCORRECT_EVIDENCE",
+        review_source="WEB",
+        reviewer_id=987654321,
+        reviewer_name="Correction Reviewer",
+        details="Moved-player invalidation test."
+    )
+
+    assert result["status"] == "INVALIDATED"
+    assert result["reopened_tiles"] == []
+    assert result["replayed_manual_evidence"] == []
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT progress
+            FROM tile_condition_progress
+            WHERE team_id = %s
+              AND condition_id = %s
+            ''',
+            (
+                original_team_id,
+                condition_id
+            )
+        )
+
+        original_progress = float(
+            cursor.fetchone()[0]
+        )
+
+        cursor.execute(
+            '''
+            SELECT progress
+            FROM tile_condition_progress
+            WHERE team_id = %s
+              AND condition_id = %s
+            ''',
+            (
+                new_team_id,
+                condition_id
+            )
+        )
+
+        new_team_progress = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM partial_completions
+            WHERE player_id = %s
+              AND team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                player[0],
+                original_team_id,
+                tile_id
+            )
+        )
+
+        original_partial_count = int(
+            cursor.fetchone()[0]
+        )
+
+        cursor.execute(
+            '''
+            SELECT
+                team_id,
+                status
+            FROM manual_evidence
+            WHERE evidence_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        evidence_row = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM evidence_invalidations
+            WHERE subject_type = 'MANUAL_EVIDENCE'
+              AND subject_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        invalidation_count = int(
+            cursor.fetchone()[0]
+        )
+
+    moved_player = database.get_player_by_name(
+        "Manual Moved Invalidation Player"
+    )
+
+    assert moved_player is not None
+    assert moved_player[5] == new_team_id
+
+    assert original_progress == 0.0
+    assert new_team_progress is None
+    assert original_partial_count == 0
+
+    assert evidence_row == (
+        original_team_id,
+        "ACCEPTED"
+    )
+
+    assert invalidation_count == 1
+
+
+def test_manual_invalidation_refuses_changed_condition_atomically():
+    create_test_player(
+        "Manual Changed Condition Invalidation Player",
+        team_name="Manual Changed Condition Invalidation Team"
+    )
+
+    player = database.get_player_by_name(
+        "Manual Changed Condition Invalidation Player"
+    )
+
+    assert player is not None
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Manual Changed Condition Invalidation Tile",
+        tile_points=4,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": (
+                    "Manual Changed Condition Invalidation Drop"
+                ),
+                "target": 10
+            }
+        ],
+        completion_paths=[
+            {
+                "completion_path": 1,
+                "route_mode": "SUM",
+                "route_target": 10
+            }
+        ]
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT condition_id
+            FROM tile_conditions
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        condition_id = cursor.fetchone()[0]
+
+    submission = database.add_manual_evidence(
+        player_id=player[0],
+        condition_id=condition_id,
+        amount=3,
+        evidence_path="manual/changed-condition-invalidation.png",
+        evidence_sha256="1" * 64,
+        submission_source="DISCORD",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
+    )
+
+    accepted = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="DISCORD",
+        reviewer_id=54321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert accepted["status"] == "ACCEPTED"
+    assert accepted["actual_contribution"] == 0.3
+    assert accepted["completed"] is False
+
+    # Change the live condition definition after the historical
+    # evidence has already been accepted.
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            UPDATE tile_conditions
+            SET target = 20
+            WHERE condition_id = %s
+            ''',
+            (condition_id,)
+        )
+
+        conn.commit()
+
+    with pytest.raises(
+        ValueError,
+        match="tile changed after submission"
+    ):
+        database.invalidate_bingo_evidence(
+            subject_type="MANUAL_EVIDENCE",
+            subject_id=submission["evidence_id"],
+            reason_code="INCORRECT_EVIDENCE",
+            review_source="WEB",
+            reviewer_id=987654321,
+            reviewer_name="Correction Reviewer",
+            details="Changed-condition atomic refusal test."
+        )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT progress
+            FROM tile_condition_progress
+            WHERE team_id = %s
+              AND condition_id = %s
+            ''',
+            (
+                player[5],
+                condition_id
+            )
+        )
+
+        condition_progress = float(
+            cursor.fetchone()[0]
+        )
+
+        cursor.execute(
+            '''
+            SELECT partial_completion
+            FROM partial_completions
+            WHERE player_id = %s
+              AND team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                player[0],
+                player[5],
+                tile_id
+            )
+        )
+
+        partial_completion = float(
+            cursor.fetchone()[0]
+        )
+
+        cursor.execute(
+            '''
+            SELECT status
+            FROM manual_evidence
+            WHERE evidence_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        evidence_status = cursor.fetchone()[0]
+
+        cursor.execute(
+            '''
+            SELECT target
+            FROM tile_conditions
+            WHERE condition_id = %s
+            ''',
+            (condition_id,)
+        )
+
+        live_target = int(
+            cursor.fetchone()[0]
+        )
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM evidence_invalidations
+            WHERE subject_type = 'MANUAL_EVIDENCE'
+              AND subject_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        invalidation_count = int(
+            cursor.fetchone()[0]
+        )
+
+    assert condition_progress == 3.0
+    assert partial_completion == 0.3
+    assert evidence_status == "ACCEPTED"
+    assert live_target == 20
+    assert invalidation_count == 0
+
+
+def test_manual_invalidation_refuses_deleted_condition_atomically():
+    create_test_player(
+        "Manual Deleted Condition Invalidation Player",
+        team_name="Manual Deleted Condition Invalidation Team"
+    )
+
+    player = database.get_player_by_name(
+        "Manual Deleted Condition Invalidation Player"
+    )
+
+    assert player is not None
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Manual Deleted Condition Invalidation Tile",
+        tile_points=4,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": (
+                    "Manual Deleted Condition Invalidation Drop"
+                ),
+                "target": 10
+            }
+        ],
+        completion_paths=[
+            {
+                "completion_path": 1,
+                "route_mode": "SUM",
+                "route_target": 10
+            }
+        ]
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT condition_id
+            FROM tile_conditions
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        condition_id = cursor.fetchone()[0]
+
+    submission = database.add_manual_evidence(
+        player_id=player[0],
+        condition_id=condition_id,
+        amount=3,
+        evidence_path="manual/deleted-condition-invalidation.png",
+        evidence_sha256="2" * 64,
+        submission_source="DISCORD",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
+    )
+
+    accepted = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="DISCORD",
+        reviewer_id=54321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert accepted["status"] == "ACCEPTED"
+    assert accepted["actual_contribution"] == 0.3
+    assert accepted["completed"] is False
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            DELETE FROM tile_conditions
+            WHERE condition_id = %s
+            ''',
+            (condition_id,)
+        )
+
+        conn.commit()
+
+    with pytest.raises(
+        ValueError,
+        match="original tile and condition"
+    ):
+        database.invalidate_bingo_evidence(
+            subject_type="MANUAL_EVIDENCE",
+            subject_id=submission["evidence_id"],
+            reason_code="INCORRECT_EVIDENCE",
+            review_source="WEB",
+            reviewer_id=987654321,
+            reviewer_name="Correction Reviewer",
+            details="Deleted-condition atomic refusal test."
+        )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                condition_id,
+                status
+            FROM manual_evidence
+            WHERE evidence_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        evidence_row = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT condition_id
+            FROM manual_evidence_progress
+            WHERE evidence_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        progress_condition_id = cursor.fetchone()[0]
+
+        cursor.execute(
+            '''
+            SELECT partial_completion
+            FROM partial_completions
+            WHERE player_id = %s
+              AND team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                player[0],
+                player[5],
+                tile_id
+            )
+        )
+
+        partial_completion = float(
+            cursor.fetchone()[0]
+        )
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM evidence_invalidations
+            WHERE subject_type = 'MANUAL_EVIDENCE'
+              AND subject_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        invalidation_count = int(
+            cursor.fetchone()[0]
+        )
+
+    assert evidence_row == (
+        None,
+        "ACCEPTED"
+    )
+    assert progress_condition_id is None
+    assert partial_completion == 0.3
+    assert invalidation_count == 0
+
+
+def test_manual_invalidation_refuses_deleted_tile_atomically():
+    create_test_player(
+        "Manual Deleted Tile Invalidation Player",
+        team_name="Manual Deleted Tile Invalidation Team"
+    )
+
+    player = database.get_player_by_name(
+        "Manual Deleted Tile Invalidation Player"
+    )
+
+    assert player is not None
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Manual Deleted Tile Invalidation Tile",
+        tile_points=4,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": (
+                    "Manual Deleted Tile Invalidation Drop"
+                ),
+                "target": 10
+            }
+        ],
+        completion_paths=[
+            {
+                "completion_path": 1,
+                "route_mode": "SUM",
+                "route_target": 10
+            }
+        ]
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT condition_id
+            FROM tile_conditions
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        condition_id = cursor.fetchone()[0]
+
+    submission = database.add_manual_evidence(
+        player_id=player[0],
+        condition_id=condition_id,
+        amount=3,
+        evidence_path="manual/deleted-tile-invalidation.png",
+        evidence_sha256="3" * 64,
+        submission_source="DISCORD",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
+    )
+
+    accepted = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="DISCORD",
+        reviewer_id=54321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert accepted["status"] == "ACCEPTED"
+    assert accepted["actual_contribution"] == 0.3
+    assert accepted["completed"] is False
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            DELETE FROM tiles
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        conn.commit()
+
+    with pytest.raises(
+        ValueError,
+        match="original tile and condition"
+    ):
+        database.invalidate_bingo_evidence(
+            subject_type="MANUAL_EVIDENCE",
+            subject_id=submission["evidence_id"],
+            reason_code="INCORRECT_EVIDENCE",
+            review_source="WEB",
+            reviewer_id=987654321,
+            reviewer_name="Correction Reviewer",
+            details="Deleted-tile atomic refusal test."
+        )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                tile_id,
+                condition_id,
+                status
+            FROM manual_evidence
+            WHERE evidence_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        evidence_row = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT
+                tile_id,
+                condition_id
+            FROM manual_evidence_progress
+            WHERE evidence_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        progress_row = cursor.fetchone()
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM manual_evidence_condition_snapshots
+            WHERE evidence_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        snapshot_count = int(
+            cursor.fetchone()[0]
+        )
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM partial_completions
+            WHERE team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                player[5],
+                tile_id
+            )
+        )
+
+        partial_count = int(
+            cursor.fetchone()[0]
+        )
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM evidence_invalidations
+            WHERE subject_type = 'MANUAL_EVIDENCE'
+              AND subject_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        invalidation_count = int(
+            cursor.fetchone()[0]
+        )
+
+    # The live tile/condition references are gone, but the accepted
+    # evidence and its immutable definition snapshot remain as history.
+    assert evidence_row == (
+        None,
+        None,
+        "ACCEPTED"
+    )
+
+    assert progress_row == (
+        None,
+        None
+    )
+
+    assert snapshot_count == 1
+
+    # These live scoring rows were removed by the tile deletion itself,
+    # not by the refused invalidation attempt.
+    assert partial_count == 0
+
+    assert invalidation_count == 0
+
+
 def test_accept_pending_manual_evidence_completes_tile_with_remainder():
     create_test_player(
         "Manual Completion Tester",

@@ -6093,6 +6093,389 @@ def _replay_suppressed_dink_progress_after_invalidation(
     return replayed_progress
 
 
+def _invalidate_incomplete_manual_evidence(
+    cursor,
+    evidence_id,
+    reason_code,
+    review_source,
+    reviewer_id,
+    reviewer_name,
+    details=None
+):
+    cursor.execute(
+        '''
+        SELECT
+            player_id,
+            team_id,
+            tile_id,
+            condition_id,
+            status
+        FROM manual_evidence
+        WHERE evidence_id = %s
+        FOR UPDATE
+        ''',
+        (evidence_id,)
+    )
+
+    evidence = cursor.fetchone()
+
+    if evidence is None:
+        raise ValueError(
+            f"Manual evidence {evidence_id} was not found."
+        )
+
+    (
+        player_id,
+        team_id,
+        tile_id,
+        condition_id,
+        evidence_status
+    ) = evidence
+
+    if evidence_status != "ACCEPTED":
+        raise ValueError(
+            "Only accepted manual evidence can be invalidated."
+        )
+
+    if team_id is None:
+        raise ValueError(
+            "Manual evidence without a frozen team cannot be "
+            "safely invalidated."
+        )
+
+    if tile_id is None or condition_id is None:
+        raise ValueError(
+            "Manual evidence without its original tile and "
+            "condition cannot be safely invalidated."
+        )
+
+    cursor.execute(
+        '''
+        SELECT
+            condition_id,
+            tile_id,
+            amount,
+            actual_contribution,
+            completion_remainder,
+            lost_mvp_contribution,
+            completed
+        FROM manual_evidence_progress
+        WHERE evidence_id = %s
+        FOR UPDATE
+        ''',
+        (evidence_id,)
+    )
+
+    progress = cursor.fetchone()
+
+    if progress is None:
+        raise ValueError(
+            "This manual evidence has no stored bingo progress."
+        )
+
+    (
+        progress_condition_id,
+        progress_tile_id,
+        amount,
+        actual_contribution,
+        completion_remainder,
+        lost_mvp_contribution,
+        completed
+    ) = progress
+
+    if (
+        progress_condition_id is None
+        or progress_tile_id is None
+        or int(progress_condition_id) != int(condition_id)
+        or int(progress_tile_id) != int(tile_id)
+    ):
+        raise ValueError(
+            "The stored manual evidence progress no longer "
+            "matches its original tile and condition."
+        )
+
+    compatibility = _check_manual_evidence_live_compatibility(
+        cursor=cursor,
+        evidence_id=evidence_id,
+        tile_id=tile_id
+    )
+
+    if not compatibility["compatible"]:
+        raise ValueError(
+            "Accepted manual evidence cannot be invalidated "
+            "because the tile changed after submission: "
+            f"{compatibility['reason']}."
+        )
+
+    completed = bool(completed)
+
+    if (
+        not completed
+        and abs(float(completion_remainder or 0)) > 0.000000001
+    ):
+        raise ValueError(
+            "Incomplete manual evidence has an unexpected "
+            "completion remainder."
+        )
+
+    if abs(float(lost_mvp_contribution or 0)) > 0.000000001:
+        raise ValueError(
+            "Manual evidence with lost-MVP contribution cannot "
+            "yet be safely invalidated."
+        )
+
+    cursor.execute(
+        '''
+        SELECT 1
+        FROM player_tile_credits
+        WHERE evidence_id = %s
+          AND credit_type = 'LATE_REVIEW'
+        LIMIT 1
+        ''',
+        (evidence_id,)
+    )
+
+    if cursor.fetchone() is not None:
+        raise ValueError(
+            "Manual evidence with discretionary late-review "
+            "credit cannot yet be safely invalidated."
+        )
+
+    cursor.execute(
+        '''
+        SELECT completed_at
+        FROM completed_tiles
+        WHERE team_id = %s
+          AND tile_id = %s
+        ''',
+        (
+            team_id,
+            tile_id
+        )
+    )
+
+    completion_row = cursor.fetchone()
+
+    tile_is_completed = (
+        completion_row is not None
+    )
+
+    completed_at = (
+        None
+        if completion_row is None
+        else completion_row[0]
+    )
+
+    if completed and not tile_is_completed:
+        raise ValueError(
+            "The manual evidence is recorded as a tile "
+            "completion, but the completed tile record is "
+            "missing."
+        )
+
+    if not completed and tile_is_completed:
+        raise ValueError(
+            "Manual evidence that did not itself complete the "
+            "tile requires later-evidence reconciliation before "
+            "it can be safely invalidated."
+        )
+
+    reopened_tiles = []
+
+    if completed:
+        reopened = _reverse_completed_tile_for_invalidation(
+            cursor=cursor,
+            team_id=team_id,
+            tile_id=tile_id
+        )
+
+        if not reopened:
+            raise ValueError(
+                "The completed tile could not be reversed."
+            )
+
+        reopened_tiles.append(
+            {
+                "team_id": int(team_id),
+                "tile_id": int(tile_id)
+            }
+        )
+
+    cursor.execute(
+        '''
+        SELECT progress
+        FROM tile_condition_progress
+        WHERE team_id = %s
+          AND condition_id = %s
+        FOR UPDATE
+        ''',
+        (
+            team_id,
+            condition_id
+        )
+    )
+
+    condition_row = cursor.fetchone()
+
+    if condition_row is None:
+        raise ValueError(
+            "The invalidated manual condition progress could "
+            "not be found."
+        )
+
+    remaining_condition_progress = (
+        int(condition_row[0])
+        - int(amount)
+    )
+
+    if remaining_condition_progress < 0:
+        raise ValueError(
+            "The invalidated manual evidence amount exceeds "
+            "the stored condition progress."
+        )
+
+    actual_contribution = round(
+        float(actual_contribution or 0),
+        12
+    )
+
+    partial_completion_pk = None
+    remaining_partial_completion = None
+
+    if actual_contribution > 0:
+        cursor.execute(
+            '''
+            SELECT
+                partial_completion_pk,
+                partial_completion
+            FROM partial_completions
+            WHERE team_id = %s
+              AND tile_id = %s
+              AND player_id IS NOT DISTINCT FROM %s
+            FOR UPDATE
+            ''',
+            (
+                team_id,
+                tile_id,
+                player_id
+            )
+        )
+
+        partial_row = cursor.fetchone()
+
+        if partial_row is None:
+            raise ValueError(
+                "The invalidated manual contribution could not "
+                "be found in the tile contribution bank."
+            )
+
+        (
+            partial_completion_pk,
+            partial_completion
+        ) = partial_row
+
+        remaining_partial_completion = round(
+            float(partial_completion)
+            - actual_contribution,
+            12
+        )
+
+        if remaining_partial_completion < -0.000000001:
+            raise ValueError(
+                "The invalidated manual contribution exceeds "
+                "the stored tile contribution."
+            )
+
+    invalidation_id = _record_evidence_invalidation(
+        cursor=cursor,
+        subject_type="MANUAL_EVIDENCE",
+        subject_id=evidence_id,
+        reason_code=reason_code,
+        review_source=review_source,
+        reviewer_id=reviewer_id,
+        reviewer_name=reviewer_name,
+        details=details
+    )
+
+    if actual_contribution > 0:
+        if remaining_partial_completion <= 0:
+            cursor.execute(
+                '''
+                DELETE FROM partial_completions
+                WHERE partial_completion_pk = %s
+                ''',
+                (partial_completion_pk,)
+            )
+        else:
+            cursor.execute(
+                '''
+                UPDATE partial_completions
+                SET partial_completion = %s
+                WHERE partial_completion_pk = %s
+                ''',
+                (
+                    remaining_partial_completion,
+                    partial_completion_pk
+                )
+            )
+
+    cursor.execute(
+        '''
+        UPDATE tile_condition_progress
+        SET progress = %s
+        WHERE team_id = %s
+          AND condition_id = %s
+        ''',
+        (
+            remaining_condition_progress,
+            team_id,
+            condition_id
+        )
+    )
+
+    replayed_manual_evidence = []
+
+    if completed_at is not None:
+        replayed_manual_evidence.extend(
+            _replay_late_manual_evidence_after_invalidation(
+                cursor=cursor,
+                team_id=team_id,
+                tile_id=tile_id,
+                completed_at=completed_at
+            )
+        )
+
+    final_reopened_tiles = []
+
+    for reopened_tile in reopened_tiles:
+        cursor.execute(
+            '''
+            SELECT 1
+            FROM completed_tiles
+            WHERE team_id = %s
+              AND tile_id = %s
+            ''',
+            (
+                reopened_tile["team_id"],
+                reopened_tile["tile_id"]
+            )
+        )
+
+        # Only report the tile as reopened if it is still open
+        # after all accepted manual evidence has been replayed.
+        if cursor.fetchone() is None:
+            final_reopened_tiles.append(
+                reopened_tile
+            )
+
+    return {
+        "invalidation_id": invalidation_id,
+        "reopened_tiles": final_reopened_tiles,
+        "replayed_manual_evidence":
+            replayed_manual_evidence
+    }
+
+
 def invalidate_bingo_evidence(
     subject_type,
     subject_id,
@@ -6106,16 +6489,46 @@ def invalidate_bingo_evidence(
         subject_type
     ).strip().upper()
 
-    if subject_type != "DINK_EVENT":
+    if subject_type not in {
+        "DINK_EVENT",
+        "MANUAL_EVIDENCE"
+    }:
         raise ValueError(
-            "Manual evidence reconciliation is not yet "
-            "implemented."
+            "Unsupported evidence subject type."
         )
 
     subject_id = int(subject_id)
 
     with connect() as conn:
         cursor = conn.cursor()
+
+        if subject_type == "MANUAL_EVIDENCE":
+            manual_result = (
+                _invalidate_incomplete_manual_evidence(
+                    cursor=cursor,
+                    evidence_id=subject_id,
+                    reason_code=reason_code,
+                    review_source=review_source,
+                    reviewer_id=reviewer_id,
+                    reviewer_name=reviewer_name,
+                    details=details
+                )
+            )
+
+            conn.commit()
+
+            return {
+                "status": "INVALIDATED",
+                "invalidation_id": (
+                    manual_result["invalidation_id"]
+                ),
+                "reopened_tiles": (
+                    manual_result["reopened_tiles"]
+                ),
+                "replayed_manual_evidence": (
+                    manual_result["replayed_manual_evidence"]
+                )
+            }
 
         cursor.execute(
             '''
