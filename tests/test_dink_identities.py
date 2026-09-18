@@ -2331,6 +2331,509 @@ def test_pending_manual_evidence_review_rows_include_frozen_details():
     assert review_row["submitted_at"] is not None
 
 
+def test_accepted_manual_evidence_invalidation_rows_exclude_invalidated():
+    create_test_player(
+        "Manual Invalidation Review Tester",
+        team_name="Manual Invalidation Review Team"
+    )
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Manual Invalidation Review Tile",
+        tile_points=2,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Invalidation Review Drop",
+                "target": 2
+            }
+        ]
+    )
+
+    player = database.get_player_by_name(
+        "Manual Invalidation Review Tester"
+    )
+
+    assert player is not None
+
+    condition_id = database.get_tile_conditions(
+        tile_id
+    )[0][0]
+
+    submission = database.add_manual_evidence(
+        player_id=player[0],
+        condition_id=condition_id,
+        amount=1,
+        description="Evidence available for invalidation.",
+        evidence_path="manual/invalidation-review.png",
+        evidence_sha256="c" * 64,
+        submission_source="DISCORD",
+        submitter_id=123456789,
+        submitter_name="Submitting Staff"
+    )
+
+    accepted = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="DISCORD",
+        reviewer_id=987654321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert accepted["status"] == "ACCEPTED"
+
+    review_rows = (
+        database.get_accepted_manual_evidence_invalidation_rows()
+    )
+
+    review_row = next(
+        row
+        for row in review_rows
+        if row["evidence_id"]
+        == submission["evidence_id"]
+    )
+
+    assert review_row["credited_player_name"] == (
+        "Manual Invalidation Review Tester"
+    )
+    assert review_row["team_name"] == (
+        "Manual Invalidation Review Team"
+    )
+    assert review_row["tile_name"] == (
+        "Manual Invalidation Review Tile"
+    )
+    assert review_row["condition_id"] == condition_id
+    assert review_row["completion_path"] == 1
+    assert review_row["condition_type"] == "DROP"
+    assert review_row["condition_trigger"] == (
+        "Invalidation Review Drop"
+    )
+    assert review_row["condition_target"] == 2
+    assert review_row["amount"] == 1
+    assert review_row["description"] == (
+        "Evidence available for invalidation."
+    )
+    assert review_row["submitted_at"] is not None
+
+    database.invalidate_bingo_evidence(
+        subject_type="MANUAL_EVIDENCE",
+        subject_id=submission["evidence_id"],
+        reason_code="INCORRECT_EVIDENCE",
+        review_source="WEB",
+        reviewer_id=111222333,
+        reviewer_name="Correction Reviewer",
+        details="Invalidation-list exclusion test."
+    )
+
+    review_rows = (
+        database.get_accepted_manual_evidence_invalidation_rows()
+    )
+
+    assert all(
+        row["evidence_id"] != submission["evidence_id"]
+        for row in review_rows
+    )
+
+
+def test_admin_can_view_accepted_manual_evidence_for_invalidation(
+    client
+):
+    create_test_player(
+        "Web Invalidation Review Tester",
+        team_name="Web Invalidation Review Team"
+    )
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Web Invalidation Review Tile",
+        tile_points=2,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Web Invalidation Drop",
+                "target": 2
+            }
+        ]
+    )
+
+    player = database.get_player_by_name(
+        "Web Invalidation Review Tester"
+    )
+
+    condition_id = database.get_tile_conditions(
+        tile_id
+    )[0][0]
+
+    submission = database.add_manual_evidence(
+        player_id=player[0],
+        condition_id=condition_id,
+        amount=1,
+        description="Accepted evidence for web invalidation.",
+        evidence_path=None,
+        evidence_sha256=None,
+        submission_source="WEB",
+        submitter_id=123456789,
+        submitter_name="Submitting Staff"
+    )
+
+    accepted = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="WEB",
+        reviewer_id=987654321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert accepted["status"] == "ACCEPTED"
+
+    login_admin(client)
+
+    response = client.get(
+        "/admin/dink_events"
+    )
+
+    assert response.status_code == 200
+
+    page = response.get_data(
+        as_text=True
+    )
+
+    assert "Accepted Manual Evidence" in page
+    assert "Web Invalidation Review Tester" in page
+    assert "Web Invalidation Review Team" in page
+    assert "Web Invalidation Review Tile" in page
+    assert "Web Invalidation Drop" in page
+    assert "Accepted evidence for web invalidation." in page
+    assert "Invalidate" in page
+    assert 'name="action"' in page
+    assert 'value="invalidate_manual_evidence"' in page
+    assert 'name="evidence_id"' in page
+    assert (
+        f'value="{submission["evidence_id"]}"'
+        in page
+    )
+    assert 'name="reason"' in page
+
+def test_admin_can_invalidate_accepted_manual_evidence(
+    client
+):
+    create_test_player(
+        "Web Invalidation Action Tester",
+        team_name="Web Invalidation Action Team"
+    )
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Web Invalidation Action Tile",
+        tile_points=2,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Web Invalidation Action Drop",
+                "target": 2
+            }
+        ]
+    )
+
+    player = database.get_player_by_name(
+        "Web Invalidation Action Tester"
+    )
+
+    condition_id = database.get_tile_conditions(
+        tile_id
+    )[0][0]
+
+    submission = database.add_manual_evidence(
+        player_id=player[0],
+        condition_id=condition_id,
+        amount=1,
+        description="Evidence to invalidate through the web.",
+        evidence_path=None,
+        evidence_sha256=None,
+        submission_source="WEB",
+        submitter_id=123456789,
+        submitter_name="Submitting Staff"
+    )
+
+    accepted = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="WEB",
+        reviewer_id=987654321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert accepted["status"] == "ACCEPTED"
+
+    login_admin(client)
+
+    response = client.post(
+        "/admin/dink_events",
+        data={
+            "action": "invalidate_manual_evidence",
+            "evidence_id": str(
+                submission["evidence_id"]
+            ),
+            "reason": (
+                "This evidence was accepted against "
+                "the wrong drop."
+            )
+        },
+        follow_redirects=True
+    )
+
+    assert response.status_code == 200
+
+    page = response.get_data(
+        as_text=True
+    )
+
+    assert (
+        f"Manual evidence #{submission['evidence_id']} "
+        "was invalidated."
+        in page
+    )
+
+    review_rows = (
+        database.get_accepted_manual_evidence_invalidation_rows()
+    )
+
+    assert all(
+        row["evidence_id"] != submission["evidence_id"]
+        for row in review_rows
+    )
+
+
+def test_admin_manual_evidence_invalidation_reports_reconciliation(
+    client,
+    monkeypatch
+):
+    create_test_player(
+        "Web Reconciliation Tester",
+        team_name="Web Reconciliation Team"
+    )
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Web Reconciliation Tile",
+        tile_points=2,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Web Reconciliation Drop",
+                "target": 2
+            }
+        ]
+    )
+
+    player = database.get_player_by_name(
+        "Web Reconciliation Tester"
+    )
+
+    condition_id = database.get_tile_conditions(
+        tile_id
+    )[0][0]
+
+    submission = database.add_manual_evidence(
+        player_id=player[0],
+        condition_id=condition_id,
+        amount=1,
+        description="Evidence with reconciliation output.",
+        evidence_path=None,
+        evidence_sha256=None,
+        submission_source="WEB",
+        submitter_id=123456789,
+        submitter_name="Submitting Staff"
+    )
+
+    accepted = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="WEB",
+        reviewer_id=987654321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert accepted["status"] == "ACCEPTED"
+
+    monkeypatch.setattr(
+        database,
+        "invalidate_bingo_evidence",
+        lambda **kwargs: {
+            "status": "INVALIDATED",
+            "invalidation_id": 123,
+            "reopened_tiles": [
+                {
+                    "team_id": player[2],
+                    "tile_id": tile_id
+                }
+            ],
+            "replayed_manual_evidence": [
+                {
+                    "evidence_id": 999,
+                    "team_id": player[2],
+                    "tile_id": tile_id,
+                    "actual_contribution": 0.5,
+                    "completed": False
+                }
+            ]
+        }
+    )
+
+    login_admin(client)
+
+    response = client.post(
+        "/admin/dink_events",
+        data={
+            "action": "invalidate_manual_evidence",
+            "evidence_id": str(
+                submission["evidence_id"]
+            ),
+            "reason": (
+                "This evidence was accepted incorrectly."
+            )
+        },
+        follow_redirects=True
+    )
+
+    assert response.status_code == 200
+
+    page = response.get_data(
+        as_text=True
+    )
+
+    assert (
+        f"Manual evidence #{submission['evidence_id']} "
+        "was invalidated."
+        in page
+    )
+
+    assert (
+        "1 later accepted manual submission was replayed."
+        in page
+    )
+
+    assert (
+        "1 affected tile remains open after reconciliation."
+        in page
+    )
+
+
+def test_admin_manual_evidence_invalidation_surfaces_backend_refusal(
+    client,
+    monkeypatch
+):
+    create_test_player(
+        "Web Invalidation Refusal Tester",
+        team_name="Web Invalidation Refusal Team"
+    )
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Web Invalidation Refusal Tile",
+        tile_points=2,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Web Invalidation Refusal Drop",
+                "target": 2
+            }
+        ]
+    )
+
+    player = database.get_player_by_name(
+        "Web Invalidation Refusal Tester"
+    )
+
+    condition_id = database.get_tile_conditions(
+        tile_id
+    )[0][0]
+
+    submission = database.add_manual_evidence(
+        player_id=player[0],
+        condition_id=condition_id,
+        amount=1,
+        description="Evidence that must remain accepted.",
+        evidence_path=None,
+        evidence_sha256=None,
+        submission_source="WEB",
+        submitter_id=123456789,
+        submitter_name="Submitting Staff"
+    )
+
+    accepted = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="WEB",
+        reviewer_id=987654321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert accepted["status"] == "ACCEPTED"
+
+    refusal_message = (
+        "Accepted manual evidence cannot be invalidated "
+        "because the tile changed after submission: "
+        "CONDITION_CHANGED."
+    )
+
+    invalidation_calls = []
+
+    def refuse_invalidation(**kwargs):
+        invalidation_calls.append(
+            kwargs
+        )
+        raise ValueError(
+            refusal_message
+        )
+
+    monkeypatch.setattr(
+        database,
+        "invalidate_bingo_evidence",
+        refuse_invalidation
+    )
+
+    login_admin(client)
+
+    response = client.post(
+        "/admin/dink_events",
+        data={
+            "action": "invalidate_manual_evidence",
+            "evidence_id": str(
+                submission["evidence_id"]
+            ),
+            "reason": (
+                "This evidence was accepted incorrectly."
+            )
+        },
+        follow_redirects=True
+    )
+
+    assert response.status_code == 200
+
+    assert invalidation_calls == [
+        {
+            "subject_type": "MANUAL_EVIDENCE",
+            "subject_id": submission["evidence_id"],
+            "reason_code": "INCORRECT_EVIDENCE",
+            "review_source": "WEB",
+            "reviewer_id": 1,
+            "reviewer_name": "Identity Admin",
+            "details": (
+                "This evidence was accepted incorrectly."
+            )
+        }
+    ]
+
+    page = response.get_data(
+        as_text=True
+    )
+
+    assert refusal_message in page
+    assert "Web Invalidation Refusal Tester" in page
+    assert "Web Invalidation Refusal Tile" in page
+
+
 def test_manual_evidence_freezes_full_tile_snapshot():
     create_test_player(
         "Manual Snapshot Tester",

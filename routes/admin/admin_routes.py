@@ -283,6 +283,149 @@ def dink_events():
             ''
         ).strip()
 
+        if action == 'invalidate_manual_evidence':
+            evidence_id_value = request.form.get(
+                'evidence_id',
+                ''
+            ).strip()
+
+            try:
+                evidence_id = int(
+                    evidence_id_value
+                )
+
+                if evidence_id <= 0:
+                    raise ValueError
+
+            except (TypeError, ValueError):
+                flash(
+                    'Please select valid manual evidence.',
+                    'danger'
+                )
+                return redirect(
+                    url_for(
+                        'admin_routes.dink_events'
+                    )
+                )
+
+            reason = request.form.get(
+                'reason',
+                ''
+            ).strip()
+
+            if len(reason) < 3 or len(reason) > 500:
+                flash(
+                    (
+                        'Please give a reason for invalidating '
+                        'this evidence (3 to 500 characters).'
+                    ),
+                    'danger'
+                )
+                return redirect(
+                    url_for(
+                        'admin_routes.dink_events'
+                    )
+                )
+
+            try:
+                result = database.invalidate_bingo_evidence(
+                    subject_type='MANUAL_EVIDENCE',
+                    subject_id=evidence_id,
+                    reason_code='INCORRECT_EVIDENCE',
+                    review_source='WEB',
+                    reviewer_id=current_user.id,
+                    reviewer_name=current_user.username,
+                    details=reason
+                )
+
+            except ValueError as error:
+                flash(
+                    str(error),
+                    'danger'
+                )
+                return redirect(
+                    url_for(
+                        'admin_routes.dink_events'
+                    )
+                )
+
+            if result['status'] == 'INVALIDATED':
+                success_message = (
+                    f'Manual evidence #{evidence_id} '
+                    'was invalidated.'
+                )
+
+                replayed_count = len(
+                    result.get(
+                        'replayed_manual_evidence',
+                        []
+                    )
+                )
+
+                if replayed_count:
+                    replayed_label = (
+                        'submission'
+                        if replayed_count == 1
+                        else 'submissions'
+                    )
+
+                    success_message += (
+                        f' {replayed_count} later accepted '
+                        f'manual {replayed_label} '
+                        'was replayed.'
+                        if replayed_count == 1
+                        else
+                        f' {replayed_count} later accepted '
+                        f'manual {replayed_label} '
+                        'were replayed.'
+                    )
+
+                reopened_count = len(
+                    result.get(
+                        'reopened_tiles',
+                        []
+                    )
+                )
+
+                if reopened_count:
+                    tile_label = (
+                        'tile'
+                        if reopened_count == 1
+                        else 'tiles'
+                    )
+
+                    open_verb = (
+                        'remains'
+                        if reopened_count == 1
+                        else 'remain'
+                    )
+
+                    success_message += (
+                        f' {reopened_count} affected '
+                        f'{tile_label} {open_verb} open '
+                        'after reconciliation.'
+                    )
+
+                flash(
+                    success_message,
+                    'success'
+                )
+
+            else:
+                flash(
+                    (
+                        'This manual evidence could not '
+                        'be invalidated.'
+                    ),
+                    'danger'
+                )
+
+            return redirect(
+                url_for(
+                    'admin_routes.dink_events'
+                )
+            )
+
         event_id_value = request.form.get(
             'event_id',
             ''
@@ -494,9 +637,14 @@ def dink_events():
             }
         )
 
+    manual_evidence_entries = (
+        database.get_accepted_manual_evidence_invalidation_rows()
+    )
+
     return render_template(
         'admin_templates/dink_events.html',
-        event_entries=event_entries
+        event_entries=event_entries,
+        manual_evidence_entries=manual_evidence_entries
     )
 
 @admin_routes.route('/bingo_setup', methods=['GET', 'POST'])

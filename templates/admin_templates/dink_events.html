@@ -175,5 +175,132 @@
             There are no submissions waiting for review.
         </p>
     {% endif %}
+    <hr style="border: 0;
+               border-top: 1px solid #444;
+               margin: 30px 0;">
+
+    <h2 style="color: #fff;">
+        Accepted Manual Evidence
+    </h2>
+
+    <p style="color: #ccc;">
+        Accepted manual submissions can be invalidated here if a
+        staff decision needs to be corrected.
+    </p>
+
+    {% if manual_evidence_entries %}
+        <table style="width: 100%;
+                      border-collapse: collapse;
+                      color: #ccc;">
+            <thead>
+                <tr style="background-color: #2b2b2b;">
+                    <th style="padding: 10px; text-align: left;">
+                        Submission
+                    </th>
+                    <th style="padding: 10px; text-align: left;">
+                        Player
+                    </th>
+                    <th style="padding: 10px; text-align: left;">
+                        Team
+                    </th>
+                    <th style="padding: 10px; text-align: left;">
+                        Tile
+                    </th>
+                    <th style="padding: 10px; text-align: left;">
+                        Part
+                    </th>
+                    <th style="padding: 10px; text-align: left;">
+                        Amount
+                    </th>
+                    <th style="padding: 10px; text-align: left;">
+                        Notes
+                    </th>
+                    <th style="padding: 10px; text-align: left;">
+                        Decision
+                    </th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for entry in manual_evidence_entries %}
+                    <tr style="border-top: 1px solid #444;">
+                        <td style="padding: 10px;">
+                            #{{ entry.evidence_id }}
+                        </td>
+
+                        <td style="padding: 10px;">
+                            {{ entry.credited_player_name or 'Unknown player' }}
+                        </td>
+
+                        <td style="padding: 10px;">
+                            {{ entry.team_name or 'Original team unavailable' }}
+                        </td>
+
+                        <td style="padding: 10px;">
+                            {{ entry.tile_name or 'Original tile unavailable' }}
+                        </td>
+
+                        <td style="padding: 10px;">
+                            {{ entry.condition_trigger or 'Unknown condition' }}
+                        </td>
+
+                        <td style="padding: 10px;">
+                            {{ entry.amount }}
+                        </td>
+
+                        <td style="padding: 10px;">
+                            {{ entry.description or '—' }}
+                        </td>
+
+                        <td style="padding: 10px;
+                                   min-width: 220px;">
+                            <form method="post"
+                                  action="{{ url_for(
+                                      'admin_routes.dink_events'
+                                  ) }}">
+                                <input type="hidden"
+                                       name="evidence_id"
+                                       value="{{ entry.evidence_id }}">
+
+                                <label style="display: block;
+                                              font-size: 0.85em;
+                                              margin-bottom: 4px;">
+                                    Reason for invalidation
+                                </label>
+
+                                <textarea name="reason"
+                                          required
+                                          minlength="3"
+                                          maxlength="500"
+                                          rows="3"
+                                          placeholder="Why should this accepted evidence be invalidated?"
+                                          style="width: 100%;
+                                                 box-sizing: border-box;
+                                                 margin-bottom: 6px;
+                                                 padding: 6px;
+                                                 background-color: #2b2b2b;
+                                                 color: #fff;
+                                                 border: 1px solid #555;
+                                                 resize: vertical;"></textarea>
+
+                                <button type="submit"
+                                        name="action"
+                                        value="invalidate_manual_evidence"
+                                        onclick="return confirm(
+                                            'Invalidate this accepted evidence and reconcile its bingo progress?'
+                                        );">
+                                    Invalidate
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p style="color: #ccc;">
+            There is no accepted manual evidence available to invalidate.
+        </p>
+    {% endif %}
 </div>
 {% endblock %}

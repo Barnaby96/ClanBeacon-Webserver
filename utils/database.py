@@ -10020,6 +10020,131 @@ def get_pending_manual_evidence_review_rows(limit=25):
     ]
 
 
+def get_accepted_manual_evidence_invalidation_rows(
+    limit=25
+):
+    limit = int(limit)
+
+    if limit < 1 or limit > 25:
+        raise ValueError(
+            "Manual evidence invalidation review limit must be "
+            "between 1 and 25."
+        )
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                evidence.evidence_id,
+                evidence.player_id,
+                evidence.credited_player_name,
+                evidence.team_id,
+                team.team_name,
+                evidence.tile_id,
+                tile.tile_name,
+                evidence.condition_id,
+
+                selected.completion_path,
+                selected.condition_type,
+                selected.condition_trigger,
+                selected.target,
+                selected.progress,
+
+                evidence.amount,
+                evidence.description,
+                evidence.evidence_path,
+                evidence.submission_source,
+                evidence.submitter_id,
+                evidence.submitter_name,
+
+                evidence.discord_guild_id,
+                evidence.discord_channel_id,
+                evidence.discord_message_id,
+
+                evidence.evidence_author_id,
+                evidence.evidence_author_name,
+
+                evidence.evidence_codeword_at_submission,
+                evidence.submitted_at,
+
+                player.discord_user_id
+
+            FROM manual_evidence AS evidence
+
+            LEFT JOIN manual_evidence_condition_snapshots
+                AS selected
+              ON selected.evidence_id =
+                    evidence.evidence_id
+             AND selected.selected_condition = TRUE
+
+            LEFT JOIN players AS player
+              ON player.player_id = evidence.player_id
+
+            LEFT JOIN teams AS team
+              ON team.team_id = evidence.team_id
+
+            LEFT JOIN tiles AS tile
+              ON tile.tile_id = evidence.tile_id
+
+            WHERE evidence.status = 'ACCEPTED'
+              AND NOT EXISTS (
+                    SELECT 1
+                    FROM evidence_invalidations AS invalidation
+                    WHERE invalidation.subject_type =
+                          'MANUAL_EVIDENCE'
+                      AND invalidation.subject_id =
+                          evidence.evidence_id
+              )
+
+            ORDER BY
+                evidence.submitted_at,
+                evidence.evidence_id
+
+            LIMIT %s
+            ''',
+            (limit,)
+        )
+
+        rows = cursor.fetchall()
+
+    columns = (
+        "evidence_id",
+        "player_id",
+        "credited_player_name",
+        "team_id",
+        "team_name",
+        "tile_id",
+        "tile_name",
+        "condition_id",
+        "completion_path",
+        "condition_type",
+        "condition_trigger",
+        "condition_target",
+        "condition_progress_at_submission",
+        "amount",
+        "description",
+        "evidence_path",
+        "submission_source",
+        "submitter_id",
+        "submitter_name",
+        "discord_guild_id",
+        "discord_channel_id",
+        "discord_message_id",
+        "evidence_author_id",
+        "evidence_author_name",
+        "evidence_codeword_at_submission",
+        "submitted_at",
+        "credited_discord_user_id"
+    )
+
+    return [
+        dict(zip(columns, row))
+        for row in rows
+    ]
+
+
 def get_pending_dink_event_review_rows():
     with connect() as conn:
         cursor = conn.cursor()

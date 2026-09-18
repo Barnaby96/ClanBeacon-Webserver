@@ -106,6 +106,102 @@ def run_review_submission(ctx):
     )
 
 
+def run_review_invalidation(ctx):
+    cog = AdminCog(
+        bot=None
+    )
+
+    return asyncio.run(
+        AdminCog.review_invalidation.callback(
+            cog,
+            ctx
+        )
+    )
+
+
+def test_review_invalidation_rejects_non_organiser(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "BINGO_ORGANISER_ROLE_ID",
+        "999"
+    )
+
+    monkeypatch.setattr(
+        database,
+        "get_accepted_manual_evidence_invalidation_rows",
+        lambda: pytest.fail(
+            "A non-organiser should be refused "
+            "before the invalidation queue is queried."
+        )
+    )
+
+    ctx = FakeContext()
+
+    run_review_invalidation(
+        ctx
+    )
+
+    assert ctx.deferred is False
+    assert len(ctx.responses) == 1
+    assert (
+        ctx.responses[0]["content"]
+        == (
+            "Only bingo organisers can "
+            "invalidate submissions."
+        )
+    )
+    assert ctx.responses[0]["ephemeral"] is True
+
+
+def test_review_invalidation_organiser_sees_empty_queue(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "BINGO_ORGANISER_ROLE_ID",
+        "999"
+    )
+
+    queue_queries = []
+
+    def get_invalidation_rows():
+        queue_queries.append(
+            True
+        )
+        return []
+
+    monkeypatch.setattr(
+        database,
+        "get_accepted_manual_evidence_invalidation_rows",
+        get_invalidation_rows
+    )
+
+    ctx = FakeContext(
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    run_review_invalidation(
+        ctx
+    )
+
+    assert queue_queries == [True]
+    assert ctx.deferred is True
+    assert ctx.defer_ephemeral is True
+    assert len(ctx.responses) == 1
+    assert (
+        ctx.responses[0]["content"]
+        == (
+            "There are no accepted submissions "
+            "available to invalidate."
+        )
+    )
+    assert ctx.responses[0]["ephemeral"] is True
+
+
 def test_review_submission_rejects_non_organiser(
     monkeypatch
 ):
@@ -281,6 +377,248 @@ def test_review_submission_shows_first_pending_evidence(
     assert (
         embed_fields["Submitted by"]
         == "Discord Tester on behalf of First Player"
+    )
+
+
+def test_review_invalidation_shows_first_accepted_evidence(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "BINGO_ORGANISER_ROLE_ID",
+        "999"
+    )
+
+    review_rows = [
+        {
+            "evidence_id": 601,
+            "credited_player_name": "First Accepted Player",
+            "team_name": "Team Guthix",
+            "tile_name": "First Accepted Tile",
+            "condition_trigger": "FIRST_ACCEPTED_DROP",
+            "amount": 2,
+            "description": "First accepted evidence.",
+            "evidence_path": None,
+            "submitter_id": 12345,
+            "submitter_name": "Discord Tester",
+            "credited_discord_user_id": 77777,
+            "evidence_codeword_at_submission": (
+                "Blackout Sky"
+            ),
+            "submitted_at": None
+        },
+        {
+            "evidence_id": 602,
+            "credited_player_name": "Second Accepted Player",
+            "team_name": "Team Seren",
+            "tile_name": "Second Accepted Tile",
+            "condition_trigger": "SECOND_ACCEPTED_DROP",
+            "amount": 1,
+            "description": "Second accepted evidence.",
+            "evidence_path": None,
+            "submitter_id": 12345,
+            "submitter_name": "Discord Tester",
+            "credited_discord_user_id": 88888,
+            "evidence_codeword_at_submission": (
+                "Different Word"
+            ),
+            "submitted_at": None
+        }
+    ]
+
+    monkeypatch.setattr(
+        database,
+        "get_accepted_manual_evidence_invalidation_rows",
+        lambda: review_rows
+    )
+
+    ctx = FakeContext(
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    run_review_invalidation(
+        ctx
+    )
+
+    assert ctx.deferred is True
+    assert ctx.defer_ephemeral is True
+    assert len(ctx.responses) == 1
+
+    response = ctx.responses[0]
+
+    assert response["ephemeral"] is True
+    assert response["view"].selected_evidence_id == 601
+    assert "file" not in response
+
+    embed_fields = {
+        field.name: field.value
+        for field in response["embed"].fields
+    }
+
+    assert embed_fields["Player"] == "First Accepted Player"
+    assert embed_fields["Team"] == "Team Guthix"
+    assert embed_fields["Amount"] == "2"
+    assert embed_fields["Tile"] == "First Accepted Tile"
+    assert embed_fields["Part"] == "First Accepted Drop"
+    assert (
+        embed_fields["Notes"]
+        == "First accepted evidence."
+    )
+
+
+def test_review_invalidation_dropdown_selects_accepted_evidence(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "BINGO_ORGANISER_ROLE_ID",
+        "999"
+    )
+
+    review_rows = [
+        {
+            "evidence_id": 601,
+            "credited_player_name": "First Accepted Player",
+            "team_name": "Team Guthix",
+            "tile_name": "First Accepted Tile",
+            "condition_trigger": "FIRST_ACCEPTED_DROP",
+            "amount": 2,
+            "description": "First accepted evidence.",
+            "evidence_path": None,
+            "submitter_id": 12345,
+            "submitter_name": "Discord Tester",
+            "credited_discord_user_id": 77777,
+            "evidence_codeword_at_submission": (
+                "Blackout Sky"
+            ),
+            "submitted_at": None
+        },
+        {
+            "evidence_id": 602,
+            "credited_player_name": "Second Accepted Player",
+            "team_name": "Team Seren",
+            "tile_name": "Second Accepted Tile",
+            "condition_trigger": "SECOND_ACCEPTED_DROP",
+            "amount": 1,
+            "description": "Second accepted evidence.",
+            "evidence_path": None,
+            "submitter_id": 12345,
+            "submitter_name": "Discord Tester",
+            "credited_discord_user_id": 88888,
+            "evidence_codeword_at_submission": (
+                "Different Word"
+            ),
+            "submitted_at": None
+        }
+    ]
+
+    monkeypatch.setattr(
+        database,
+        "get_accepted_manual_evidence_invalidation_rows",
+        lambda: review_rows
+    )
+
+    ctx = FakeContext(
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    run_review_invalidation(
+        ctx
+    )
+
+    review_view = ctx.responses[0]["view"]
+
+    select = next(
+        child
+        for child in review_view.children
+        if hasattr(child, "options")
+    )
+
+    assert [
+        option.value
+        for option in select.options
+    ] == [
+        "601",
+        "602"
+    ]
+
+    interaction = FakeInteraction(
+        user_id=12345,
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    select._interaction = interaction
+    select._selected_values = [
+        "602"
+    ]
+
+    asyncio.run(
+        select.callback(
+            interaction
+        )
+    )
+
+    assert len(
+        interaction.response.messages
+    ) == 0
+
+    assert len(
+        interaction.response.edits
+    ) == 1
+
+    edit = interaction.response.edits[0]
+
+    assert (
+        edit["view"].selected_evidence_id
+        == 602
+    )
+
+    assert edit["attachments"] == []
+    assert "file" not in edit
+
+    embed_fields = {
+        field.name: field.value
+        for field in edit["embed"].fields
+    }
+
+    assert (
+        embed_fields["Player"]
+        == "Second Accepted Player"
+    )
+
+    assert (
+        embed_fields["Team"]
+        == "Team Seren"
+    )
+
+    assert (
+        embed_fields["Tile"]
+        == "Second Accepted Tile"
+    )
+
+    assert (
+        embed_fields["Part"]
+        == "Second Accepted Drop"
+    )
+
+    assert (
+        embed_fields["Evidence codeword"]
+        == "Different Word"
+    )
+
+    assert (
+        embed_fields["Notes"]
+        == "Second accepted evidence."
     )
 
 
@@ -2496,6 +2834,117 @@ def test_review_submission_reject_opens_reason_modal(
     assert modal.reason.max_length == 500
 
 
+def test_review_invalidation_opens_reason_modal(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "BINGO_ORGANISER_ROLE_ID",
+        "999"
+    )
+
+    review_rows = [
+        {
+            "evidence_id": 601,
+            "credited_player_name": "Accepted Player",
+            "team_name": "Team Guthix",
+            "tile_name": "Accepted Tile",
+            "condition_trigger": "ACCEPTED_DROP",
+            "amount": 1,
+            "description": None,
+            "evidence_path": None,
+            "submitter_id": 77777,
+            "submitter_name": "Submitting Player",
+            "credited_discord_user_id": 77777,
+            "evidence_codeword_at_submission": (
+                "Blackout Sky"
+            ),
+            "submitted_at": None
+        }
+    ]
+
+    monkeypatch.setattr(
+        database,
+        "get_accepted_manual_evidence_invalidation_rows",
+        lambda: review_rows
+    )
+
+    monkeypatch.setattr(
+        database,
+        "invalidate_bingo_evidence",
+        lambda **kwargs: pytest.fail(
+            "Invalidation backend should not run until "
+            "the modal is submitted."
+        )
+    )
+
+    ctx = FakeContext(
+        author_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    run_review_invalidation(
+        ctx
+    )
+
+    review_view = ctx.responses[0]["view"]
+
+    invalidate_button = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "label",
+            None
+        ) == "Invalidate"
+    )
+
+    interaction = FakeInteraction(
+        user_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    asyncio.run(
+        invalidate_button.callback(
+            interaction
+        )
+    )
+
+    assert len(
+        interaction.response.messages
+    ) == 0
+
+    assert len(
+        interaction.response.edits
+    ) == 0
+
+    assert len(
+        interaction.response.modals
+    ) == 1
+
+    modal = interaction.response.modals[0]
+
+    assert modal.title == "Invalidate Submission"
+    assert modal.evidence_id == 601
+    assert modal.reviewer_id == 12345
+
+    assert modal.reason.label == (
+        "Why should this evidence be invalidated?"
+    )
+    assert modal.reason.required is True
+    assert modal.reason.min_length == 3
+    assert modal.reason.max_length == 500
+
+
 def test_review_submission_rejects_manual_evidence(
     monkeypatch
 ):
@@ -2638,6 +3087,435 @@ def test_review_submission_rejects_manual_evidence(
         "**Reason:** The screenshot does not clearly "
         "show the drop.\n\n"
         "Reviewed by Review Organiser."
+    )
+
+    assert edit["embed"] is None
+    assert edit["view"] is None
+    assert edit["attachments"] == []
+
+
+def test_review_invalidation_invalidates_manual_evidence(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "BINGO_ORGANISER_ROLE_ID",
+        "999"
+    )
+
+    review_rows = [
+        {
+            "evidence_id": 601,
+            "credited_player_name": "Accepted Player",
+            "team_name": "Team Guthix",
+            "tile_name": "Accepted Tile",
+            "condition_trigger": "ACCEPTED_DROP",
+            "amount": 1,
+            "description": None,
+            "evidence_path": None,
+            "submitter_id": 77777,
+            "submitter_name": "Submitting Player",
+            "credited_discord_user_id": 77777,
+            "evidence_codeword_at_submission": (
+                "Blackout Sky"
+            ),
+            "submitted_at": None
+        }
+    ]
+
+    monkeypatch.setattr(
+        database,
+        "get_accepted_manual_evidence_invalidation_rows",
+        lambda: review_rows
+    )
+
+    invalidation_calls = []
+
+    def invalidate_manual_evidence(**kwargs):
+        invalidation_calls.append(
+            kwargs
+        )
+
+        return {
+            "status": "INVALIDATED",
+            "invalidation_id": 123,
+            "reopened_tiles": [],
+            "replayed_manual_evidence": []
+        }
+
+    monkeypatch.setattr(
+        database,
+        "invalidate_bingo_evidence",
+        invalidate_manual_evidence
+    )
+
+    ctx = FakeContext(
+        author_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    run_review_invalidation(
+        ctx
+    )
+
+    review_view = ctx.responses[0]["view"]
+
+    invalidate_button = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "label",
+            None
+        ) == "Invalidate"
+    )
+
+    open_interaction = FakeInteraction(
+        user_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    asyncio.run(
+        invalidate_button.callback(
+            open_interaction
+        )
+    )
+
+    modal = open_interaction.response.modals[0]
+
+    invalidation_reason = (
+        "The evidence was accepted against the wrong drop."
+    )
+
+    modal.reason._input_value = invalidation_reason
+
+    submit_interaction = FakeInteraction(
+        user_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    asyncio.run(
+        modal.callback(
+            submit_interaction
+        )
+    )
+
+    assert invalidation_calls == [
+        {
+            "subject_type": "MANUAL_EVIDENCE",
+            "subject_id": 601,
+            "reason_code": "INCORRECT_EVIDENCE",
+            "review_source": "DISCORD",
+            "reviewer_id": 12345,
+            "reviewer_name": "Review Organiser",
+            "details": invalidation_reason
+        }
+    ]
+
+    assert len(
+        submit_interaction.response.messages
+    ) == 0
+
+    assert len(
+        submit_interaction.response.edits
+    ) == 1
+
+    edit = submit_interaction.response.edits[0]
+
+    assert edit["content"] == (
+        "⚠️ **Submission invalidated**\n\n"
+        "**Reason:** The evidence was accepted against "
+        "the wrong drop.\n\n"
+        "Reviewed by Review Organiser."
+    )
+
+    assert edit["embed"] is None
+    assert edit["view"] is None
+    assert edit["attachments"] == []
+
+
+def test_review_invalidation_reports_reconciliation(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "BINGO_ORGANISER_ROLE_ID",
+        "999"
+    )
+
+    review_rows = [
+        {
+            "evidence_id": 601,
+            "credited_player_name": "Accepted Player",
+            "team_name": "Team Guthix",
+            "tile_name": "Accepted Tile",
+            "condition_trigger": "ACCEPTED_DROP",
+            "amount": 1,
+            "description": None,
+            "evidence_path": None,
+            "submitter_id": 77777,
+            "submitter_name": "Submitting Player",
+            "credited_discord_user_id": 77777,
+            "evidence_codeword_at_submission": (
+                "Blackout Sky"
+            ),
+            "submitted_at": None
+        }
+    ]
+
+    monkeypatch.setattr(
+        database,
+        "get_accepted_manual_evidence_invalidation_rows",
+        lambda: review_rows
+    )
+
+    monkeypatch.setattr(
+        database,
+        "invalidate_bingo_evidence",
+        lambda **kwargs: {
+            "status": "INVALIDATED",
+            "invalidation_id": 123,
+            "reopened_tiles": [
+                {
+                    "team_id": 1,
+                    "tile_id": 2
+                }
+            ],
+            "replayed_manual_evidence": [
+                {
+                    "evidence_id": 999,
+                    "team_id": 1,
+                    "tile_id": 2,
+                    "actual_contribution": 0.5,
+                    "completed": False
+                }
+            ]
+        }
+    )
+
+    ctx = FakeContext(
+        author_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    run_review_invalidation(
+        ctx
+    )
+
+    review_view = ctx.responses[0]["view"]
+
+    invalidate_button = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "label",
+            None
+        ) == "Invalidate"
+    )
+
+    open_interaction = FakeInteraction(
+        user_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    asyncio.run(
+        invalidate_button.callback(
+            open_interaction
+        )
+    )
+
+    modal = open_interaction.response.modals[0]
+
+    modal.reason._input_value = (
+        "This evidence was accepted incorrectly."
+    )
+
+    submit_interaction = FakeInteraction(
+        user_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    asyncio.run(
+        modal.callback(
+            submit_interaction
+        )
+    )
+
+    assert len(
+        submit_interaction.response.edits
+    ) == 1
+
+    edit = submit_interaction.response.edits[0]
+
+    assert (
+        "1 later accepted manual submission was replayed."
+        in edit["content"]
+    )
+
+    assert (
+        "1 affected tile remains open after reconciliation."
+        in edit["content"]
+    )
+
+
+def test_review_invalidation_surfaces_backend_refusal(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "BINGO_ORGANISER_ROLE_ID",
+        "999"
+    )
+
+    review_rows = [
+        {
+            "evidence_id": 601,
+            "credited_player_name": "Accepted Player",
+            "team_name": "Team Guthix",
+            "tile_name": "Accepted Tile",
+            "condition_trigger": "ACCEPTED_DROP",
+            "amount": 1,
+            "description": None,
+            "evidence_path": None,
+            "submitter_id": 77777,
+            "submitter_name": "Submitting Player",
+            "credited_discord_user_id": 77777,
+            "evidence_codeword_at_submission": (
+                "Blackout Sky"
+            ),
+            "submitted_at": None
+        }
+    ]
+
+    monkeypatch.setattr(
+        database,
+        "get_accepted_manual_evidence_invalidation_rows",
+        lambda: review_rows
+    )
+
+    refusal_message = (
+        "Accepted manual evidence cannot be invalidated "
+        "because the tile changed after submission: "
+        "CONDITION_CHANGED."
+    )
+
+    def refuse_invalidation(**kwargs):
+        raise ValueError(
+            refusal_message
+        )
+
+    monkeypatch.setattr(
+        database,
+        "invalidate_bingo_evidence",
+        refuse_invalidation
+    )
+
+    ctx = FakeContext(
+        author_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    run_review_invalidation(
+        ctx
+    )
+
+    review_view = ctx.responses[0]["view"]
+
+    invalidate_button = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "label",
+            None
+        ) == "Invalidate"
+    )
+
+    open_interaction = FakeInteraction(
+        user_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    asyncio.run(
+        invalidate_button.callback(
+            open_interaction
+        )
+    )
+
+    modal = open_interaction.response.modals[0]
+
+    modal.reason._input_value = (
+        "This evidence was accepted incorrectly."
+    )
+
+    submit_interaction = FakeInteraction(
+        user_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    asyncio.run(
+        modal.callback(
+            submit_interaction
+        )
+    )
+
+    assert len(
+        submit_interaction.response.messages
+    ) == 0
+
+    assert len(
+        submit_interaction.response.edits
+    ) == 1
+
+    edit = submit_interaction.response.edits[0]
+
+    assert edit["content"] == (
+        f"{BOT_NAME} could not safely invalidate "
+        "this submission.\n\n"
+        f"{refusal_message}"
     )
 
     assert edit["embed"] is None
@@ -3218,6 +4096,135 @@ def test_review_submission_reject_rechecks_role_on_modal_submit(
 
     modal.reason._input_value = (
         "Valid rejection reason."
+    )
+
+    submit_interaction = FakeInteraction(
+        user_id=12345,
+        display_name="Review Organiser",
+        roles=[]
+    )
+
+    asyncio.run(
+        modal.callback(
+            submit_interaction
+        )
+    )
+
+    assert len(
+        submit_interaction.response.messages
+    ) == 1
+
+    message = (
+        submit_interaction.response.messages[0]
+    )
+
+    assert message["content"] == (
+        "You no longer have permission "
+        "to review submissions."
+    )
+    assert message["ephemeral"] is True
+    assert (
+        submit_interaction.response.edits
+        == []
+    )
+
+
+def test_review_invalidation_rechecks_role_on_modal_submit(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "BINGO_ORGANISER_ROLE_ID",
+        "999"
+    )
+
+    review_rows = [
+        {
+            "evidence_id": 601,
+            "credited_player_name": "Accepted Player",
+            "team_name": "Team Guthix",
+            "tile_name": "Accepted Tile",
+            "condition_trigger": "ACCEPTED_DROP",
+            "amount": 1,
+            "description": None,
+            "evidence_path": None,
+            "submitter_id": 77777,
+            "submitter_name": "Submitting Player",
+            "credited_discord_user_id": 77777,
+            "evidence_codeword_at_submission": (
+                "Blackout Sky"
+            ),
+            "submitted_at": None
+        }
+    ]
+
+    monkeypatch.setattr(
+        database,
+        "get_accepted_manual_evidence_invalidation_rows",
+        lambda: review_rows
+    )
+
+    def invalidation_should_not_run(**kwargs):
+        pytest.fail(
+            "Invalidation backend was called after "
+            "reviewer permission was removed."
+        )
+
+    monkeypatch.setattr(
+        database,
+        "invalidate_bingo_evidence",
+        invalidation_should_not_run
+    )
+
+    ctx = FakeContext(
+        author_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    run_review_invalidation(
+        ctx
+    )
+
+    review_view = ctx.responses[0]["view"]
+
+    invalidate_button = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "label",
+            None
+        ) == "Invalidate"
+    )
+
+    open_interaction = FakeInteraction(
+        user_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    asyncio.run(
+        invalidate_button.callback(
+            open_interaction
+        )
+    )
+
+    assert len(
+        open_interaction.response.modals
+    ) == 1
+
+    modal = open_interaction.response.modals[0]
+
+    modal.reason._input_value = (
+        "Valid invalidation reason."
     )
 
     submit_interaction = FakeInteraction(

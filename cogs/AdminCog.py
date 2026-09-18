@@ -921,6 +921,342 @@ class SubmissionReviewView(
             modal
         )
 
+class SubmissionInvalidationSelect(
+    discord.ui.Select
+):
+    def __init__(
+        self,
+        review_rows,
+        selected_evidence_id,
+        reviewer_id
+    ):
+        self.review_rows = {
+            int(row["evidence_id"]): row
+            for row in review_rows
+        }
+
+        self.reviewer_id = int(
+            reviewer_id
+        )
+
+        options = []
+
+        for row in review_rows[:25]:
+            evidence_id = int(
+                row["evidence_id"]
+            )
+
+            player_name = (
+                row.get("credited_player_name")
+                or "Unknown player"
+            )
+
+            team_name = (
+                row.get("team_name")
+                or "Original team unavailable"
+            )
+
+            submission_summary = (
+                _get_submission_summary(
+                    row
+                )
+            )
+
+            label = (
+                f"{player_name} - "
+                f"{submission_summary}"
+            )[:100]
+
+            description = (
+                f"Team: {team_name}"
+            )[:100]
+
+            options.append(
+                discord.SelectOption(
+                    label=label,
+                    value=str(evidence_id),
+                    description=description,
+                    default=(
+                        evidence_id
+                        == selected_evidence_id
+                    )
+                )
+            )
+
+        super().__init__(
+            placeholder=(
+                "Choose an accepted submission"
+            ),
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+
+    async def callback(
+        self,
+        interaction: discord.Interaction
+    ):
+        if not await _check_submission_reviewer(
+            interaction=interaction,
+            reviewer_id=self.reviewer_id
+        ):
+            return
+
+        evidence_id = int(
+            self.values[0]
+        )
+
+        row = self.review_rows.get(
+            evidence_id
+        )
+
+        if row is None:
+            await interaction.response.send_message(
+                (
+                    "That submission is no "
+                    "longer available."
+                ),
+                ephemeral=True
+            )
+            return
+
+        view = SubmissionInvalidationView(
+            review_rows=list(
+                self.review_rows.values()
+            ),
+            selected_evidence_id=evidence_id,
+            reviewer_id=self.reviewer_id
+        )
+
+        evidence_file, evidence_filename = (
+            _get_submission_evidence_file(
+                row
+            )
+        )
+
+        embed = _build_submission_review_embed(
+            row,
+            evidence_filename=evidence_filename
+        )
+
+        if evidence_file is not None:
+            await interaction.response.edit_message(
+                embed=embed,
+                view=view,
+                attachments=[],
+                file=evidence_file
+            )
+        else:
+            await interaction.response.edit_message(
+                embed=embed,
+                view=view,
+                attachments=[]
+            )
+
+
+class SubmissionInvalidationView(
+    discord.ui.View
+):
+    def __init__(
+        self,
+        review_rows,
+        selected_evidence_id,
+        reviewer_id
+    ):
+        super().__init__(
+            timeout=900
+        )
+
+        self.review_rows = review_rows
+        self.selected_evidence_id = int(
+            selected_evidence_id
+        )
+        self.reviewer_id = int(
+            reviewer_id
+        )
+
+        self.add_item(
+            SubmissionInvalidationSelect(
+                review_rows=review_rows,
+                selected_evidence_id=(
+                    self.selected_evidence_id
+                ),
+                reviewer_id=(
+                    self.reviewer_id
+                )
+            )
+        )
+
+
+    @discord.ui.button(
+        label="Invalidate",
+        emoji="⚠️",
+        style=discord.ButtonStyle.danger,
+        row=1
+    )
+    async def invalidate_submission(
+        self,
+        button,
+        interaction
+    ):
+        if not await _check_submission_reviewer(
+            interaction=interaction,
+            reviewer_id=self.reviewer_id
+        ):
+            return
+
+        modal = SubmissionInvalidationModal(
+            evidence_id=self.selected_evidence_id,
+            reviewer_id=self.reviewer_id
+        )
+
+        await interaction.response.send_modal(
+            modal
+        )
+
+
+class SubmissionInvalidationModal(
+    discord.ui.Modal
+):
+    def __init__(
+        self,
+        evidence_id,
+        reviewer_id
+    ):
+        super().__init__(
+            title="Invalidate Submission"
+        )
+
+        self.evidence_id = int(
+            evidence_id
+        )
+
+        self.reviewer_id = int(
+            reviewer_id
+        )
+
+        self.reason = discord.ui.InputText(
+            label="Why should this evidence be invalidated?",
+            style=discord.InputTextStyle.long,
+            placeholder=(
+                "For example: the screenshot was accepted "
+                "against the wrong drop."
+            ),
+            min_length=3,
+            max_length=500,
+            required=True
+        )
+
+        self.add_item(
+            self.reason
+        )
+
+
+    async def callback(
+        self,
+        interaction: discord.Interaction
+    ):
+        if not await _check_submission_reviewer(
+            interaction=interaction,
+            reviewer_id=self.reviewer_id
+        ):
+            return
+
+        try:
+            result = database.invalidate_bingo_evidence(
+                subject_type="MANUAL_EVIDENCE",
+                subject_id=self.evidence_id,
+                reason_code="INCORRECT_EVIDENCE",
+                review_source="DISCORD",
+                reviewer_id=interaction.user.id,
+                reviewer_name=interaction.user.display_name,
+                details=self.reason.value
+            )
+        except ValueError as error:
+            await interaction.response.edit_message(
+                content=(
+                    f"{BOT_NAME} could not safely invalidate "
+                    "this submission.\n\n"
+                    f"{error}"
+                ),
+                embed=None,
+                view=None,
+                attachments=[]
+            )
+            return
+
+        if result["status"] == "INVALIDATED":
+            success_message = (
+                "⚠️ **Submission invalidated**"
+                "\n\n"
+                f"**Reason:** {self.reason.value}"
+            )
+
+            replayed_count = len(
+                result.get(
+                    "replayed_manual_evidence",
+                    []
+                )
+            )
+
+            if replayed_count:
+                if replayed_count == 1:
+                    success_message += (
+                        "\n\n"
+                        "1 later accepted manual "
+                        "submission was replayed."
+                    )
+                else:
+                    success_message += (
+                        "\n\n"
+                        f"{replayed_count} later accepted "
+                        "manual submissions were replayed."
+                    )
+
+            reopened_count = len(
+                result.get(
+                    "reopened_tiles",
+                    []
+                )
+            )
+
+            if reopened_count:
+                if reopened_count == 1:
+                    success_message += (
+                        "\n\n"
+                        "1 affected tile remains open "
+                        "after reconciliation."
+                    )
+                else:
+                    success_message += (
+                        "\n\n"
+                        f"{reopened_count} affected tiles "
+                        "remain open after reconciliation."
+                    )
+
+            success_message += (
+                "\n\n"
+                f"Reviewed by "
+                f"{interaction.user.display_name}."
+            )
+
+            await interaction.response.edit_message(
+                content=success_message,
+                embed=None,
+                view=None,
+                attachments=[]
+            )
+            return
+
+        await interaction.response.edit_message(
+            content=(
+                "This submission could not be invalidated."
+            ),
+            embed=None,
+            view=None,
+            attachments=[]
+        )
+
 class AdminCog(commands.Cog):
     review = discord.SlashCommandGroup(
         "review",
@@ -929,6 +1265,82 @@ class AdminCog(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+
+    @review.command(
+        name="invalidation",
+        description="Invalidate accepted bingo submissions"
+    )
+    @guild_only()
+    async def review_invalidation(
+        self,
+        ctx: discord.ApplicationContext
+    ):
+
+        if not _is_bingo_organiser(
+            ctx.author
+        ):
+            await ctx.respond(
+                (
+                    "Only bingo organisers can "
+                    "invalidate submissions."
+                ),
+                ephemeral=True
+            )
+            return
+
+        await ctx.defer(
+            ephemeral=True
+        )
+
+        review_rows = (
+            database
+            .get_accepted_manual_evidence_invalidation_rows()
+        )
+
+        if not review_rows:
+            await ctx.respond(
+                (
+                    "There are no accepted submissions "
+                    "available to invalidate."
+                ),
+                ephemeral=True
+            )
+            return
+
+        selected_row = review_rows[0]
+
+        view = SubmissionInvalidationView(
+            review_rows=review_rows,
+            selected_evidence_id=int(
+                selected_row["evidence_id"]
+            ),
+            reviewer_id=ctx.author.id
+        )
+
+        evidence_file, evidence_filename = (
+            _get_submission_evidence_file(
+                selected_row
+            )
+        )
+
+        embed = _build_submission_review_embed(
+            selected_row,
+            evidence_filename=evidence_filename
+        )
+
+        if evidence_file is not None:
+            await ctx.respond(
+                embed=embed,
+                view=view,
+                file=evidence_file,
+                ephemeral=True
+            )
+        else:
+            await ctx.respond(
+                embed=embed,
+                view=view,
+                ephemeral=True
+            )
 
     @review.command(
         name="submission",
