@@ -1186,6 +1186,13 @@ class SubmissionInvalidationModal(
             return
 
         if result["status"] == "INVALIDATED":
+            completion_notifications.notify_tile_corrections(
+                result.get(
+                    "reopened_tiles",
+                    []
+                )
+            )
+
             success_message = (
                 "⚠️ **Submission invalidated**"
                 "\n\n"

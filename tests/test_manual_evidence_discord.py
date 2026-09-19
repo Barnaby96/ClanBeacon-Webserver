@@ -3306,6 +3306,18 @@ def test_review_invalidation_reports_reconciliation(
         }
     )
 
+    from utils import completion_notifications
+
+    correction_calls = []
+
+    monkeypatch.setattr(
+        completion_notifications,
+        "notify_tile_corrections",
+        lambda reopened_tiles: correction_calls.append(
+            reopened_tiles
+        )
+    )
+
     ctx = FakeContext(
         author_id=12345,
         display_name="Review Organiser",
@@ -3369,6 +3381,15 @@ def test_review_invalidation_reports_reconciliation(
             submit_interaction
         )
     )
+
+    assert correction_calls == [
+        [
+            {
+                "team_id": 1,
+                "tile_id": 2
+            }
+        ]
+    ]
 
     assert len(
         submit_interaction.response.edits

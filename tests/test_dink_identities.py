@@ -2680,6 +2680,18 @@ def test_admin_manual_evidence_invalidation_reports_reconciliation(
         }
     )
 
+    from utils import completion_notifications
+
+    correction_calls = []
+
+    monkeypatch.setattr(
+        completion_notifications,
+        "notify_tile_corrections",
+        lambda reopened_tiles: correction_calls.append(
+            reopened_tiles
+        )
+    )
+
     login_admin(client)
 
     response = client.post(
@@ -2697,6 +2709,15 @@ def test_admin_manual_evidence_invalidation_reports_reconciliation(
     )
 
     assert response.status_code == 200
+
+    assert correction_calls == [
+        [
+            {
+                "team_id": player[2],
+                "tile_id": tile_id
+            }
+        ]
+    ]
 
     page = response.get_data(
         as_text=True

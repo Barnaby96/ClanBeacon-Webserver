@@ -5,7 +5,7 @@ from werkzeug.utils import secure_filename
 from routes import dink
 from utils.auth import admin_required
 from utils.branding import BOT_NAME
-from utils import database, db_entities, wom
+from utils import completion_notifications, database, db_entities, wom
 from utils.dink_evidence import resolve_dink_evidence_path
 from utils.database import get_player_names, get_tile_names, get_tiles
 from utils.spoofed_jsons.spoof_chat import spoof_chat
@@ -350,6 +350,14 @@ def dink_events():
                 )
 
             if result['status'] == 'INVALIDATED':
+
+                completion_notifications.notify_tile_corrections(
+                    result.get(
+                        'reopened_tiles',
+                        []
+                    )
+                )
+
                 success_message = (
                     f'Manual evidence #{evidence_id} '
                     'was invalidated.'
