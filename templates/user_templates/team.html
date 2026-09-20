@@ -39,6 +39,20 @@
                             Edit Team
                         </a>
                     {% endif %}
+                    <form
+                        action="{{ url_for(
+                            'user_routes.update_team_wom_players',
+                            team_name=team.team_name
+                        ) }}"
+                        method="post"
+                    >
+                        <button
+                            class="osrs-action-link"
+                            type="submit"
+                        >
+                            Update Team WOM
+                        </button>
+                    </form>
                 </div>
             </div>
 

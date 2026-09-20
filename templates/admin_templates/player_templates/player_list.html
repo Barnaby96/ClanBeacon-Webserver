@@ -26,6 +26,21 @@
                 <span class="osrs-summary-value">{{ player_count }}</span>
             </div>
         </section>
+        <section class="osrs-player-section">
+            <form
+                action="{{ url_for(
+                    'player_management.update_all_wom_players'
+                ) }}"
+                method="post"
+            >
+                <button
+                    class="osrs-button"
+                    type="submit"
+                >
+                    Update All WOM Players
+                </button>
+            </form>
+        </section>
 
         {% for team in teams %}
             <section class="osrs-team-panel">

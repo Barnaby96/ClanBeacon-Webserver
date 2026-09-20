@@ -94,3 +94,84 @@ def get_competition_details(competition_id, metric=None):
         ) from error
 
     return data
+
+
+def update_player(rsn):
+    rsn = str(rsn or "").strip()
+
+    if not rsn:
+        raise WiseOldManError(
+            "A player name is required for Wise Old Man update."
+        )
+
+    try:
+        response = requests.post(
+            f"https://api.wiseoldman.net/v2/players/{rsn}",
+            headers=_get_headers(),
+            timeout=30
+        )
+
+        if response.status_code == 404:
+            raise WiseOldManError(
+                f"Wise Old Man player '{rsn}' was not found."
+            )
+
+        if response.status_code == 429:
+            raise WiseOldManError(
+                f"Wise Old Man rejected '{rsn}' because they were updated "
+                "too recently. Try again in a minute or two."
+            )
+
+        response.raise_for_status()
+        data = response.json()
+
+    except WiseOldManError:
+        raise
+    except (requests.RequestException, ValueError) as error:
+        raise WiseOldManError(
+            f"Unable to update Wise Old Man player '{rsn}'."
+        ) from error
+
+    return data
+
+
+def update_players(rsns):
+    results = {
+        "updated": [],
+        "failed": []
+    }
+
+    seen_players = set()
+
+    for rsn in rsns:
+        player_name = str(rsn or "").strip()
+
+        if not player_name:
+            continue
+
+        player_key = player_name.casefold()
+
+        if player_key in seen_players:
+            continue
+
+        seen_players.add(
+            player_key
+        )
+
+        try:
+            update_player(
+                player_name
+            )
+        except WiseOldManError as error:
+            results["failed"].append(
+                {
+                    "player_name": player_name,
+                    "error": str(error)
+                }
+            )
+        else:
+            results["updated"].append(
+                player_name
+            )
+
+    return results

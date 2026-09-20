@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, Blu
 
 from utils.auth import admin_required
 from utils.branding import get_wom_user_agent
-from utils import db_entities
+from utils import db_entities, wom
 from utils.database import add_player, get_players, get_player_by_id, remove_player, rename_player, \
     get_players_by_team_id, update_player, change_player_team, get_team_by_name, get_teams, \
     get_manage_players_roster, get_team_by_id
@@ -29,6 +29,67 @@ def player_list():
         teams=teams,
         team_count=team_count,
         player_count=player_count
+    )
+
+
+@player_routes.route('/players/wom/update', methods=['POST'])
+@admin_required
+def update_all_wom_players():
+    teams = get_manage_players_roster()
+
+    player_names = [
+        player["player_name"]
+        for team in teams
+        for player in team["players"]
+    ]
+
+    if not player_names:
+        flash(
+            'There are no event players to update on Wise Old Man.',
+            'warning'
+        )
+        return redirect(
+            url_for('player_management.player_list')
+        )
+
+    results = wom.update_players(
+        player_names
+    )
+
+    updated_count = len(
+        results["updated"]
+    )
+    failed_count = len(
+        results["failed"]
+    )
+
+    if updated_count:
+        flash(
+            f'Forced Wise Old Man updates for {updated_count} '
+            'event player(s).',
+            'success'
+        )
+
+    if failed_count:
+        failed_players = ', '.join(
+            failure["player_name"]
+            for failure in results["failed"]
+        )
+
+        flash(
+            f'Wise Old Man could not update {failed_count} '
+            f'event player(s): {failed_players}.',
+            'warning'
+        )
+
+    if not updated_count and not failed_count:
+        flash(
+            'There are no valid event player names to update on Wise Old Man.',
+            'warning'
+        )
+
+    return redirect(
+        url_for('player_management.player_list')
     )
 
 

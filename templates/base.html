@@ -172,23 +172,44 @@
             transition-duration: 0.4s;
         }
 
+        .flash_messages {
+            position: fixed;
+            top: 68px;
+            left: 16px;
+            right: 16px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
         .flash_text {
+            width: min(1100px, 100%);
+            margin: 0 auto 10px;
+            padding: 12px 18px;
+            border: 1px solid #4a3a24;
+            border-radius: 6px;
+            background: rgba(18, 18, 18, 0.94);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
             text-align: center;
+            pointer-events: auto;
         }
 
         .flash_text.success {
+            border-color: #3f7a4d;
             color: #7bd88f;
         }
 
         .flash_text.danger {
+            border-color: #7a3636;
             color: #ff6b6b;
         }
 
         .flash_text.warning {
+            border-color: #8a6a28;
             color: #ffd166;
         }
 
         .flash_text.info {
+            border-color: #315f8a;
             color: #6cb6ff;
         }
 
@@ -353,16 +374,19 @@
 
 
     <div class="content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash_messages" role="status" aria-live="polite">
+                    {% for category, message in messages %}
+                        <p class="flash_text {{ category }}">{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
         {% block content %}
         {% endblock %}
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <p class="flash_text {{ category }}">{{ message }}</p>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
     </div>
     <script>
         document.querySelectorAll('time.osrs-local-datetime').forEach(function (element) {

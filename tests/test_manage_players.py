@@ -311,3 +311,73 @@ def test_manage_players_page_requires_login(client):
 
     assert response.status_code == 302
     assert "/login" in response.headers["Location"]
+
+
+def test_admin_can_force_wom_updates_for_all_event_players(
+    client,
+    monkeypatch
+):
+    database.add_team(
+        "First WOM Update Team",
+        0,
+        ""
+    )
+    database.add_team(
+        "Second WOM Update Team",
+        0,
+        ""
+    )
+
+    first_team = database.get_team_by_name(
+        "First WOM Update Team"
+    )
+    second_team = database.get_team_by_name(
+        "Second WOM Update Team"
+    )
+
+    create_player(
+        "All Wom Alpha",
+        first_team[3]
+    )
+    create_player(
+        "All Wom Beta",
+        second_team[3]
+    )
+
+    captured_player_names = []
+
+    def fake_update_players(player_names):
+        captured_player_names.extend(
+            player_names
+        )
+
+        return {
+            "updated": [
+                "All Wom Alpha",
+                "All Wom Beta"
+            ],
+            "failed": []
+        }
+
+    monkeypatch.setattr(
+        "routes.admin.player_routes.wom.update_players",
+        fake_update_players
+    )
+
+    login_admin(
+        client
+    )
+
+    response = client.post(
+        "/player/players/wom/update"
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith(
+        "/player/players"
+    )
+
+    assert sorted(captured_player_names) == [
+        "All Wom Alpha",
+        "All Wom Beta"
+    ]
