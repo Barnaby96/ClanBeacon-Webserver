@@ -522,11 +522,41 @@ class SubmissionRejectionModal(
         )
 
         if result["status"] == "REJECTED":
+            reason_labels = {
+                "INSUFFICIENT_EVIDENCE": "Insufficient evidence",
+                "WRONG_ITEM_OR_ACTIVITY": "Wrong item or activity",
+                "DUPLICATE_EVIDENCE": "Duplicate evidence",
+                "WRONG_PLAYER_OR_ACCOUNT": "Wrong player or account",
+                "WRONG_TILE_OR_CONDITION": "Wrong tile or condition",
+                "DOES_NOT_MEET_REQUIREMENTS": (
+                    "Does not meet requirements"
+                ),
+                "OTHER": "Other"
+            }
+
+            reason_label = reason_labels.get(
+                self.reason_code,
+                self.reason_code
+            )
+
+            extra_details = (
+                self.reason.value
+                or ""
+            ).strip()
+
+            reason_text = reason_label
+
+            if extra_details:
+                reason_text = (
+                    f"{reason_label}\n"
+                    f"{extra_details}"
+                )
+
             await interaction.response.edit_message(
                 content=(
-                    "❌ **Submission not accepted**"
+                    "\u274C **Submission not accepted**"
                     "\n\n"
-                    f"**Reason:** {self.reason.value}"
+                    f"**Reason:** {reason_text}"
                     "\n\n"
                     f"Reviewed by "
                     f"{interaction.user.display_name}."
@@ -689,9 +719,20 @@ class SubmissionReviewView(
             row=1
         )
 
+        self.rejection_reason_select.callback = (
+            self._acknowledge_rejection_reason_select
+        )
+
         self.add_item(
             self.rejection_reason_select
         )
+
+
+    async def _acknowledge_rejection_reason_select(
+        self,
+        interaction
+    ):
+        await interaction.response.defer()
 
     async def _check_reviewer(
         self,
@@ -1186,10 +1227,20 @@ class SubmissionInvalidationView(
             row=1
         )
 
+        self.reason_select.callback = (
+            self._acknowledge_reason_select
+        )
+
         self.add_item(
             self.reason_select
         )
 
+
+    async def _acknowledge_reason_select(
+        self,
+        interaction
+    ):
+        await interaction.response.defer()
 
     @discord.ui.button(
         label="Invalidate",

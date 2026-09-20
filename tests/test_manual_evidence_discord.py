@@ -3043,6 +3043,85 @@ def test_review_submission_reject_other_requires_details(
     assert modal.reason.max_length == 500
 
 
+def test_review_submission_rejection_reason_select_defers(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "BINGO_ORGANISER_ROLE_ID",
+        "999"
+    )
+
+    review_rows = [
+        {
+            "evidence_id": 501,
+            "credited_player_name": "Test Player",
+            "team_name": "Team Zamorak",
+            "tile_name": "Test Tile",
+            "condition_trigger": "TEST_DROP",
+            "amount": 1,
+            "description": None,
+            "evidence_path": None,
+            "submitter_id": 77777,
+            "submitter_name": "Submitting Player",
+            "credited_discord_user_id": 77777,
+            "evidence_codeword_at_submission": (
+                "Blackout Sky"
+            ),
+            "submitted_at": None
+        }
+    ]
+
+    monkeypatch.setattr(
+        database,
+        "get_pending_manual_evidence_review_rows",
+        lambda: review_rows
+    )
+
+    ctx = FakeContext(
+        author_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    run_review_submission(
+        ctx
+    )
+
+    review_view = ctx.responses[0]["view"]
+
+    reason_select = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "placeholder",
+            None
+        ) == "Choose a rejection reason"
+    )
+
+    interaction = FakeInteraction(
+        user_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    asyncio.run(
+        reason_select.callback(
+            interaction
+        )
+    )
+
+    assert interaction.response.deferred is True
+
+
 def test_review_submission_reject_requires_reason_before_modal(
     monkeypatch
 ):
@@ -3468,6 +3547,85 @@ def test_review_invalidation_other_requires_details(
     assert modal.reason.max_length == 500
 
 
+def test_review_invalidation_reason_select_defers(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "BINGO_ORGANISER_ROLE_ID",
+        "999"
+    )
+
+    review_rows = [
+        {
+            "evidence_id": 601,
+            "credited_player_name": "Accepted Player",
+            "team_name": "Team Guthix",
+            "tile_name": "Accepted Tile",
+            "condition_trigger": "ACCEPTED_DROP",
+            "amount": 1,
+            "description": None,
+            "evidence_path": None,
+            "submitter_id": 77777,
+            "submitter_name": "Submitting Player",
+            "credited_discord_user_id": 77777,
+            "evidence_codeword_at_submission": (
+                "Blackout Sky"
+            ),
+            "submitted_at": None
+        }
+    ]
+
+    monkeypatch.setattr(
+        database,
+        "get_accepted_manual_evidence_invalidation_rows",
+        lambda: review_rows
+    )
+
+    ctx = FakeContext(
+        author_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    run_review_invalidation(
+        ctx
+    )
+
+    review_view = ctx.responses[0]["view"]
+
+    reason_select = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "placeholder",
+            None
+        ) == "Choose an invalidation reason"
+    )
+
+    interaction = FakeInteraction(
+        user_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    asyncio.run(
+        reason_select.callback(
+            interaction
+        )
+    )
+
+    assert interaction.response.deferred is True
+
+
 def test_review_submission_rejects_manual_evidence(
     monkeypatch
 ):
@@ -3623,8 +3781,8 @@ def test_review_submission_rejects_manual_evidence(
 
     assert edit["content"] == (
         "❌ **Submission not accepted**\n\n"
-        "**Reason:** The screenshot does not clearly "
-        "show the drop.\n\n"
+        "**Reason:** Wrong item or activity\n"
+        "The screenshot does not clearly show the drop.\n\n"
         "Reviewed by Review Organiser."
     )
 
@@ -5406,6 +5564,7 @@ class FakeInteractionResponse:
         self.messages = []
         self.modals = []
         self.edits = []
+        self.deferred = False
 
     async def send_message(
         self,
@@ -5435,6 +5594,10 @@ class FakeInteractionResponse:
             **kwargs
         })
 
+    async def defer(
+        self
+    ):
+        self.deferred = True
 
 class FakeInteraction:
     def __init__(
