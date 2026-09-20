@@ -907,6 +907,7 @@ def test_bingo_evidence_includes_rejected_manual_reason():
         review_source="DISCORD",
         reviewer_id=54321,
         reviewer_name="Reviewing Staff",
+        reason_code="INSUFFICIENT_EVIDENCE",
         reason="Screenshot does not show the required drop."
     )
 

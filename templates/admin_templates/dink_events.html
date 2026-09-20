@@ -138,15 +138,54 @@
                                 <label style="display: block;
                                             font-size: 0.85em;
                                             margin-bottom: 4px;">
-                                    Reason if rejecting
+                                    Rejection reason
+                                </label>
+
+                                <select name="reason_code"
+                                        required
+                                        style="width: 100%;
+                                                box-sizing: border-box;
+                                                margin-bottom: 6px;
+                                                padding: 6px;
+                                                background-color: #2b2b2b;
+                                                color: #fff;
+                                                border: 1px solid #555;">
+                                    <option value="" selected disabled>
+                                        Choose a reason
+                                    </option>
+                                    <option value="INSUFFICIENT_EVIDENCE">
+                                        Insufficient evidence
+                                    </option>
+                                    <option value="WRONG_ITEM_OR_ACTIVITY">
+                                        Wrong item or activity
+                                    </option>
+                                    <option value="DUPLICATE_EVIDENCE">
+                                        Duplicate evidence
+                                    </option>
+                                    <option value="WRONG_PLAYER_OR_ACCOUNT">
+                                        Wrong player or account
+                                    </option>
+                                    <option value="WRONG_TILE_OR_CONDITION">
+                                        Wrong tile or condition
+                                    </option>
+                                    <option value="DOES_NOT_MEET_REQUIREMENTS">
+                                        Does not meet requirements
+                                    </option>
+                                    <option value="OTHER">
+                                        Other
+                                    </option>
+                                </select>
+
+                                <label style="display: block;
+                                            font-size: 0.85em;
+                                            margin-bottom: 4px;">
+                                    Additional details
                                 </label>
 
                                 <textarea name="reason"
-                                        required
-                                        minlength="3"
                                         maxlength="500"
                                         rows="3"
-                                        placeholder="Why shouldn't this submission count?"
+                                        placeholder="Required for Other; optional for specific reasons."
                                         style="width: 100%;
                                                 box-sizing: border-box;
                                                 margin-bottom: 6px;
@@ -268,12 +307,51 @@
                                     Reason for invalidation
                                 </label>
 
+                                <select name="reason_code"
+                                        required
+                                        style="width: 100%;
+                                               box-sizing: border-box;
+                                               margin-bottom: 6px;
+                                               padding: 6px;
+                                               background-color: #2b2b2b;
+                                               color: #fff;
+                                               border: 1px solid #555;">
+                                    <option value="" selected disabled>
+                                        Choose a reason
+                                    </option>
+                                    <option value="INCORRECT_EVIDENCE">
+                                        Incorrect evidence
+                                    </option>
+                                    <option value="WRONG_ITEM_OR_ACTIVITY">
+                                        Wrong item or activity
+                                    </option>
+                                    <option value="DUPLICATE_EVIDENCE">
+                                        Duplicate evidence
+                                    </option>
+                                    <option value="WRONG_PLAYER_OR_ACCOUNT">
+                                        Wrong player or account
+                                    </option>
+                                    <option value="WRONG_TILE_OR_CONDITION">
+                                        Wrong tile or condition
+                                    </option>
+                                    <option value="ADMINISTRATIVE_TEST_CORRECTION">
+                                        Administrative/test correction
+                                    </option>
+                                    <option value="OTHER">
+                                        Other
+                                    </option>
+                                </select>
+
+                                <label style="display: block;
+                                              font-size: 0.85em;
+                                              margin-bottom: 4px;">
+                                    Additional details
+                                </label>
+
                                 <textarea name="reason"
-                                          required
-                                          minlength="3"
                                           maxlength="500"
                                           rows="3"
-                                          placeholder="Why should this accepted evidence be invalidated?"
+                                          placeholder="Required for Other; optional for specific reasons."
                                           style="width: 100%;
                                                  box-sizing: border-box;
                                                  margin-bottom: 6px;

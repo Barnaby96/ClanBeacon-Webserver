@@ -622,6 +622,81 @@ def test_review_invalidation_dropdown_selects_accepted_evidence(
     )
 
 
+def test_review_invalidation_shows_reason_dropdown(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "BINGO_ORGANISER_ROLE_ID",
+        "999"
+    )
+
+    review_rows = [
+        {
+            "evidence_id": 601,
+            "credited_player_name": "Accepted Player",
+            "team_name": "Team Guthix",
+            "tile_name": "Accepted Tile",
+            "condition_trigger": "ACCEPTED_DROP",
+            "amount": 1,
+            "description": None,
+            "evidence_path": None,
+            "submitter_id": 77777,
+            "submitter_name": "Submitting Player",
+            "credited_discord_user_id": 77777,
+            "evidence_codeword_at_submission": (
+                "Blackout Sky"
+            ),
+            "submitted_at": None
+        }
+    ]
+
+    monkeypatch.setattr(
+        database,
+        "get_accepted_manual_evidence_invalidation_rows",
+        lambda: review_rows
+    )
+
+    ctx = FakeContext(
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    run_review_invalidation(
+        ctx
+    )
+
+    review_view = ctx.responses[0]["view"]
+
+    reason_select = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "placeholder",
+            None
+        ) == "Choose an invalidation reason"
+    )
+
+    assert reason_select.min_values == 1
+    assert reason_select.max_values == 1
+
+    assert [
+        option.value
+        for option in reason_select.options
+    ] == [
+        "INCORRECT_EVIDENCE",
+        "WRONG_ITEM_OR_ACTIVITY",
+        "DUPLICATE_EVIDENCE",
+        "WRONG_PLAYER_OR_ACCOUNT",
+        "WRONG_TILE_OR_CONDITION",
+        "ADMINISTRATIVE_TEST_CORRECTION",
+        "OTHER"
+    ]
+
+
 def test_review_submission_dropdown_selects_manual_evidence(
     monkeypatch
 ):
@@ -2782,6 +2857,31 @@ def test_review_submission_reject_opens_reason_modal(
 
     review_view = ctx.responses[0]["view"]
 
+    reason_select = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "placeholder",
+            None
+        ) == "Choose a rejection reason"
+    )
+
+    assert reason_select.min_values == 1
+    assert reason_select.max_values == 1
+    assert [
+        option.value
+        for option in reason_select.options
+    ] == [
+        "INSUFFICIENT_EVIDENCE",
+        "WRONG_ITEM_OR_ACTIVITY",
+        "DUPLICATE_EVIDENCE",
+        "WRONG_PLAYER_OR_ACCOUNT",
+        "WRONG_TILE_OR_CONDITION",
+        "DOES_NOT_MEET_REQUIREMENTS",
+        "OTHER"
+    ]
+
     reject_button = next(
         child
         for child in review_view.children
@@ -2801,6 +2901,11 @@ def test_review_submission_reject_opens_reason_modal(
             )
         ]
     )
+
+    reason_select._interaction = interaction
+    reason_select._selected_values = [
+        "INSUFFICIENT_EVIDENCE"
+    ]
 
     asyncio.run(
         reject_button.callback(
@@ -2829,9 +2934,312 @@ def test_review_submission_reject_opens_reason_modal(
     assert modal.reason.label == (
         "Why wasn't this accepted?"
     )
+    assert modal.reason_code == "INSUFFICIENT_EVIDENCE"
+    assert modal.reason.required is False
+    assert modal.reason.min_length == 0
+    assert modal.reason.max_length == 500
+
+
+def test_review_submission_reject_other_requires_details(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "BINGO_ORGANISER_ROLE_ID",
+        "999"
+    )
+
+    review_rows = [
+        {
+            "evidence_id": 501,
+            "credited_player_name": "Test Player",
+            "team_name": "Team Zamorak",
+            "tile_name": "Test Tile",
+            "condition_trigger": "TEST_DROP",
+            "amount": 1,
+            "description": None,
+            "evidence_path": None,
+            "submitter_id": 77777,
+            "submitter_name": "Submitting Player",
+            "credited_discord_user_id": 77777,
+            "evidence_codeword_at_submission": (
+                "Blackout Sky"
+            ),
+            "submitted_at": None
+        }
+    ]
+
+    monkeypatch.setattr(
+        database,
+        "get_pending_manual_evidence_review_rows",
+        lambda: review_rows
+    )
+
+    ctx = FakeContext(
+        author_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    run_review_submission(
+        ctx
+    )
+
+    review_view = ctx.responses[0]["view"]
+
+    reason_select = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "placeholder",
+            None
+        ) == "Choose a rejection reason"
+    )
+
+    reject_button = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "label",
+            None
+        ) == "Reject"
+    )
+
+    interaction = FakeInteraction(
+        user_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    reason_select._interaction = interaction
+    reason_select._selected_values = [
+        "OTHER"
+    ]
+
+    asyncio.run(
+        reject_button.callback(
+            interaction
+        )
+    )
+
+    assert len(
+        interaction.response.modals
+    ) == 1
+
+    modal = interaction.response.modals[0]
+
+    assert modal.reason_code == "OTHER"
     assert modal.reason.required is True
     assert modal.reason.min_length == 3
     assert modal.reason.max_length == 500
+
+
+def test_review_submission_reject_requires_reason_before_modal(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "BINGO_ORGANISER_ROLE_ID",
+        "999"
+    )
+
+    review_rows = [
+        {
+            "evidence_id": 501,
+            "credited_player_name": "Test Player",
+            "team_name": "Team Zamorak",
+            "tile_name": "Test Tile",
+            "condition_trigger": "TEST_DROP",
+            "amount": 1,
+            "description": None,
+            "evidence_path": None,
+            "submitter_id": 77777,
+            "submitter_name": "Submitting Player",
+            "credited_discord_user_id": 77777,
+            "evidence_codeword_at_submission": (
+                "Blackout Sky"
+            ),
+            "submitted_at": None
+        }
+    ]
+
+    monkeypatch.setattr(
+        database,
+        "get_pending_manual_evidence_review_rows",
+        lambda: review_rows
+    )
+
+    monkeypatch.setattr(
+        database,
+        "reject_pending_manual_evidence",
+        lambda **kwargs: pytest.fail(
+            "Reject backend should not run until "
+            "the modal is submitted."
+        )
+    )
+
+    ctx = FakeContext(
+        author_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    run_review_submission(
+        ctx
+    )
+
+    review_view = ctx.responses[0]["view"]
+
+    reject_button = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "label",
+            None
+        ) == "Reject"
+    )
+
+    interaction = FakeInteraction(
+        user_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    asyncio.run(
+        reject_button.callback(
+            interaction
+        )
+    )
+
+    assert len(
+        interaction.response.modals
+    ) == 0
+
+    assert len(
+        interaction.response.messages
+    ) == 1
+
+    assert (
+        interaction.response.messages[0]["content"]
+        == "Choose a rejection reason first."
+    )
+
+    assert (
+        interaction.response.messages[0]["ephemeral"]
+        is True
+    )
+
+
+def test_review_invalidation_requires_reason_before_modal(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "BINGO_ORGANISER_ROLE_ID",
+        "999"
+    )
+
+    review_rows = [
+        {
+            "evidence_id": 601,
+            "credited_player_name": "Accepted Player",
+            "team_name": "Team Guthix",
+            "tile_name": "Accepted Tile",
+            "condition_trigger": "ACCEPTED_DROP",
+            "amount": 1,
+            "description": None,
+            "evidence_path": None,
+            "submitter_id": 77777,
+            "submitter_name": "Submitting Player",
+            "credited_discord_user_id": 77777,
+            "evidence_codeword_at_submission": (
+                "Blackout Sky"
+            ),
+            "submitted_at": None
+        }
+    ]
+
+    monkeypatch.setattr(
+        database,
+        "get_accepted_manual_evidence_invalidation_rows",
+        lambda: review_rows
+    )
+
+    ctx = FakeContext(
+        author_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    run_review_invalidation(
+        ctx
+    )
+
+    review_view = ctx.responses[0]["view"]
+
+    invalidate_button = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "label",
+            None
+        ) == "Invalidate"
+    )
+
+    interaction = FakeInteraction(
+        user_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    asyncio.run(
+        invalidate_button.callback(
+            interaction
+        )
+    )
+
+    assert len(
+        interaction.response.modals
+    ) == 0
+
+    assert len(
+        interaction.response.messages
+    ) == 1
+
+    assert (
+        interaction.response.messages[0]["content"]
+        == "Choose an invalidation reason first."
+    )
+
+    assert (
+        interaction.response.messages[0]["ephemeral"]
+        is True
+    )
 
 
 def test_review_invalidation_opens_reason_modal(
@@ -2913,6 +3321,21 @@ def test_review_invalidation_opens_reason_modal(
         ]
     )
 
+    reason_select = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "placeholder",
+            None
+        ) == "Choose an invalidation reason"
+    )
+
+    reason_select._interaction = interaction
+    reason_select._selected_values = [
+        "WRONG_TILE_OR_CONDITION"
+    ]
+
     asyncio.run(
         invalidate_button.callback(
             interaction
@@ -2936,10 +3359,110 @@ def test_review_invalidation_opens_reason_modal(
     assert modal.title == "Invalidate Submission"
     assert modal.evidence_id == 601
     assert modal.reviewer_id == 12345
+    assert modal.reason_code == "WRONG_TILE_OR_CONDITION"
 
     assert modal.reason.label == (
         "Why should this evidence be invalidated?"
     )
+    assert modal.reason.required is False
+    assert modal.reason.min_length == 0
+    assert modal.reason.max_length == 500
+
+
+def test_review_invalidation_other_requires_details(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "BINGO_ORGANISER_ROLE_ID",
+        "999"
+    )
+
+    review_rows = [
+        {
+            "evidence_id": 601,
+            "credited_player_name": "Accepted Player",
+            "team_name": "Team Guthix",
+            "tile_name": "Accepted Tile",
+            "condition_trigger": "ACCEPTED_DROP",
+            "amount": 1,
+            "description": None,
+            "evidence_path": None,
+            "submitter_id": 77777,
+            "submitter_name": "Submitting Player",
+            "credited_discord_user_id": 77777,
+            "evidence_codeword_at_submission": (
+                "Blackout Sky"
+            ),
+            "submitted_at": None
+        }
+    ]
+
+    monkeypatch.setattr(
+        database,
+        "get_accepted_manual_evidence_invalidation_rows",
+        lambda: review_rows
+    )
+
+    ctx = FakeContext(
+        author_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    run_review_invalidation(
+        ctx
+    )
+
+    review_view = ctx.responses[0]["view"]
+
+    invalidate_button = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "label",
+            None
+        ) == "Invalidate"
+    )
+
+    interaction = FakeInteraction(
+        user_id=12345,
+        display_name="Review Organiser",
+        roles=[
+            SimpleNamespace(
+                id=999
+            )
+        ]
+    )
+
+    reason_select = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "placeholder",
+            None
+        ) == "Choose an invalidation reason"
+    )
+
+    reason_select._interaction = interaction
+    reason_select._selected_values = [
+        "OTHER"
+    ]
+
+    asyncio.run(
+        invalidate_button.callback(
+            interaction
+        )
+    )
+
+    modal = interaction.response.modals[0]
+
+    assert modal.reason_code == "OTHER"
     assert modal.reason.required is True
     assert modal.reason.min_length == 3
     assert modal.reason.max_length == 500
@@ -3032,6 +3555,21 @@ def test_review_submission_rejects_manual_evidence(
         ]
     )
 
+    reason_select = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "placeholder",
+            None
+        ) == "Choose a rejection reason"
+    )
+
+    reason_select._interaction = open_interaction
+    reason_select._selected_values = [
+        "WRONG_ITEM_OR_ACTIVITY"
+    ]
+
     asyncio.run(
         reject_button.callback(
             open_interaction
@@ -3068,7 +3606,8 @@ def test_review_submission_rejects_manual_evidence(
             "review_source": "DISCORD",
             "reviewer_id": 12345,
             "reviewer_name": "Review Organiser",
-            "reason": rejection_reason
+            "reason": rejection_reason,
+            "reason_code": "WRONG_ITEM_OR_ACTIVITY"
         }
     ]
 
@@ -3184,6 +3723,21 @@ def test_review_invalidation_invalidates_manual_evidence(
         ]
     )
 
+    reason_select = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "placeholder",
+            None
+        ) == "Choose an invalidation reason"
+    )
+
+    reason_select._interaction = open_interaction
+    reason_select._selected_values = [
+        "WRONG_ITEM_OR_ACTIVITY"
+    ]
+
     asyncio.run(
         invalidate_button.callback(
             open_interaction
@@ -3218,7 +3772,7 @@ def test_review_invalidation_invalidates_manual_evidence(
         {
             "subject_type": "MANUAL_EVIDENCE",
             "subject_id": 601,
-            "reason_code": "INCORRECT_EVIDENCE",
+            "reason_code": "WRONG_ITEM_OR_ACTIVITY",
             "review_source": "DISCORD",
             "reviewer_id": 12345,
             "reviewer_name": "Review Organiser",
@@ -3353,6 +3907,21 @@ def test_review_invalidation_reports_reconciliation(
             )
         ]
     )
+
+    reason_select = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "placeholder",
+            None
+        ) == "Choose an invalidation reason"
+    )
+
+    reason_select._interaction = open_interaction
+    reason_select._selected_values = [
+        "INCORRECT_EVIDENCE"
+    ]
 
     asyncio.run(
         invalidate_button.callback(
@@ -3495,6 +4064,21 @@ def test_review_invalidation_surfaces_backend_refusal(
         ]
     )
 
+    reason_select = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "placeholder",
+            None
+        ) == "Choose an invalidation reason"
+    )
+
+    reason_select._interaction = open_interaction
+    reason_select._selected_values = [
+        "INCORRECT_EVIDENCE"
+    ]
+
     asyncio.run(
         invalidate_button.callback(
             open_interaction
@@ -3628,6 +4212,21 @@ def test_review_submission_reject_blocks_for_earlier_pending_evidence(
         ]
     )
 
+    reason_select = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "placeholder",
+            None
+        ) == "Choose a rejection reason"
+    )
+
+    reason_select._interaction = open_interaction
+    reason_select._selected_values = [
+        "INSUFFICIENT_EVIDENCE"
+    ]
+
     asyncio.run(
         reject_button.callback(
             open_interaction
@@ -3745,6 +4344,21 @@ def test_review_submission_reject_handles_missing_evidence(
             )
         ]
     )
+
+    reason_select = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "placeholder",
+            None
+        ) == "Choose a rejection reason"
+    )
+
+    reason_select._interaction = open_interaction
+    reason_select._selected_values = [
+        "INSUFFICIENT_EVIDENCE"
+    ]
 
     asyncio.run(
         reject_button.callback(
@@ -3865,6 +4479,21 @@ def test_review_submission_reject_handles_already_reviewed_evidence(
             )
         ]
     )
+
+    reason_select = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "placeholder",
+            None
+        ) == "Choose a rejection reason"
+    )
+
+    reason_select._interaction = open_interaction
+    reason_select._selected_values = [
+        "INSUFFICIENT_EVIDENCE"
+    ]
 
     asyncio.run(
         reject_button.callback(
@@ -4103,6 +4732,21 @@ def test_review_submission_reject_rechecks_role_on_modal_submit(
         ]
     )
 
+    reason_select = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "placeholder",
+            None
+        ) == "Choose a rejection reason"
+    )
+
+    reason_select._interaction = open_interaction
+    reason_select._selected_values = [
+        "INSUFFICIENT_EVIDENCE"
+    ]
+
     asyncio.run(
         reject_button.callback(
             open_interaction
@@ -4231,6 +4875,21 @@ def test_review_invalidation_rechecks_role_on_modal_submit(
             )
         ]
     )
+
+    reason_select = next(
+        child
+        for child in review_view.children
+        if getattr(
+            child,
+            "placeholder",
+            None
+        ) == "Choose an invalidation reason"
+    )
+
+    reason_select._interaction = open_interaction
+    reason_select._selected_values = [
+        "INCORRECT_EVIDENCE"
+    ]
 
     asyncio.run(
         invalidate_button.callback(

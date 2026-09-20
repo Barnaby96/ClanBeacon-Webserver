@@ -626,6 +626,7 @@ def test_reject_pending_dink_event_marks_event_rejected(client):
         review_source="WEB",
         reviewer_id=123,
         reviewer_name="Reject Test Admin",
+        reason_code="INSUFFICIENT_EVIDENCE",
         reason=(
             "Screenshot does not clearly show the drop."
         )
@@ -658,6 +659,19 @@ def test_reject_pending_dink_event_marks_event_rejected(client):
         "Screenshot does not clearly show the drop."
     )
     assert decision[8] is not None
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT reason_code
+            FROM staff_review_decisions
+            WHERE decision_id = %s
+            ''',
+            (reject_result["decision_id"],)
+        )
+
+        assert cursor.fetchone()[0] == "INSUFFICIENT_EVIDENCE"
 
     review_rows = database.get_pending_dink_event_review_rows()
 
@@ -715,6 +729,22 @@ def test_admin_can_view_historical_dink_event_review(client):
     assert "Wrong Historical Name" in page
     assert "Historical Review Team" in page
     assert "historical-review-test-hash" in page
+    assert 'name="reason_code"' in page
+    assert "Rejection reason" in page
+
+    for reason_code in (
+        "INSUFFICIENT_EVIDENCE",
+        "WRONG_ITEM_OR_ACTIVITY",
+        "DUPLICATE_EVIDENCE",
+        "WRONG_PLAYER_OR_ACCOUNT",
+        "WRONG_TILE_OR_CONDITION",
+        "DOES_NOT_MEET_REQUIREMENTS",
+        "OTHER"
+    ):
+        assert (
+            f'value="{reason_code}"'
+            in page
+        )
 
 
 def test_admin_can_reject_historical_dink_event(client):
@@ -740,6 +770,7 @@ def test_admin_can_reject_historical_dink_event(client):
         data={
             "action": "reject_event",
             "event_id": str(event_id),
+            "reason_code": "INSUFFICIENT_EVIDENCE",
             "reason": "Screenshot does not clearly show the drop."
         },
         follow_redirects=True
@@ -778,6 +809,20 @@ def test_admin_can_reject_historical_dink_event(client):
         == "Screenshot does not clearly show the drop."
     )
 
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT reason_code
+            FROM staff_review_decisions
+            WHERE subject_type = 'DINK_EVENT'
+              AND subject_id = %s
+            ''',
+            (event_id,)
+        )
+
+        assert cursor.fetchone()[0] == "INSUFFICIENT_EVIDENCE"
+
     review_rows = (
         database.get_pending_dink_event_review_rows()
     )
@@ -803,14 +848,41 @@ def test_admin_cannot_reject_without_valid_reason(client):
 
     login_admin(client)
 
-    for reason in ("", "No", "x" * 501):
-        response = client.post(
-            "/admin/dink_events",
-            data={
+    invalid_posts = [
+        (
+            {
                 "action": "reject_event",
                 "event_id": str(event_id),
-                "reason": reason
+                "reason": ""
             },
+            "Unsupported rejection reason code:"
+        ),
+        (
+            {
+                "action": "reject_event",
+                "event_id": str(event_id),
+                "reason_code": "OTHER",
+                "reason": ""
+            },
+            "Additional details are required when the rejection "
+            "reason is Other."
+        ),
+        (
+            {
+                "action": "reject_event",
+                "event_id": str(event_id),
+                "reason_code": "INSUFFICIENT_EVIDENCE",
+                "reason": "x" * 501
+            },
+            "Additional rejection details cannot exceed "
+            "500 characters."
+        )
+    ]
+
+    for payload, expected_message in invalid_posts:
+        response = client.post(
+            "/admin/dink_events",
+            data=payload,
             follow_redirects=True
         )
 
@@ -820,11 +892,7 @@ def test_admin_cannot_reject_without_valid_reason(client):
             as_text=True
         )
 
-        assert (
-            "Please give a reason for rejecting this submission "
-            "(3 to 500 characters)."
-            in page
-        )
+        assert expected_message in page
 
         event = database.get_dink_event_by_id(
             event_id
@@ -2513,6 +2581,21 @@ def test_admin_can_view_accepted_manual_evidence_for_invalidation(
         in page
     )
     assert 'name="reason"' in page
+    assert 'name="reason_code"' in page
+
+    for reason_code in (
+        "INCORRECT_EVIDENCE",
+        "WRONG_ITEM_OR_ACTIVITY",
+        "DUPLICATE_EVIDENCE",
+        "WRONG_PLAYER_OR_ACCOUNT",
+        "WRONG_TILE_OR_CONDITION",
+        "ADMINISTRATIVE_TEST_CORRECTION",
+        "OTHER"
+    ):
+        assert (
+            f'value="{reason_code}"'
+            in page
+        )
 
 def test_admin_can_invalidate_accepted_manual_evidence(
     client
@@ -2574,10 +2657,8 @@ def test_admin_can_invalidate_accepted_manual_evidence(
             "evidence_id": str(
                 submission["evidence_id"]
             ),
-            "reason": (
-                "This evidence was accepted against "
-                "the wrong drop."
-            )
+            "reason_code": "WRONG_ITEM_OR_ACTIVITY",
+            "reason": ""
         },
         follow_redirects=True
     )
@@ -2601,6 +2682,29 @@ def test_admin_can_invalidate_accepted_manual_evidence(
     assert all(
         row["evidence_id"] != submission["evidence_id"]
         for row in review_rows
+    )
+
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                reason_code,
+                details
+            FROM evidence_invalidations
+            WHERE subject_type = 'MANUAL_EVIDENCE'
+              AND subject_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        invalidation = cursor.fetchone()
+
+    assert invalidation == (
+        "WRONG_ITEM_OR_ACTIVITY",
+        None
     )
 
 
@@ -2823,6 +2927,7 @@ def test_admin_manual_evidence_invalidation_surfaces_backend_refusal(
             "evidence_id": str(
                 submission["evidence_id"]
             ),
+            "reason_code": "INCORRECT_EVIDENCE",
             "reason": (
                 "This evidence was accepted incorrectly."
             )
@@ -2853,6 +2958,111 @@ def test_admin_manual_evidence_invalidation_surfaces_backend_refusal(
     assert refusal_message in page
     assert "Web Invalidation Refusal Tester" in page
     assert "Web Invalidation Refusal Tile" in page
+
+
+def test_admin_manual_evidence_invalidation_other_requires_details(
+    client
+):
+    create_test_player(
+        "Web Other Reason Tester",
+        team_name="Web Other Reason Team"
+    )
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Web Other Reason Tile",
+        tile_points=2,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Web Other Reason Drop",
+                "target": 2
+            }
+        ]
+    )
+
+    player = database.get_player_by_name(
+        "Web Other Reason Tester"
+    )
+
+    condition_id = database.get_tile_conditions(
+        tile_id
+    )[0][0]
+
+    submission = database.add_manual_evidence(
+        player_id=player[0],
+        condition_id=condition_id,
+        amount=1,
+        description="Evidence for Other reason validation.",
+        evidence_path=None,
+        evidence_sha256=None,
+        submission_source="WEB",
+        submitter_id=123456789,
+        submitter_name="Submitting Staff"
+    )
+
+    accepted = database.accept_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="WEB",
+        reviewer_id=987654321,
+        reviewer_name="Reviewing Staff"
+    )
+
+    assert accepted["status"] == "ACCEPTED"
+
+    login_admin(client)
+
+    response = client.post(
+        "/admin/dink_events",
+        data={
+            "action": "invalidate_manual_evidence",
+            "evidence_id": str(
+                submission["evidence_id"]
+            ),
+            "reason_code": "OTHER",
+            "reason": ""
+        },
+        follow_redirects=True
+    )
+
+    assert response.status_code == 200
+
+    page = response.get_data(
+        as_text=True
+    )
+
+    assert (
+        "Additional details are required when the "
+        "invalidation reason is Other."
+        in page
+    )
+
+    review_rows = (
+        database.get_accepted_manual_evidence_invalidation_rows()
+    )
+
+    assert any(
+        row["evidence_id"] == submission["evidence_id"]
+        for row in review_rows
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM evidence_invalidations
+            WHERE subject_type = 'MANUAL_EVIDENCE'
+              AND subject_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        invalidation_count = cursor.fetchone()[0]
+
+    assert invalidation_count == 0
 
 
 def test_manual_evidence_freezes_full_tile_snapshot():
@@ -4964,6 +5174,7 @@ def test_manual_evidence_review_requires_oldest_pending_first():
         review_source="DISCORD",
         reviewer_id=11111,
         reviewer_name="Reviewing Staff",
+        reason_code="INSUFFICIENT_EVIDENCE",
         reason="Second submission test rejection."
     )
 
@@ -5009,6 +5220,7 @@ def test_manual_evidence_review_requires_oldest_pending_first():
         review_source="DISCORD",
         reviewer_id=11111,
         reviewer_name="Reviewing Staff",
+        reason_code="INSUFFICIENT_EVIDENCE",
         reason="First submission test rejection."
     )
 
@@ -5019,6 +5231,7 @@ def test_manual_evidence_review_requires_oldest_pending_first():
         review_source="DISCORD",
         reviewer_id=11111,
         reviewer_name="Reviewing Staff",
+        reason_code="INSUFFICIENT_EVIDENCE",
         reason="Second submission test rejection."
     )
 
@@ -11068,6 +11281,7 @@ def test_reject_pending_manual_evidence_records_decision():
         review_source="DISCORD",
         reviewer_id=67890,
         reviewer_name="Reviewing Staff",
+        reason_code="INSUFFICIENT_EVIDENCE",
         reason="Evidence does not clearly show completion."
     )
 
@@ -11104,6 +11318,18 @@ def test_reject_pending_manual_evidence_records_decision():
 
         cursor.execute(
             '''
+            SELECT reason_code
+            FROM staff_review_decisions
+            WHERE subject_type = 'MANUAL_EVIDENCE'
+              AND subject_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        assert cursor.fetchone()[0] == "INSUFFICIENT_EVIDENCE"
+
+        cursor.execute(
+            '''
             SELECT progress
             FROM tile_condition_progress
             WHERE team_id = %s
@@ -11116,6 +11342,160 @@ def test_reject_pending_manual_evidence_records_decision():
         )
 
         assert cursor.fetchone() is None
+
+
+def test_reject_pending_manual_evidence_allows_blank_details_for_specific_reason():
+    create_test_player(
+        "Manual Reject Blank Details Tester",
+        team_name="Manual Reject Blank Details Team"
+    )
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Manual Reject Blank Details Tile",
+        tile_points=1,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "MANUAL",
+                "condition_trigger": None,
+                "target": 1
+            }
+        ]
+    )
+
+    player = database.get_player_by_name(
+        "Manual Reject Blank Details Tester"
+    )
+
+    condition_id = database.get_tile_conditions(
+        tile_id
+    )[0][0]
+
+    submission = database.add_manual_evidence(
+        player_id=player[0],
+        condition_id=condition_id,
+        amount=1,
+        description="Specific rejection reason without details.",
+        evidence_path=None,
+        evidence_sha256=None,
+        submission_source="WEB",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
+    )
+
+    result = database.reject_pending_manual_evidence(
+        evidence_id=submission["evidence_id"],
+        review_source="WEB",
+        reviewer_id=67890,
+        reviewer_name="Reviewing Staff",
+        reason_code="WRONG_TILE_OR_CONDITION",
+        reason=""
+    )
+
+    assert result["status"] == "REJECTED"
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT reason_code, reason
+            FROM staff_review_decisions
+            WHERE subject_type = 'MANUAL_EVIDENCE'
+              AND subject_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        assert cursor.fetchone() == (
+            "WRONG_TILE_OR_CONDITION",
+            None
+        )
+
+
+def test_reject_pending_manual_evidence_other_requires_details_atomically():
+    create_test_player(
+        "Manual Reject Other Tester",
+        team_name="Manual Reject Other Team"
+    )
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name="Manual Reject Other Tile",
+        tile_points=1,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "MANUAL",
+                "condition_trigger": None,
+                "target": 1
+            }
+        ]
+    )
+
+    player = database.get_player_by_name(
+        "Manual Reject Other Tester"
+    )
+
+    condition_id = database.get_tile_conditions(
+        tile_id
+    )[0][0]
+
+    submission = database.add_manual_evidence(
+        player_id=player[0],
+        condition_id=condition_id,
+        amount=1,
+        description="Other rejection reason without details.",
+        evidence_path=None,
+        evidence_sha256=None,
+        submission_source="WEB",
+        submitter_id=12345,
+        submitter_name="Submitting Staff"
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Additional details are required when the "
+            "rejection reason is Other."
+        )
+    ):
+        database.reject_pending_manual_evidence(
+            evidence_id=submission["evidence_id"],
+            review_source="WEB",
+            reviewer_id=67890,
+            reviewer_name="Reviewing Staff",
+            reason_code="OTHER",
+            reason=""
+        )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT status
+            FROM manual_evidence
+            WHERE evidence_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        assert cursor.fetchone()[0] == "PENDING"
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM staff_review_decisions
+            WHERE subject_type = 'MANUAL_EVIDENCE'
+              AND subject_id = %s
+            ''',
+            (submission["evidence_id"],)
+        )
+
+        assert cursor.fetchone()[0] == 0
+
 
 def test_manual_evidence_refuses_killcount_and_experience():
     create_test_player(

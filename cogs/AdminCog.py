@@ -455,7 +455,8 @@ class SubmissionRejectionModal(
     def __init__(
         self,
         evidence_id,
-        reviewer_id
+        reviewer_id,
+        reason_code
     ):
         super().__init__(
             title="Not Accepting Submission"
@@ -469,6 +470,10 @@ class SubmissionRejectionModal(
             reviewer_id
         )
 
+        self.reason_code = str(
+            reason_code
+        )
+
         self.reason = discord.ui.InputText(
             label="Why wasn't this accepted?",
             style=discord.InputTextStyle.long,
@@ -476,9 +481,15 @@ class SubmissionRejectionModal(
                 "For example: the screenshot "
                 "doesn't clearly show the drop."
             ),
-            min_length=3,
+            min_length=(
+                3
+                if self.reason_code == "OTHER"
+                else 0
+            ),
             max_length=500,
-            required=True
+            required=(
+                self.reason_code == "OTHER"
+            )
         )
 
         self.add_item(
@@ -505,7 +516,8 @@ class SubmissionRejectionModal(
                 reviewer_name=(
                     interaction.user.display_name
                 ),
-                reason=self.reason.value
+                reason=self.reason.value,
+                reason_code=self.reason_code
             )
         )
 
@@ -638,6 +650,47 @@ class SubmissionReviewView(
                     self.reviewer_id
                 )
             )
+        )
+
+        self.rejection_reason_select = discord.ui.Select(
+            placeholder="Choose a rejection reason",
+            min_values=1,
+            max_values=1,
+            options=[
+                discord.SelectOption(
+                    label="Insufficient evidence",
+                    value="INSUFFICIENT_EVIDENCE"
+                ),
+                discord.SelectOption(
+                    label="Wrong item or activity",
+                    value="WRONG_ITEM_OR_ACTIVITY"
+                ),
+                discord.SelectOption(
+                    label="Duplicate evidence",
+                    value="DUPLICATE_EVIDENCE"
+                ),
+                discord.SelectOption(
+                    label="Wrong player or account",
+                    value="WRONG_PLAYER_OR_ACCOUNT"
+                ),
+                discord.SelectOption(
+                    label="Wrong tile or condition",
+                    value="WRONG_TILE_OR_CONDITION"
+                ),
+                discord.SelectOption(
+                    label="Does not meet requirements",
+                    value="DOES_NOT_MEET_REQUIREMENTS"
+                ),
+                discord.SelectOption(
+                    label="Other",
+                    value="OTHER"
+                )
+            ],
+            row=1
+        )
+
+        self.add_item(
+            self.rejection_reason_select
         )
 
     async def _check_reviewer(
@@ -822,7 +875,7 @@ class SubmissionReviewView(
         label="Accept",
         emoji="✅",
         style=discord.ButtonStyle.success,
-        row=1
+        row=2
     )
     async def accept_submission(
         self,
@@ -900,7 +953,7 @@ class SubmissionReviewView(
         label="Reject",
         emoji="❌",
         style=discord.ButtonStyle.danger,
-        row=1
+        row=2
     )
     async def reject_submission(
         self,
@@ -912,9 +965,17 @@ class SubmissionReviewView(
         ):
             return
 
+        if not self.rejection_reason_select.values:
+            await interaction.response.send_message(
+                "Choose a rejection reason first.",
+                ephemeral=True
+            )
+            return
+
         modal = SubmissionRejectionModal(
             evidence_id=self.selected_evidence_id,
-            reviewer_id=self.reviewer_id
+            reviewer_id=self.reviewer_id,
+            reason_code=self.rejection_reason_select.values[0]
         )
 
         await interaction.response.send_modal(
@@ -1088,11 +1149,53 @@ class SubmissionInvalidationView(
         )
 
 
+        self.reason_select = discord.ui.Select(
+            placeholder="Choose an invalidation reason",
+            min_values=1,
+            max_values=1,
+            options=[
+                discord.SelectOption(
+                    label="Incorrect evidence",
+                    value="INCORRECT_EVIDENCE"
+                ),
+                discord.SelectOption(
+                    label="Wrong item or activity",
+                    value="WRONG_ITEM_OR_ACTIVITY"
+                ),
+                discord.SelectOption(
+                    label="Duplicate evidence",
+                    value="DUPLICATE_EVIDENCE"
+                ),
+                discord.SelectOption(
+                    label="Wrong player or account",
+                    value="WRONG_PLAYER_OR_ACCOUNT"
+                ),
+                discord.SelectOption(
+                    label="Wrong tile or condition",
+                    value="WRONG_TILE_OR_CONDITION"
+                ),
+                discord.SelectOption(
+                    label="Administrative/test correction",
+                    value="ADMINISTRATIVE_TEST_CORRECTION"
+                ),
+                discord.SelectOption(
+                    label="Other",
+                    value="OTHER"
+                )
+            ],
+            row=1
+        )
+
+        self.add_item(
+            self.reason_select
+        )
+
+
     @discord.ui.button(
         label="Invalidate",
         emoji="⚠️",
         style=discord.ButtonStyle.danger,
-        row=1
+        row=2
     )
     async def invalidate_submission(
         self,
@@ -1105,9 +1208,17 @@ class SubmissionInvalidationView(
         ):
             return
 
+        if not self.reason_select.values:
+            await interaction.response.send_message(
+                "Choose an invalidation reason first.",
+                ephemeral=True
+            )
+            return
+
         modal = SubmissionInvalidationModal(
             evidence_id=self.selected_evidence_id,
-            reviewer_id=self.reviewer_id
+            reviewer_id=self.reviewer_id,
+            reason_code=self.reason_select.values[0]
         )
 
         await interaction.response.send_modal(
@@ -1121,7 +1232,8 @@ class SubmissionInvalidationModal(
     def __init__(
         self,
         evidence_id,
-        reviewer_id
+        reviewer_id,
+        reason_code
     ):
         super().__init__(
             title="Invalidate Submission"
@@ -1135,6 +1247,10 @@ class SubmissionInvalidationModal(
             reviewer_id
         )
 
+        self.reason_code = str(
+            reason_code
+        )
+
         self.reason = discord.ui.InputText(
             label="Why should this evidence be invalidated?",
             style=discord.InputTextStyle.long,
@@ -1142,9 +1258,15 @@ class SubmissionInvalidationModal(
                 "For example: the screenshot was accepted "
                 "against the wrong drop."
             ),
-            min_length=3,
+            min_length=(
+                3
+                if self.reason_code == "OTHER"
+                else 0
+            ),
             max_length=500,
-            required=True
+            required=(
+                self.reason_code == "OTHER"
+            )
         )
 
         self.add_item(
@@ -1166,7 +1288,7 @@ class SubmissionInvalidationModal(
             result = database.invalidate_bingo_evidence(
                 subject_type="MANUAL_EVIDENCE",
                 subject_id=self.evidence_id,
-                reason_code="INCORRECT_EVIDENCE",
+                reason_code=self.reason_code,
                 review_source="DISCORD",
                 reviewer_id=interaction.user.id,
                 reviewer_name=interaction.user.display_name,

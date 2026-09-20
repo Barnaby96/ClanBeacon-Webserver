@@ -664,6 +664,7 @@ def ensure_schema():
                 reviewer_id BIGINT NOT NULL,
                 reviewer_name TEXT NOT NULL,
                 reason TEXT,
+                reason_code TEXT,
                 audit_only BOOLEAN NOT NULL DEFAULT FALSE,
                 decided_at TIMESTAMPTZ NOT NULL
                     DEFAULT CURRENT_TIMESTAMP,
@@ -688,6 +689,17 @@ def ensure_schema():
                         'WEB',
                         'DISCORD'
                     )
+                ),
+                CHECK (
+                    reason_code IN (
+                        'INSUFFICIENT_EVIDENCE',
+                        'WRONG_ITEM_OR_ACTIVITY',
+                        'DUPLICATE_EVIDENCE',
+                        'WRONG_PLAYER_OR_ACCOUNT',
+                        'WRONG_TILE_OR_CONDITION',
+                        'DOES_NOT_MEET_REQUIREMENTS',
+                        'OTHER'
+                    )
                 )
             )
         ''')
@@ -696,6 +708,42 @@ def ensure_schema():
             ALTER TABLE staff_review_decisions
             ADD COLUMN IF NOT EXISTS
                 audit_only BOOLEAN NOT NULL DEFAULT FALSE
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE staff_review_decisions
+            ADD COLUMN IF NOT EXISTS
+                reason_code TEXT
+        ''')
+
+        cursor.execute('''
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname =
+                        'staff_review_decisions_reason_code_check'
+                      AND conrelid =
+                        'staff_review_decisions'::regclass
+                ) THEN
+                    ALTER TABLE staff_review_decisions
+                    ADD CONSTRAINT
+                        staff_review_decisions_reason_code_check
+                    CHECK (
+                        reason_code IN (
+                            'INSUFFICIENT_EVIDENCE',
+                            'WRONG_ITEM_OR_ACTIVITY',
+                            'DUPLICATE_EVIDENCE',
+                            'WRONG_PLAYER_OR_ACCOUNT',
+                            'WRONG_TILE_OR_CONDITION',
+                            'DOES_NOT_MEET_REQUIREMENTS',
+                            'OTHER'
+                        )
+                    );
+                END IF;
+            END
+            $$;
         ''')
 
         cursor.execute('''
@@ -5015,7 +5063,8 @@ def _record_staff_review_decision(
     reviewer_id,
     reviewer_name,
     reason=None,
-    audit_only=False
+    audit_only=False,
+    reason_code=None
 ):
     if reviewer_name is None:
         raise ValueError(
@@ -5051,10 +5100,12 @@ def _record_staff_review_decision(
             reviewer_id,
             reviewer_name,
             reason,
+            reason_code,
             audit_only,
             decided_at
         )
         VALUES (
+            %s,
             %s,
             %s,
             %s,
@@ -5075,6 +5126,7 @@ def _record_staff_review_decision(
             reviewer_id,
             reviewer_name,
             reason,
+            reason_code,
             bool(audit_only)
         )
     )
@@ -9714,8 +9766,47 @@ def reject_pending_manual_evidence(
     review_source,
     reviewer_id,
     reviewer_name,
-    reason=None
+    reason=None,
+    reason_code=None
 ):
+    valid_reason_codes = {
+        "INSUFFICIENT_EVIDENCE",
+        "WRONG_ITEM_OR_ACTIVITY",
+        "DUPLICATE_EVIDENCE",
+        "WRONG_PLAYER_OR_ACCOUNT",
+        "WRONG_TILE_OR_CONDITION",
+        "DOES_NOT_MEET_REQUIREMENTS",
+        "OTHER"
+    }
+
+    if reason_code is None:
+        reason_code = ""
+    else:
+        reason_code = str(reason_code).strip()
+
+    if reason_code not in valid_reason_codes:
+        raise ValueError(
+            f"Unsupported rejection reason code: {reason_code}"
+        )
+
+    if reason is not None:
+        reason = str(reason).strip()
+
+        if not reason:
+            reason = None
+
+    if reason is not None and len(reason) > 500:
+        raise ValueError(
+            "Additional rejection details cannot exceed "
+            "500 characters."
+        )
+
+    if reason_code == "OTHER" and reason is None:
+        raise ValueError(
+            "Additional details are required when the "
+            "rejection reason is Other."
+        )
+
     with connect() as conn:
         cursor = conn.cursor()
 
@@ -9789,7 +9880,8 @@ def reject_pending_manual_evidence(
             review_source=review_source,
             reviewer_id=reviewer_id,
             reviewer_name=reviewer_name,
-            reason=reason
+            reason=reason,
+            reason_code=reason_code
         )
 
         conn.commit()
@@ -9837,8 +9929,49 @@ def reject_pending_dink_event(
     review_source,
     reviewer_id,
     reviewer_name,
-    reason=None
+    reason=None,
+    reason_code=None
 ):
+    valid_reason_codes = {
+        "INSUFFICIENT_EVIDENCE",
+        "WRONG_ITEM_OR_ACTIVITY",
+        "DUPLICATE_EVIDENCE",
+        "WRONG_PLAYER_OR_ACCOUNT",
+        "WRONG_TILE_OR_CONDITION",
+        "DOES_NOT_MEET_REQUIREMENTS",
+        "OTHER"
+    }
+
+    if reason_code is None:
+        reason_code = ""
+    else:
+        reason_code = str(
+            reason_code
+        ).strip()
+
+    if reason_code not in valid_reason_codes:
+        raise ValueError(
+            f"Unsupported rejection reason code: {reason_code}"
+        )
+
+    if reason is not None:
+        reason = str(
+            reason
+        ).strip()
+
+        if not reason:
+            reason = None
+
+    if reason is not None and len(reason) > 500:
+        raise ValueError(
+            "Additional rejection details cannot exceed 500 characters."
+        )
+
+    if reason_code == "OTHER" and reason is None:
+        raise ValueError(
+            "Additional details are required when the rejection reason is Other."
+        )
+
     with connect() as conn:
         cursor = conn.cursor()
 
@@ -9894,7 +10027,8 @@ def reject_pending_dink_event(
             review_source=review_source,
             reviewer_id=reviewer_id,
             reviewer_name=reviewer_name,
-            reason=reason
+            reason=reason,
+            reason_code=reason_code
         )
 
         conn.commit()
@@ -13762,6 +13896,7 @@ def reset_tables():
             reviewer_id BIGINT NOT NULL,
             reviewer_name TEXT NOT NULL,
             reason TEXT,
+            reason_code TEXT,
             audit_only BOOLEAN NOT NULL DEFAULT FALSE,
             decided_at TIMESTAMPTZ NOT NULL
                 DEFAULT CURRENT_TIMESTAMP,
@@ -13785,6 +13920,17 @@ def reset_tables():
                 review_source IN (
                     'WEB',
                     'DISCORD'
+                )
+            ),
+            CHECK (
+                reason_code IN (
+                    'INSUFFICIENT_EVIDENCE',
+                    'WRONG_ITEM_OR_ACTIVITY',
+                    'DUPLICATE_EVIDENCE',
+                    'WRONG_PLAYER_OR_ACCOUNT',
+                    'WRONG_TILE_OR_CONDITION',
+                    'DOES_NOT_MEET_REQUIREMENTS',
+                    'OTHER'
                 )
             )
         )

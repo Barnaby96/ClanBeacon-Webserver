@@ -308,16 +308,21 @@ def dink_events():
                     )
                 )
 
+            reason_code = request.form.get(
+                'reason_code',
+                ''
+            ).strip()
+
             reason = request.form.get(
                 'reason',
                 ''
             ).strip()
 
-            if len(reason) < 3 or len(reason) > 500:
+            if len(reason) > 500:
                 flash(
                     (
-                        'Please give a reason for invalidating '
-                        'this evidence (3 to 500 characters).'
+                        'Additional invalidation details '
+                        'cannot exceed 500 characters.'
                     ),
                     'danger'
                 )
@@ -331,7 +336,7 @@ def dink_events():
                 result = database.invalidate_bingo_evidence(
                     subject_type='MANUAL_EVIDENCE',
                     subject_id=evidence_id,
-                    reason_code='INCORRECT_EVIDENCE',
+                    reason_code=reason_code,
                     review_source='WEB',
                     reviewer_id=current_user.id,
                     reviewer_name=current_user.username,
@@ -455,28 +460,44 @@ def dink_events():
             )
 
         if action == 'reject_event':
+            reason_code = request.form.get(
+                'reason_code',
+                ''
+            ).strip()
+
             reason = request.form.get(
                 'reason',
                 ''
             ).strip()
 
-            if len(reason) < 3 or len(reason) > 500:
+            if len(reason) > 500:
                 flash(
-                    'Please give a reason for rejecting this submission '
-                    '(3 to 500 characters).',
+                    'Additional rejection details cannot exceed '
+                    '500 characters.',
                     'danger'
                 )
                 return redirect(
                     url_for('admin_routes.dink_events')
                 )
 
-            result = database.reject_pending_dink_event(
-                event_id=event_id,
-                review_source='WEB',
-                reviewer_id=current_user.id,
-                reviewer_name=current_user.username,
-                reason=reason
-            )
+            try:
+                result = database.reject_pending_dink_event(
+                    event_id=event_id,
+                    review_source='WEB',
+                    reviewer_id=current_user.id,
+                    reviewer_name=current_user.username,
+                    reason=reason,
+                    reason_code=reason_code
+                )
+
+            except ValueError as exc:
+                flash(
+                    str(exc),
+                    'danger'
+                )
+                return redirect(
+                    url_for('admin_routes.dink_events')
+                )
 
             if result['status'] == 'REJECTED':
                 flash(
