@@ -1099,6 +1099,138 @@ def test_multi_item_loot_scores_all_relevant_items(
     assert "Coins" not in audit_triggers
 
 
+def test_duplicate_drop_trigger_is_rejected_across_tiles():
+    database.add_tile_with_conditions(
+        tile_name="Duplicate Drop Source Tile",
+        tile_points=1,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Duplicate Setup Drop",
+                "target": 1
+            }
+        ]
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "DROP trigger 'Duplicate Setup Drop' is already "
+            "used by tile 'Duplicate Drop Source Tile'."
+        )
+    ):
+        database.add_tile_with_conditions(
+            tile_name="Duplicate Drop Blocked Tile",
+            tile_points=1,
+            tile_rules="",
+            conditions=[
+                {
+                    "completion_path": 1,
+                    "condition_type": "DROP",
+                    "condition_trigger": "Duplicate Setup Drop",
+                    "target": 1
+                }
+            ]
+        )
+
+
+def test_duplicate_drop_trigger_is_rejected_within_same_tile():
+    with pytest.raises(
+        ValueError,
+        match=(
+            "DROP trigger 'Same Tile Duplicate Drop' is already "
+            "used more than once on this tile."
+        )
+    ):
+        database.add_tile_with_conditions(
+            tile_name="Same Tile Duplicate Drop Tile",
+            tile_points=1,
+            tile_rules="",
+            conditions=[
+                {
+                    "completion_path": 1,
+                    "condition_type": "DROP",
+                    "condition_trigger": "Same Tile Duplicate Drop",
+                    "target": 1
+                },
+                {
+                    "completion_path": 2,
+                    "condition_type": "DROP",
+                    "condition_trigger": "Same Tile Duplicate Drop",
+                    "target": 1
+                }
+            ],
+            completion_paths=[
+                {
+                    "completion_path": 1,
+                    "route_mode": "ALL",
+                    "route_target": None,
+                    "require_unique": False
+                },
+                {
+                    "completion_path": 2,
+                    "route_mode": "ALL",
+                    "route_target": None,
+                    "require_unique": False
+                }
+            ]
+        )
+
+
+def test_update_tile_rejects_duplicate_drop_trigger_from_other_tile():
+    database.add_tile_with_conditions(
+        tile_name="Existing Drop Trigger Tile",
+        tile_points=1,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Existing Duplicate Drop",
+                "target": 1
+            }
+        ]
+    )
+
+    editable_tile_id = database.add_tile_with_conditions(
+        tile_name="Editable Drop Trigger Tile",
+        tile_points=1,
+        tile_rules="",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "DROP",
+                "condition_trigger": "Original Editable Drop",
+                "target": 1
+            }
+        ]
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "DROP trigger 'Existing Duplicate Drop' is already "
+            "used by tile 'Existing Drop Trigger Tile'."
+        )
+    ):
+        database.update_tile_with_conditions(
+            editable_tile_id,
+            "Editable Drop Trigger Tile",
+            1,
+            "",
+            [
+                {
+                    "completion_path": 1,
+                    "condition_type": "DROP",
+                    "condition_trigger": "Existing Duplicate Drop",
+                    "target": 1
+                }
+            ]
+        )
+
+
 def test_duplicate_delivery_cannot_double_score(
     client,
     monkeypatch

@@ -11026,6 +11026,76 @@ def _normalise_completion_paths(
     )
 
 
+def _validate_unique_drop_triggers(
+    cursor,
+    normalised_conditions,
+    excluding_tile_id=None
+):
+    seen_triggers = {}
+
+    for condition in normalised_conditions:
+        if condition["condition_type"] != "DROP":
+            continue
+
+        condition_trigger = condition["condition_trigger"]
+
+        if condition_trigger is None:
+            continue
+
+        trigger_key = condition_trigger.casefold()
+
+        if trigger_key in seen_triggers:
+            raise ValueError(
+                f"DROP trigger '{condition_trigger}' is already "
+                "used more than once on this tile."
+            )
+
+        seen_triggers[trigger_key] = condition_trigger
+
+    for condition_trigger in seen_triggers.values():
+        query = '''
+            SELECT
+                tiles.tile_id,
+                tiles.tile_name
+            FROM tile_conditions
+            JOIN tiles
+              ON tiles.tile_id = tile_conditions.tile_id
+            WHERE tile_conditions.condition_type = 'DROP'
+              AND LOWER(tile_conditions.condition_trigger) = LOWER(%s)
+        '''
+
+        params = [
+            condition_trigger
+        ]
+
+        if excluding_tile_id is not None:
+            query += '''
+              AND tile_conditions.tile_id <> %s
+            '''
+
+            params.append(
+                excluding_tile_id
+            )
+
+        query += '''
+            ORDER BY tiles.tile_id
+            LIMIT 1
+        '''
+
+        cursor.execute(
+            query,
+            params
+        )
+
+        duplicate_tile = cursor.fetchone()
+
+        if duplicate_tile is not None:
+            raise ValueError(
+                f"DROP trigger '{condition_trigger}' is already "
+                f"used by tile '{duplicate_tile[1]}'."
+            )
+
+
 def update_tile_with_conditions(
     tile_id,
     tile_name,
@@ -11150,6 +11220,13 @@ def update_tile_with_conditions(
                 "This tile cannot be edited because progress "
                 "or evidence has already been recorded for it."
             )
+
+        _validate_unique_drop_triggers(
+            cursor,
+            normalised_conditions,
+            excluding_tile_id=tile_id
+        )
+
 
         existing_tile_points = float(tile_row[0])
 
@@ -11511,6 +11588,11 @@ def add_tile_with_conditions(
 
     with connect() as conn:
         cursor = conn.cursor()
+
+        _validate_unique_drop_triggers(
+            cursor,
+            normalised_conditions
+        )
 
         _ensure_tile_capacity(cursor)
 
