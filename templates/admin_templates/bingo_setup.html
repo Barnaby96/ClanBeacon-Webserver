@@ -132,4 +132,65 @@
 </div>
 {% endif %}
 
+<div style="width: 900px; min-width: 900px; margin: 20px auto 0 auto;
+            background-color: #1e1e1e; padding: 20px; border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);">
+
+    <h2 style="color: #fff; margin-top: 0;">
+        Recent WOM Refreshes
+    </h2>
+
+    {% if recent_wom_refreshes %}
+        <table style="width: 100%; border-collapse: collapse; color: #ccc;">
+            <thead>
+                <tr style="border-bottom: 1px solid #444;">
+                    <th style="text-align: left; padding: 8px;">When</th>
+                    <th style="text-align: left; padding: 8px;">Requested By</th>
+                    <th style="text-align: right; padding: 8px;">Competition</th>
+                    <th style="text-align: right; padding: 8px;">Metrics</th>
+                    <th style="text-align: right; padding: 8px;">Players</th>
+                    <th style="text-align: right; padding: 8px;">Tiles</th>
+                    <th style="text-align: right; padding: 8px;">Warnings</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for refresh in recent_wom_refreshes %}
+                    <tr style="border-bottom: 1px solid #333;">
+                        <td style="padding: 8px;">
+                            {{ refresh.requested_at }}
+                        </td>
+                        <td style="padding: 8px;">
+                            {{ refresh.requested_by_username or 'Unknown' }}
+                        </td>
+                        <td style="text-align: right; padding: 8px;">
+                            {% if refresh.no_competition %}
+                                Not configured
+                            {% else %}
+                                {{ refresh.competition_id }}
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right; padding: 8px;">
+                            {{ refresh.metrics_processed }}
+                        </td>
+                        <td style="text-align: right; padding: 8px;">
+                            {{ refresh.players_processed }}
+                        </td>
+                        <td style="text-align: right; padding: 8px;">
+                            {{ refresh.tiles_completed }}
+                        </td>
+                        <td style="text-align: right; padding: 8px;">
+                            {{ refresh.warning_count }}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p style="color: #ccc;">
+            No WOM refreshes have been recorded yet.
+        </p>
+    {% endif %}
+</div>
+
 {% endblock %}

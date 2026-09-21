@@ -686,6 +686,7 @@ def bingo_setup():
     wom_player_ids = {}
     participant_count = 0
     conflicts = []
+    recent_wom_refreshes = database.get_recent_wom_refresh_audit_rows()
 
     if request.method == 'POST':
         competition_id = request.form.get(
@@ -707,7 +708,8 @@ def bingo_setup():
                 competition=None,
                 teams={},
                 participant_count=0,
-                conflicts=[]
+                conflicts=[],
+                recent_wom_refreshes=recent_wom_refreshes
             )
 
         if competition.get('type') != 'team':
@@ -722,7 +724,8 @@ def bingo_setup():
                 competition=None,
                 teams={},
                 participant_count=0,
-                conflicts=[]
+                conflicts=[],
+                recent_wom_refreshes=recent_wom_refreshes
             )
 
         participations = competition.get(
@@ -824,7 +827,8 @@ def bingo_setup():
         teams=teams,
         participant_count=participant_count,
         conflicts=conflicts,
-        evidence_codeword=evidence_codeword
+        evidence_codeword=evidence_codeword,
+        recent_wom_refreshes=recent_wom_refreshes
     )
 
 

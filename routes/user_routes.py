@@ -417,6 +417,12 @@ def update_team_wom_players(team_name):
 def refresh_wom_competition():
     result = wom_tracking.process_wom_competition()
 
+    database.record_wom_refresh_audit(
+        requested_by_user_id=current_user.id,
+        requested_by_username=current_user.username,
+        result=result
+    )
+
     competition_id = result["competition_id"]
     metrics_processed = result["metrics_processed"]
     players_processed = result["players_processed"]

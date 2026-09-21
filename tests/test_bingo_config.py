@@ -374,3 +374,60 @@ def test_bingo_setup_preview_shows_codeword_field(
 
     assert database.get_wom_competition_id() is None
     assert database.get_evidence_codeword() is None
+
+
+def test_bingo_setup_shows_recent_wom_refresh_audit_rows(
+    client
+):
+    database.record_wom_refresh_audit(
+        requested_by_user_id=None,
+        requested_by_username="Refresh Tester",
+        result={
+            "competition_id": 123456,
+            "metrics_processed": 3,
+            "players_processed": 12,
+            "tiles_completed": [
+                {
+                    "tile_id": 1,
+                    "team_id": 1,
+                    "metric": "agility"
+                },
+                {
+                    "tile_id": 2,
+                    "team_id": 1,
+                    "metric": "mining"
+                }
+            ],
+            "errors": [
+                {
+                    "metric": "hunter",
+                    "error": "Example warning"
+                }
+            ]
+        }
+    )
+
+    create_admin_user()
+    login_admin(client)
+
+    response = client.get(
+        "/admin/bingo_setup"
+    )
+
+    assert response.status_code == 200
+
+    page = response.get_data(
+        as_text=True
+    )
+
+    assert "Recent WOM Refreshes" in page
+    assert "Refresh Tester" in page
+    assert "123456" in page
+    compact_page = ''.join(
+        page.split()
+    )
+
+    assert ">3<" in compact_page
+    assert ">12<" in compact_page
+    assert ">2<" in compact_page
+    assert ">1<" in compact_page

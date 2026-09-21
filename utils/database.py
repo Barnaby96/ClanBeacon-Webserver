@@ -562,6 +562,29 @@ def ensure_schema():
         ''')
 
         cursor.execute('''
+            CREATE TABLE IF NOT EXISTS wom_refresh_audit (
+                refresh_id BIGSERIAL PRIMARY KEY,
+                requested_by_user_id INTEGER,
+                requested_by_username TEXT,
+                requested_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP,
+                competition_id BIGINT,
+                metrics_processed INTEGER NOT NULL DEFAULT 0,
+                players_processed INTEGER NOT NULL DEFAULT 0,
+                tiles_completed INTEGER NOT NULL DEFAULT 0,
+                warning_count INTEGER NOT NULL DEFAULT 0,
+                no_competition BOOLEAN NOT NULL DEFAULT FALSE,
+                FOREIGN KEY (requested_by_user_id)
+                    REFERENCES users(user_id)
+                    ON DELETE SET NULL,
+                CHECK (metrics_processed >= 0),
+                CHECK (players_processed >= 0),
+                CHECK (tiles_completed >= 0),
+                CHECK (warning_count >= 0)
+            )
+        ''')
+
+        cursor.execute('''
             ALTER TABLE bingo_config
             ADD COLUMN IF NOT EXISTS evidence_codeword TEXT
         ''')
@@ -1370,6 +1393,100 @@ def get_wom_competition_timing():
         "starts_at": row[0],
         "ends_at": row[1]
     }
+
+
+def record_wom_refresh_audit(
+    requested_by_user_id,
+    requested_by_username,
+    result
+):
+    tiles_completed = result.get("tiles_completed") or []
+    errors = result.get("errors") or []
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            INSERT INTO wom_refresh_audit (
+                requested_by_user_id,
+                requested_by_username,
+                competition_id,
+                metrics_processed,
+                players_processed,
+                tiles_completed,
+                warning_count,
+                no_competition
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING refresh_id
+            ''',
+            (
+                requested_by_user_id,
+                requested_by_username,
+                result.get("competition_id"),
+                result.get("metrics_processed", 0),
+                result.get("players_processed", 0),
+                len(tiles_completed),
+                len(errors),
+                result.get("competition_id") is None
+            )
+        )
+
+        row = cursor.fetchone()
+        conn.commit()
+
+    return row[0]
+
+def get_recent_wom_refresh_audit_rows(limit=10):
+    limit = int(limit)
+
+    if limit < 1:
+        limit = 1
+
+    if limit > 50:
+        limit = 50
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT
+                refresh_id,
+                requested_by_user_id,
+                requested_by_username,
+                requested_at,
+                competition_id,
+                metrics_processed,
+                players_processed,
+                tiles_completed,
+                warning_count,
+                no_competition
+            FROM wom_refresh_audit
+            ORDER BY requested_at DESC, refresh_id DESC
+            LIMIT %s
+            ''',
+            (limit,)
+        )
+
+        rows = cursor.fetchall()
+
+    return [
+        {
+            "refresh_id": row[0],
+            "requested_by_user_id": row[1],
+            "requested_by_username": row[2],
+            "requested_at": row[3],
+            "competition_id": row[4],
+            "metrics_processed": row[5],
+            "players_processed": row[6],
+            "tiles_completed": row[7],
+            "warning_count": row[8],
+            "no_competition": row[9]
+        }
+        for row in rows
+    ]
 
 
 def set_wom_competition_id(competition_id):
@@ -13816,6 +13933,31 @@ def reset_tables():
             evidence_codeword TEXT
         )
         ''')
+
+
+    cursor.execute('''
+        CREATE TABLE wom_refresh_audit (
+            refresh_id BIGSERIAL PRIMARY KEY,
+            requested_by_user_id INTEGER,
+            requested_by_username TEXT,
+            requested_at TIMESTAMPTZ NOT NULL
+                DEFAULT CURRENT_TIMESTAMP,
+            competition_id BIGINT,
+            metrics_processed INTEGER NOT NULL DEFAULT 0,
+            players_processed INTEGER NOT NULL DEFAULT 0,
+            tiles_completed INTEGER NOT NULL DEFAULT 0,
+            warning_count INTEGER NOT NULL DEFAULT 0,
+            no_competition BOOLEAN NOT NULL DEFAULT FALSE,
+            FOREIGN KEY (requested_by_user_id)
+                REFERENCES users(user_id)
+                ON DELETE SET NULL,
+            CHECK (metrics_processed >= 0),
+            CHECK (players_processed >= 0),
+            CHECK (tiles_completed >= 0),
+            CHECK (warning_count >= 0)
+        )
+        ''')
+
 
     # Create the 'drops' table
 

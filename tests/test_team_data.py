@@ -2617,3 +2617,37 @@ def test_logged_in_user_can_refresh_wom_competition_progress(
     assert calls == [
         True
     ]
+
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT
+                requested_by_user_id,
+                requested_by_username,
+                competition_id,
+                metrics_processed,
+                players_processed,
+                tiles_completed,
+                warning_count,
+                no_competition
+            FROM wom_refresh_audit
+            '''
+        )
+        audit_rows = cursor.fetchall()
+
+    assert len(audit_rows) == 1
+
+    audit_row = audit_rows[0]
+
+    assert audit_row[0] is not None
+    assert audit_row[1:] == (
+        "WomRefreshUser",
+        123456,
+        2,
+        4,
+        1,
+        0,
+        False
+    )
