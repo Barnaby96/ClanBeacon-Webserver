@@ -15,7 +15,11 @@ from flask_login import current_user, login_required
 from utils import autocomplete, scapify, database, db_entities, wom, wom_tracking
 from utils.branding import BOT_NAME
 from utils.dink_evidence import resolve_dink_evidence_path
-from utils.manual_evidence_files import resolve_manual_evidence_path
+from utils.manual_evidence_files import (
+    delete_manual_evidence_file,
+    resolve_manual_evidence_path,
+    save_manual_evidence_file
+)
 from utils.team_photo_files import resolve_team_photo_path
 
 user_routes = Blueprint("user_routes", __name__)
@@ -560,6 +564,198 @@ def player_evidence(evidence_type, evidence_id):
 
     return send_file(
         absolute_path
+    )
+
+
+@user_routes.route('/evidence/submit', methods=['GET', 'POST'])
+@login_required
+def submit_evidence():
+    can_submit_for_any_player = current_user.is_admin
+    selected_player_id = current_user.player_id
+
+    if can_submit_for_any_player:
+        selected_player_id_raw = (
+            request.values.get('player_id')
+            or request.form.get('player_id')
+            or ''
+        )
+
+        if selected_player_id_raw:
+            try:
+                selected_player_id = int(
+                    selected_player_id_raw
+                )
+            except ValueError:
+                flash(
+                    'Please choose a valid player.',
+                    'danger'
+                )
+                return redirect(
+                    url_for('user_routes.submit_evidence')
+                )
+
+    elif selected_player_id is None:
+        return redirect(
+            url_for(
+                'user_routes.account',
+                link_required=1
+            )
+        )
+
+    player_options = []
+
+    if can_submit_for_any_player:
+        for team_name, team_players in database.get_players_by_team().items():
+            for player in team_players:
+                player_options.append(
+                    {
+                        "team_name": team_name,
+                        "player_id": int(player[0]),
+                        "player_name": player[1]
+                    }
+                )
+
+        if selected_player_id is None and player_options:
+            selected_player_id = player_options[0]["player_id"]
+
+    if selected_player_id is None:
+        flash(
+            'No player is available for evidence submission.',
+            'warning'
+        )
+        return redirect(
+            url_for('user_routes.leaderboard')
+        )
+
+    try:
+        submission_options = (
+            database.get_manual_evidence_submission_options(
+                selected_player_id
+            )
+        )
+    except ValueError as error:
+        flash(
+            str(error),
+            'danger'
+        )
+        return redirect(
+            url_for('user_routes.leaderboard')
+        )
+
+    if request.method == 'POST':
+        condition_id_raw = request.form.get(
+            'condition_id',
+            ''
+        )
+        amount_raw = request.form.get(
+            'amount',
+            '1'
+        )
+        description = request.form.get(
+            'description',
+            ''
+        )
+        evidence_file = request.files.get(
+            'evidence_file'
+        )
+
+        try:
+            condition_id = int(
+                condition_id_raw
+            )
+            amount = int(
+                amount_raw
+            )
+        except ValueError:
+            flash(
+                'Please choose a valid tile part and amount.',
+                'danger'
+            )
+            return redirect(
+                url_for(
+                    'user_routes.submit_evidence',
+                    player_id=selected_player_id
+                )
+            )
+
+        if evidence_file is None or not evidence_file.filename:
+            flash(
+                'Please upload an evidence image.',
+                'danger'
+            )
+            return redirect(
+                url_for(
+                    'user_routes.submit_evidence',
+                    player_id=selected_player_id
+                )
+            )
+
+        saved_file = None
+
+        try:
+            saved_file = save_manual_evidence_file(
+                evidence_file.read(),
+                evidence_file.filename
+            )
+
+            result = database.add_manual_evidence(
+                player_id=selected_player_id,
+                condition_id=condition_id,
+                amount=amount,
+                evidence_path=saved_file["evidence_path"],
+                evidence_sha256=saved_file["evidence_sha256"],
+                submission_source="WEB",
+                submitter_id=current_user.id,
+                submitter_name=current_user.username,
+                description=description,
+                evidence_author_id=current_user.id,
+                evidence_author_name=current_user.username
+            )
+
+        except ValueError as error:
+            if saved_file is not None:
+                delete_manual_evidence_file(
+                    saved_file["evidence_path"]
+                )
+
+            flash(
+                str(error),
+                'danger'
+            )
+            return redirect(
+                url_for(
+                    'user_routes.submit_evidence',
+                    player_id=selected_player_id
+                )
+            )
+
+        flash(
+            (
+                'Evidence submitted for review. '
+                f'Reference #{result["evidence_id"]}.'
+            ),
+            'success'
+        )
+
+        if result.get("pending_warning"):
+            flash(
+                result["pending_warning"],
+                'warning'
+            )
+
+        return redirect(
+            url_for(
+                'user_routes.submit_evidence',
+                player_id=selected_player_id
+            )
+        )
+
+    return render_template(
+        'user_templates/submit_evidence.html',
+        can_submit_for_any_player=can_submit_for_any_player,
+        player_options=player_options,
+        selected_player_id=selected_player_id,
+        submission_options=submission_options
     )
 
 

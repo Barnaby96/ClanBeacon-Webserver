@@ -41,18 +41,21 @@ def create_test_user(
     username,
     email,
     password,
-    is_admin=False
+    is_admin=False,
+    account_role=None,
+    player_id=None
 ):
     database.add_user(
         username,
         password
     )
 
-    account_role = (
-        "ADMIN"
-        if is_admin
-        else "PLAYER"
-    )
+    if account_role is None:
+        account_role = (
+            "ADMIN"
+            if is_admin
+            else "PLAYER"
+        )
 
     with database.connect() as conn:
         cursor = conn.cursor()
@@ -61,7 +64,8 @@ def create_test_user(
             UPDATE users
             SET
                 email = %s,
-                account_role = %s
+                account_role = %s,
+                player_id = %s
             WHERE LOWER(BTRIM(username))
                 = LOWER(BTRIM(%s))
             RETURNING user_id
@@ -69,6 +73,7 @@ def create_test_user(
             (
                 email,
                 account_role,
+                player_id,
                 username
             )
         )
@@ -345,3 +350,321 @@ def test_admin_can_reject_pending_manual_evidence_from_web(
         reject_calls[0]["reason"]
         == "Screenshot does not show enough detail."
     )
+
+def create_manual_submission_scenario(prefix):
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            INSERT INTO teams (
+                team_name,
+                team_points,
+                team_webhook
+            )
+            VALUES (%s, 0, NULL)
+            RETURNING team_id
+            ''',
+            (
+                f"{prefix} Team",
+            )
+        )
+        team_id = cursor.fetchone()[0]
+
+        cursor.execute(
+            '''
+            INSERT INTO players (
+                player_name,
+                deaths,
+                gp_gained,
+                tiles_completed,
+                team_id,
+                pet_count
+            )
+            VALUES (%s, 0, 0, 0, %s, 0)
+            RETURNING player_id
+            ''',
+            (
+                f"{prefix} Player",
+                team_id
+            )
+        )
+        player_id = cursor.fetchone()[0]
+
+        conn.commit()
+
+    database.add_tile_with_conditions(
+        tile_name=f"{prefix} Manual Tile",
+        tile_points=5,
+        tile_rules="Upload proof for this manual tile.",
+        conditions=[
+            {
+                "completion_path": 1,
+                "condition_type": "MANUAL",
+                "condition_trigger": f"{prefix} Task",
+                "target": 1
+            }
+        ]
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT
+                t.tile_id,
+                c.condition_id
+            FROM tiles t
+            JOIN tile_conditions c
+              ON c.tile_id = t.tile_id
+            WHERE t.tile_name = %s
+            ''',
+            (
+                f"{prefix} Manual Tile",
+            )
+        )
+
+        tile_id, condition_id = cursor.fetchone()
+
+    return {
+        "team_id": team_id,
+        "player_id": player_id,
+        "tile_id": tile_id,
+        "condition_id": condition_id,
+        "player_name": f"{prefix} Player",
+        "tile_name": f"{prefix} Manual Tile",
+        "trigger": f"{prefix} Task"
+    }
+
+
+def login_dashboard_user(client, username, password):
+    response = client.post(
+        "/login",
+        data={
+            "username": username,
+            "password": password
+        }
+    )
+
+    assert response.status_code == 302
+
+
+def test_linked_player_can_view_submit_evidence_page(
+    client
+):
+    scenario = create_manual_submission_scenario(
+        "Submit Own"
+    )
+
+    create_test_user(
+        "Submit Own User",
+        "submit-own@example.test",
+        "test-password",
+        player_id=scenario["player_id"]
+    )
+
+    login_dashboard_user(
+        client,
+        "Submit Own User",
+        "test-password"
+    )
+
+    response = client.get(
+        "/user/evidence/submit"
+    )
+
+    assert response.status_code == 200
+
+    page = response.get_data(
+        as_text=True
+    )
+
+    assert "Submit Evidence" in page
+    assert "Credited player:" in page
+    assert scenario["player_name"] in page
+    assert scenario["tile_name"] in page
+    assert scenario["trigger"] in page
+    assert "Player to credit:" not in page
+
+
+def test_linked_player_can_submit_web_manual_evidence(
+    client
+):
+    import io
+
+    scenario = create_manual_submission_scenario(
+        "Submit Web"
+    )
+
+    create_test_user(
+        "Submit Web User",
+        "submit-web@example.test",
+        "test-password",
+        player_id=scenario["player_id"]
+    )
+
+    login_dashboard_user(
+        client,
+        "Submit Web User",
+        "test-password"
+    )
+
+    response = client.post(
+        "/user/evidence/submit",
+        data={
+            "condition_id": str(scenario["condition_id"]),
+            "amount": "1",
+            "description": "Dashboard evidence upload",
+            "evidence_file": (
+                io.BytesIO(
+                    b"web evidence"
+                ),
+                "evidence.png"
+            )
+        },
+        content_type="multipart/form-data"
+    )
+
+    assert response.status_code == 302
+    assert (
+        response.headers["Location"]
+        .endswith(
+            "/user/evidence/submit?player_id="
+            f"{scenario['player_id']}"
+        )
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT
+                player_id,
+                team_id,
+                tile_id,
+                condition_id,
+                amount,
+                status,
+                submission_source,
+                submitter_name,
+                evidence_author_name,
+                description
+            FROM manual_evidence
+            WHERE player_id = %s
+            ''',
+            (
+                scenario["player_id"],
+            )
+        )
+
+        evidence = cursor.fetchone()
+
+    assert evidence is not None
+    assert evidence[0] == scenario["player_id"]
+    assert evidence[1] == scenario["team_id"]
+    assert evidence[2] == scenario["tile_id"]
+    assert evidence[3] == scenario["condition_id"]
+    assert evidence[4] == 1
+    assert evidence[5] == "PENDING"
+    assert evidence[6] == "WEB"
+    assert evidence[7] == "Submit Web User"
+    assert evidence[8] == "Submit Web User"
+    assert evidence[9] == "Dashboard evidence upload"
+
+
+@pytest.mark.parametrize(
+    "account_role",
+    [
+        "ADMIN",
+        "ORGANISER"
+    ]
+)
+def test_staff_can_submit_web_manual_evidence_for_any_player(
+    client,
+    account_role
+):
+    import io
+
+    first_scenario = create_manual_submission_scenario(
+        f"{account_role} Own"
+    )
+    second_scenario = create_manual_submission_scenario(
+        f"{account_role} Other"
+    )
+
+    create_test_user(
+        f"{account_role} Submitter",
+        f"{account_role.lower()}-submitter@example.test",
+        "test-password",
+        account_role=account_role,
+        player_id=first_scenario["player_id"]
+    )
+
+    login_dashboard_user(
+        client,
+        f"{account_role} Submitter",
+        "test-password"
+    )
+
+    response = client.get(
+        "/user/evidence/submit",
+        query_string={
+            "player_id": second_scenario["player_id"]
+        }
+    )
+
+    assert response.status_code == 200
+
+    page = response.get_data(
+        as_text=True
+    )
+
+    assert "Player to credit:" in page
+    assert second_scenario["player_name"] in page
+    assert second_scenario["tile_name"] in page
+
+    response = client.post(
+        "/user/evidence/submit",
+        data={
+            "player_id": str(second_scenario["player_id"]),
+            "condition_id": str(second_scenario["condition_id"]),
+            "amount": "1",
+            "description": "Staff submitted evidence",
+            "evidence_file": (
+                io.BytesIO(
+                    b"staff evidence"
+                ),
+                "staff-evidence.png"
+            )
+        },
+        content_type="multipart/form-data"
+    )
+
+    assert response.status_code == 302
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT
+                player_id,
+                submission_source,
+                submitter_name,
+                evidence_author_name,
+                description
+            FROM manual_evidence
+            WHERE player_id = %s
+            ''',
+            (
+                second_scenario["player_id"],
+            )
+        )
+
+        evidence = cursor.fetchone()
+
+    assert evidence is not None
+    assert evidence[0] == second_scenario["player_id"]
+    assert evidence[1] == "WEB"
+    assert evidence[2] == f"{account_role} Submitter"
+    assert evidence[3] == f"{account_role} Submitter"
+    assert evidence[4] == "Staff submitted evidence"

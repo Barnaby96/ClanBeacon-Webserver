@@ -1,0 +1,77 @@
+﻿{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto; background-color: #1e1e1e; padding: 24px; border-radius: 10px;">
+    <h1 style="text-align: center; color: #fff; margin-top: 0;">Submit Evidence</h1>
+
+    <p style="color: #ccc;">
+        Upload manual evidence for a bingo tile. Submissions will go into the review queue and must be accepted by staff before they count.
+    </p>
+
+    {% if can_submit_for_any_player %}
+    <form method="GET" action="{{ url_for('user_routes.submit_evidence') }}" style="margin-bottom: 20px;">
+        <label for="player_id" style="display: block; color: #ccc; margin-bottom: 5px;">Player to credit:</label>
+        <select id="player_id" name="player_id" onchange="this.form.submit()" style="width: 100%; padding: 10px; background-color: #333; color: #ccc; border: 1px solid #444; border-radius: 5px;">
+            {% for player in player_options %}
+                <option value="{{ player.player_id }}" {% if player.player_id == selected_player_id %}selected{% endif %}>
+                    {{ player.player_name }} — {{ player.team_name }}
+                </option>
+            {% endfor %}
+        </select>
+        <noscript>
+            <button type="submit" style="margin-top: 10px; padding: 10px; background-color: #444; color: #fff; border: none; border-radius: 5px;">Load Player</button>
+        </noscript>
+    </form>
+    {% endif %}
+
+    <div style="margin-bottom: 20px; padding: 12px; background-color: #292929; border-radius: 8px; color: #ccc;">
+        <strong>Credited player:</strong> {{ submission_options.player_name }}
+    </div>
+
+    {% if submission_options.tiles %}
+    <form method="POST" action="{{ url_for('user_routes.submit_evidence') }}" enctype="multipart/form-data">
+        {% if can_submit_for_any_player %}
+            <input type="hidden" name="player_id" value="{{ selected_player_id }}">
+        {% endif %}
+
+        <div style="margin-bottom: 15px;">
+            <label for="condition_id" style="display: block; color: #ccc; margin-bottom: 5px;">Tile part:</label>
+            <select id="condition_id" name="condition_id" required style="width: 100%; padding: 10px; background-color: #333; color: #ccc; border: 1px solid #444; border-radius: 5px;">
+                {% for tile in submission_options.tiles %}
+                    <optgroup label="{{ tile.tile_name }}">
+                        {% for condition in tile.conditions %}
+                            <option value="{{ condition.condition_id }}">
+                                {{ tile.tile_name }} — {{ condition.condition_type }}: {{ condition.condition_trigger }} ({{ condition.progress }}/{{ condition.target }})
+                            </option>
+                        {% endfor %}
+                    </optgroup>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label for="amount" style="display: block; color: #ccc; margin-bottom: 5px;">Amount:</label>
+            <input type="number" id="amount" name="amount" value="1" min="1" required style="width: 100%; padding: 10px; background-color: #333; color: #ccc; border: 1px solid #444; border-radius: 5px; box-sizing: border-box;">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label for="evidence_file" style="display: block; color: #ccc; margin-bottom: 5px;">Evidence image:</label>
+            <input type="file" id="evidence_file" name="evidence_file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" required style="width: 100%; padding: 10px; background-color: #333; color: #ccc; border: 1px solid #444; border-radius: 5px; box-sizing: border-box;">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label for="description" style="display: block; color: #ccc; margin-bottom: 5px;">Notes / details:</label>
+            <textarea id="description" name="description" rows="4" style="width: 100%; padding: 10px; background-color: #333; color: #ccc; border: 1px solid #444; border-radius: 5px; box-sizing: border-box;" placeholder="Optional notes for the reviewers"></textarea>
+        </div>
+
+        <button type="submit" style="width: 100%; padding: 12px; background-color: #444; color: #fff; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
+            Submit Evidence
+        </button>
+    </form>
+    {% else %}
+        <p style="color: #ccc;">
+            There are no manual evidence options currently available for this player. This usually means their team has already completed the relevant tiles, or the remaining tiles are handled automatically.
+        </p>
+    {% endif %}
+</div>
+{% endblock %}
