@@ -431,3 +431,5 @@ def test_bingo_setup_shows_recent_wom_refresh_audit_rows(
     assert ">12<" in compact_page
     assert ">2<" in compact_page
     assert ">1<" in compact_page
+    assert "hunter" in page
+    assert "Example warning" in page

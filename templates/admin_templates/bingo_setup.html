@@ -183,6 +183,35 @@
                             {{ refresh.warning_count }}
                         </td>
                     </tr>
+                    {% if refresh.warning_details %}
+                        <tr style="border-bottom: 1px solid #333;">
+                            <td colspan="7" style="padding: 8px 8px 12px 8px;">
+                                <strong style="color: #f0c36d;">
+                                    Warning details:
+                                </strong>
+
+                                <ul style="margin: 6px 0 0 18px; color: #ddd;">
+                                    {% for warning in refresh.warning_details %}
+                                        <li>
+                                            {% if warning.metric %}
+                                                <strong>{{ warning.metric }}</strong>:
+                                            {% endif %}
+
+                                            {% if warning.wom_player_id %}
+                                                WOM player {{ warning.wom_player_id }} -
+                                            {% endif %}
+
+                                            {% if warning.tile_id %}
+                                                Tile {{ warning.tile_id }} -
+                                            {% endif %}
+
+                                            {{ warning.error }}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </td>
+                        </tr>
+                    {% endif %}
                 {% endfor %}
             </tbody>
         </table>

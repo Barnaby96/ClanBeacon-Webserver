@@ -573,6 +573,7 @@ def ensure_schema():
                 players_processed INTEGER NOT NULL DEFAULT 0,
                 tiles_completed INTEGER NOT NULL DEFAULT 0,
                 warning_count INTEGER NOT NULL DEFAULT 0,
+                warning_details JSONB NOT NULL DEFAULT '[]'::jsonb,
                 no_competition BOOLEAN NOT NULL DEFAULT FALSE,
                 FOREIGN KEY (requested_by_user_id)
                     REFERENCES users(user_id)
@@ -582,6 +583,12 @@ def ensure_schema():
                 CHECK (tiles_completed >= 0),
                 CHECK (warning_count >= 0)
             )
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE wom_refresh_audit
+            ADD COLUMN IF NOT EXISTS warning_details
+                JSONB NOT NULL DEFAULT '[]'::jsonb
         ''')
 
         cursor.execute('''
@@ -1416,9 +1423,10 @@ def record_wom_refresh_audit(
                 players_processed,
                 tiles_completed,
                 warning_count,
+                warning_details,
                 no_competition
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)
             RETURNING refresh_id
             ''',
             (
@@ -1429,6 +1437,7 @@ def record_wom_refresh_audit(
                 result.get("players_processed", 0),
                 len(tiles_completed),
                 len(errors),
+                json.dumps(errors),
                 result.get("competition_id") is None
             )
         )
@@ -1437,6 +1446,7 @@ def record_wom_refresh_audit(
         conn.commit()
 
     return row[0]
+
 
 def get_recent_wom_refresh_audit_rows(limit=10):
     limit = int(limit)
@@ -1462,6 +1472,7 @@ def get_recent_wom_refresh_audit_rows(limit=10):
                 players_processed,
                 tiles_completed,
                 warning_count,
+                warning_details,
                 no_competition
             FROM wom_refresh_audit
             ORDER BY requested_at DESC, refresh_id DESC
@@ -1483,7 +1494,8 @@ def get_recent_wom_refresh_audit_rows(limit=10):
             "players_processed": row[6],
             "tiles_completed": row[7],
             "warning_count": row[8],
-            "no_competition": row[9]
+            "warning_details": row[9] or [],
+            "no_competition": row[10]
         }
         for row in rows
     ]
@@ -13957,6 +13969,7 @@ def reset_tables():
             players_processed INTEGER NOT NULL DEFAULT 0,
             tiles_completed INTEGER NOT NULL DEFAULT 0,
             warning_count INTEGER NOT NULL DEFAULT 0,
+            warning_details JSONB NOT NULL DEFAULT '[]'::jsonb,
             no_competition BOOLEAN NOT NULL DEFAULT FALSE,
             FOREIGN KEY (requested_by_user_id)
                 REFERENCES users(user_id)
