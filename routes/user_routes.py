@@ -12,7 +12,7 @@ from flask import (
     abort
 )
 from flask_login import current_user, login_required
-from utils import autocomplete, scapify, database, db_entities, wom
+from utils import autocomplete, scapify, database, db_entities, wom, wom_tracking
 from utils.branding import BOT_NAME
 from utils.dink_evidence import resolve_dink_evidence_path
 from utils.manual_evidence_files import resolve_manual_evidence_path
@@ -409,6 +409,46 @@ def update_team_wom_players(team_name):
             'user_routes.team',
             team_name=team.team_name
         )
+    )
+
+
+@user_routes.route('/wom/competition/refresh', methods=['POST'])
+@login_required
+def refresh_wom_competition():
+    result = wom_tracking.process_wom_competition()
+
+    competition_id = result["competition_id"]
+    metrics_processed = result["metrics_processed"]
+    players_processed = result["players_processed"]
+    tiles_completed = len(
+        result["tiles_completed"]
+    )
+    errors = len(
+        result["errors"]
+    )
+
+    if competition_id is None:
+        flash(
+            'No Wise Old Man competition has been configured yet.',
+            'warning'
+        )
+    else:
+        flash(
+            'Fetched latest Wise Old Man competition data: '
+            f'{metrics_processed} metric(s), '
+            f'{players_processed} player progress update(s), '
+            f'{tiles_completed} tile completion(s).',
+            'success'
+        )
+
+        if errors:
+            flash(
+                f'Wise Old Man refresh finished with {errors} warning(s).',
+                'warning'
+            )
+
+    return redirect(
+        request.referrer or url_for('user_routes.leaderboard')
     )
 
 

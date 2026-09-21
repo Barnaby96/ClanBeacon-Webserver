@@ -2560,3 +2560,60 @@ def test_team_player_cannot_force_wom_updates_for_other_team(
     )
 
     assert response.status_code == 404
+
+
+def test_logged_in_user_can_refresh_wom_competition_progress(
+    client,
+    monkeypatch
+):
+    calls = []
+
+    def fake_process_wom_competition():
+        calls.append(True)
+
+        return {
+            "competition_id": 123456,
+            "metrics_processed": 2,
+            "players_processed": 4,
+            "tiles_completed": [
+                {
+                    "tile_id": 1,
+                    "team_id": 1,
+                    "metric": "agility"
+                }
+            ],
+            "errors": []
+        }
+
+    monkeypatch.setattr(
+        "routes.user_routes.wom_tracking.process_wom_competition",
+        fake_process_wom_competition
+    )
+
+    create_dashboard_user(
+        "WomRefreshUser",
+        "test-password"
+    )
+
+    login_response = login_dashboard_user(
+        client,
+        "WomRefreshUser",
+        "test-password"
+    )
+
+    assert login_response.status_code == 302
+
+    response = client.post(
+        "/user/wom/competition/refresh",
+        headers={
+            "Referer": "/user/leaderboard"
+        }
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith(
+        "/user/leaderboard"
+    )
+    assert calls == [
+        True
+    ]

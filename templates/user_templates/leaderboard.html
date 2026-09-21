@@ -32,6 +32,19 @@
             View WOM Competition ↗
         </a>
         {% endif %}
+        <form
+            action="{{ url_for(
+                'user_routes.refresh_wom_competition'
+            ) }}"
+            method="post"
+        >
+            <button
+                class="osrs-action-link osrs-wom-link"
+                type="submit"
+            >
+                Refresh WOM Progress
+            </button>
+        </form>
     </div>
 
 
