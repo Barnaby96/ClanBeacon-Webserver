@@ -2,7 +2,7 @@ import asyncio
 
 from discord.ext import commands, tasks
 
-from utils import wom_tracking
+from utils import database, wom_tracking
 
 
 class WOMCog(commands.Cog):
@@ -30,6 +30,20 @@ class WOMCog(commands.Cog):
                 error
             )
             return
+
+        if result["competition_id"] is not None:
+            try:
+                await asyncio.to_thread(
+                    database.record_wom_refresh_audit,
+                    requested_by_user_id=None,
+                    requested_by_username="Background WOM Poll",
+                    result=result
+                )
+            except Exception as error:
+                print(
+                    "Unexpected error while recording WOM poll audit:",
+                    error
+                )
 
         if result["errors"]:
             print(
