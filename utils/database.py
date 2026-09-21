@@ -12739,16 +12739,26 @@ def get_wom_tile_conditions():
                 condition_type,
                 condition_trigger,
                 target
-            FROM tile_conditions
-            WHERE condition_type IN (
+            FROM tile_conditions AS condition
+            WHERE condition.condition_type IN (
                 'KILLCOUNT',
                 'EXPERIENCE',
                 'METRIC'
             )
+              AND EXISTS (
+                  SELECT 1
+                  FROM teams AS team
+                  WHERE NOT EXISTS (
+                      SELECT 1
+                      FROM completed_tiles AS completed
+                      WHERE completed.team_id = team.team_id
+                        AND completed.tile_id = condition.tile_id
+                  )
+              )
             ORDER BY
-                tile_id,
-                completion_path,
-                condition_id
+                condition.tile_id,
+                condition.completion_path,
+                condition.condition_id
             '''
         )
         return cursor.fetchall()

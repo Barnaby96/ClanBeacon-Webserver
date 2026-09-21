@@ -144,6 +144,56 @@ def get_condition_progress(
     return int(row[0])
 
 
+def test_wom_tile_conditions_skip_fully_completed_tiles():
+    first_team_id = create_team(
+        "First WOM Team"
+    )
+
+    second_team_id = create_team(
+        "Second WOM Team"
+    )
+
+    tile_id, condition_id = create_experience_tile(
+        "Agility XP",
+        "agility",
+        100
+    )
+
+    assert database.get_wom_tile_conditions() == [
+        (
+            condition_id,
+            tile_id,
+            1,
+            "EXPERIENCE",
+            "agility",
+            100
+        )
+    ]
+
+    database.add_completed_tile(
+        tile_id,
+        first_team_id
+    )
+
+    assert database.get_wom_tile_conditions() == [
+        (
+            condition_id,
+            tile_id,
+            1,
+            "EXPERIENCE",
+            "agility",
+            100
+        )
+    ]
+
+    database.add_completed_tile(
+        tile_id,
+        second_team_id
+    )
+
+    assert database.get_wom_tile_conditions() == []
+
+
 def test_new_wom_condition_receives_competition_to_date_gain():
     team_id = create_team("Guthix")
     player_id = create_player(
