@@ -67,14 +67,14 @@
 
                         <td style="padding: 10px; white-space: nowrap;">
                             {% if entry.screenshot_path %}
-                                <a href="{{ url_for(
-                                        'admin_routes.dink_event_screenshot',
-                                        event_id=entry.event_id
-                                    ) }}"
-                                   target="_blank"
-                                   rel="noopener noreferrer">
+                                <button type="button"
+                                        class="evidence-preview-button"
+                                        data-evidence-url="{{ url_for(
+                                            'admin_routes.dink_event_screenshot',
+                                            event_id=entry.event_id
+                                        ) }}">
                                     View evidence
-                                </a>
+                                </button>
                             {% else %}
                                 No screenshot
                             {% endif %}
@@ -211,9 +211,297 @@
         </table>
     {% else %}
         <p style="color: #ccc;">
-            There are no submissions waiting for review.
+            There are no automatic submissions waiting for review.
         </p>
     {% endif %}
+    <hr style="border: 0;
+               border-top: 1px solid #444;
+               margin: 30px 0;">
+
+    <h2 style="color: #fff;">
+        Pending Manual Evidence
+    </h2>
+
+    <p style="color: #ccc;">
+        These are manually submitted bingo evidence items waiting for
+        staff review. Submissions from Discord and the web dashboard
+        appear here together.
+    </p>
+
+    {% if pending_manual_evidence_entries %}
+        <table style="width: 100%;
+                      border-collapse: collapse;
+                      color: #ccc;">
+            <thead>
+                <tr style="background-color: #2b2b2b;">
+                    <th style="padding: 10px; text-align: left;">
+                        Submission
+                    </th>
+                    <th style="padding: 10px; text-align: left;">
+                        Submitted
+                    </th>
+                    <th style="padding: 10px; text-align: left;">
+                        Source
+                    </th>
+                    <th style="padding: 10px; text-align: left;">
+                        Player
+                    </th>
+                    <th style="padding: 10px; text-align: left;">
+                        Team
+                    </th>
+                    <th style="padding: 10px; text-align: left;">
+                        Tile
+                    </th>
+                    <th style="padding: 10px; text-align: left;">
+                        Part
+                    </th>
+                    <th style="padding: 10px; text-align: left;">
+                        Amount
+                    </th>
+                    <th style="padding: 10px; text-align: left;">
+                        Evidence
+                    </th>
+                    <th style="padding: 10px; text-align: left;">
+                        Notes
+                    </th>
+                    <th style="padding: 10px; text-align: left;">
+                        Decision
+                    </th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for entry in pending_manual_evidence_entries %}
+                    <tr style="border-top: 1px solid #444;">
+                        <td style="padding: 10px; white-space: nowrap;">
+                            #{{ entry.evidence_id }}
+                        </td>
+
+                        <td style="padding: 10px; white-space: nowrap;">
+                            {{ entry.submitted_at }}
+                        </td>
+
+                        <td style="padding: 10px; white-space: nowrap;">
+                            {% if entry.submission_source == 'DISCORD' %}
+                                Discord
+                            {% elif entry.submission_source == 'WEB' %}
+                                Web dashboard
+                            {% else %}
+                                {{ entry.submission_source or 'Unknown' }}
+                            {% endif %}
+                        </td>
+
+                        <td style="padding: 10px;">
+                            {{ entry.credited_player_name or 'Unknown player' }}
+                        </td>
+
+                        <td style="padding: 10px;">
+                            {{ entry.team_name or 'Team unavailable' }}
+                        </td>
+
+                        <td style="padding: 10px;">
+                            {{ entry.tile_name or 'Tile unavailable' }}
+                        </td>
+
+                        <td style="padding: 10px;">
+                            <strong>
+                                {{ entry.condition_trigger or 'Unknown condition' }}
+                            </strong>
+
+                            <div style="margin-top: 4px;
+                                        font-size: 0.85em;
+                                        color: #aaa;">
+                                {{ entry.condition_type or 'Manual' }}
+                                {% if entry.condition_target %}
+                                    target {{ entry.condition_target }}
+                                {% endif %}
+                                {% if entry.condition_progress_at_submission is not none %}
+                                    · progress was
+                                    {{ entry.condition_progress_at_submission }}
+                                {% endif %}
+                            </div>
+
+                            {% if entry.evidence_codeword_at_submission %}
+                                <div style="margin-top: 6px;
+                                            font-size: 0.85em;
+                                            color: #aaa;">
+                                    Codeword:
+                                    {{ entry.evidence_codeword_at_submission }}
+                                </div>
+                            {% endif %}
+                        </td>
+
+                        <td style="padding: 10px;">
+                            {{ entry.amount }}
+                        </td>
+
+                        <td style="padding: 10px; white-space: nowrap;">
+                            {% if entry.evidence_path %}
+                                <button type="button"
+                                        class="evidence-preview-button"
+                                        data-evidence-url="{{ url_for(
+                                            'user_routes.player_evidence',
+                                            evidence_type='manual',
+                                            evidence_id=entry.evidence_id
+                                        ) }}">
+                                    View evidence
+                                </button>
+                            {% else %}
+                                No image
+                            {% endif %}
+                        </td>
+
+                        <td style="padding: 10px; min-width: 200px;">
+                            {{ entry.description or '—' }}
+
+                            <details style="margin-top: 8px;">
+                                <summary style="cursor: pointer;">
+                                    Submission details
+                                </summary>
+
+                                <div style="margin-top: 8px;
+                                            font-size: 0.85em;
+                                            color: #aaa;">
+                                    <div>
+                                        Submitted by:
+                                        {{ entry.submitter_name or 'Unknown' }}
+                                    </div>
+                                    {% if entry.evidence_author_name %}
+                                        <div>
+                                            Evidence author:
+                                            {{ entry.evidence_author_name }}
+                                        </div>
+                                    {% endif %}
+                                    {% if entry.discord_message_id %}
+                                        <div style="word-break: break-all;">
+                                            Discord message:
+                                            {{ entry.discord_message_id }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </details>
+                        </td>
+
+                        <td style="padding: 10px;
+                                   min-width: 240px;
+                                   max-width: 280px;">
+                            <form method="post"
+                                  action="{{ url_for(
+                                      'admin_routes.dink_events'
+                                  ) }}">
+                                <input type="hidden"
+                                       name="evidence_id"
+                                       value="{{ entry.evidence_id }}">
+
+                                <button type="submit"
+                                        name="action"
+                                        value="accept_manual_evidence"
+                                        onclick="return confirm(
+                                            'Accept this manual evidence and apply any matching bingo progress?'
+                                        );">
+                                    Accept
+                                </button>
+
+                                <button type="submit"
+                                        name="action"
+                                        value="accept_manual_evidence_with_mvp"
+                                        style="margin-top: 6px;"
+                                        onclick="return confirm(
+                                            'Accept this manual evidence and award discretionary MVP if available?'
+                                        );">
+                                    Accept + MVP
+                                </button>
+                            </form>
+
+                            <form method="post"
+                                  action="{{ url_for(
+                                      'admin_routes.dink_events'
+                                  ) }}"
+                                  style="margin-top: 10px;">
+                                <input type="hidden"
+                                       name="evidence_id"
+                                       value="{{ entry.evidence_id }}">
+
+                                <label style="display: block;
+                                              font-size: 0.85em;
+                                              margin-bottom: 4px;">
+                                    Rejection reason
+                                </label>
+
+                                <select name="reason_code"
+                                        required
+                                        style="width: 100%;
+                                               box-sizing: border-box;
+                                               margin-bottom: 6px;
+                                               padding: 6px;
+                                               background-color: #2b2b2b;
+                                               color: #fff;
+                                               border: 1px solid #555;">
+                                    <option value="" selected disabled>
+                                        Choose a reason
+                                    </option>
+                                    <option value="INSUFFICIENT_EVIDENCE">
+                                        Insufficient evidence
+                                    </option>
+                                    <option value="WRONG_ITEM_OR_ACTIVITY">
+                                        Wrong item or activity
+                                    </option>
+                                    <option value="DUPLICATE_EVIDENCE">
+                                        Duplicate evidence
+                                    </option>
+                                    <option value="WRONG_PLAYER_OR_ACCOUNT">
+                                        Wrong player or account
+                                    </option>
+                                    <option value="WRONG_TILE_OR_CONDITION">
+                                        Wrong tile or condition
+                                    </option>
+                                    <option value="DOES_NOT_MEET_REQUIREMENTS">
+                                        Does not meet requirements
+                                    </option>
+                                    <option value="OTHER">
+                                        Other
+                                    </option>
+                                </select>
+
+                                <label style="display: block;
+                                              font-size: 0.85em;
+                                              margin-bottom: 4px;">
+                                    Additional details
+                                </label>
+
+                                <textarea name="reason"
+                                          maxlength="500"
+                                          rows="3"
+                                          placeholder="Required for Other; optional for specific reasons."
+                                          style="width: 100%;
+                                                 box-sizing: border-box;
+                                                 margin-bottom: 6px;
+                                                 padding: 6px;
+                                                 background-color: #2b2b2b;
+                                                 color: #fff;
+                                                 border: 1px solid #555;
+                                                 resize: vertical;"></textarea>
+
+                                <button type="submit"
+                                        name="action"
+                                        value="reject_manual_evidence"
+                                        onclick="return confirm(
+                                            'Reject this manual evidence? It will not count towards bingo progress.'
+                                        );">
+                                    Reject
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p style="color: #ccc;">
+            There is no pending manual evidence waiting for review.
+        </p>
+    {% endif %}
+
     <hr style="border: 0;
                border-top: 1px solid #444;
                margin: 30px 0;">
@@ -381,4 +669,95 @@
         </p>
     {% endif %}
 </div>
+<div id="evidence-preview-modal"
+     style="display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.85);">
+    <div style="margin: 40px auto;
+                padding: 16px;
+                width: 90%;
+                max-width: 1100px;
+                background-color: #1e1e1e;
+                border-radius: 10px;
+                box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);">
+        <div style="display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 16px;
+                    margin-bottom: 12px;">
+            <h2 id="evidence-preview-title"
+                style="color: #fff; margin: 0;">
+                Evidence Preview
+            </h2>
+
+            <button type="button"
+                    id="evidence-preview-close"
+                    style="font-size: 1.1em;">
+                Close
+            </button>
+        </div>
+
+        <img id="evidence-preview-image"
+             alt="Evidence preview"
+             style="display: block;
+                    max-width: 100%;
+                    max-height: 75vh;
+                    margin: 0 auto;
+                    object-fit: contain;">
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modal = document.getElementById('evidence-preview-modal');
+        const image = document.getElementById('evidence-preview-image');
+        const closeButton = document.getElementById('evidence-preview-close');
+
+        function closeEvidencePreview() {
+            modal.style.display = 'none';
+            image.removeAttribute('src');
+        }
+
+        document.querySelectorAll('.evidence-preview-button').forEach(
+            function (button) {
+                button.addEventListener('click', function () {
+                    image.src = button.dataset.evidenceUrl;
+                    modal.style.display = 'block';
+                });
+            }
+        );
+
+        closeButton.addEventListener(
+            'click',
+            closeEvidencePreview
+        );
+
+        modal.addEventListener(
+            'click',
+            function (event) {
+                if (event.target === modal) {
+                    closeEvidencePreview();
+                }
+            }
+        );
+
+        document.addEventListener(
+            'keydown',
+            function (event) {
+                if (
+                    event.key === 'Escape'
+                    && modal.style.display === 'block'
+                ) {
+                    closeEvidencePreview();
+                }
+            }
+        );
+    });
+</script>
 {% endblock %}

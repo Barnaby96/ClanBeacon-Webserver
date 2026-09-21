@@ -439,6 +439,260 @@ def dink_events():
                 )
             )
 
+        if action in {
+            'accept_manual_evidence',
+            'accept_manual_evidence_with_mvp',
+            'reject_manual_evidence'
+        }:
+            evidence_id_value = request.form.get(
+                'evidence_id',
+                ''
+            ).strip()
+
+            try:
+                evidence_id = int(
+                    evidence_id_value
+                )
+
+                if evidence_id <= 0:
+                    raise ValueError
+
+            except (TypeError, ValueError):
+                flash(
+                    'Please select valid manual evidence.',
+                    'danger'
+                )
+                return redirect(
+                    url_for(
+                        'admin_routes.dink_events'
+                    )
+                )
+
+            if action == 'reject_manual_evidence':
+                reason_code = request.form.get(
+                    'reason_code',
+                    ''
+                ).strip()
+
+                reason = request.form.get(
+                    'reason',
+                    ''
+                ).strip()
+
+                if len(reason) > 500:
+                    flash(
+                        (
+                            'Additional rejection details '
+                            'cannot exceed 500 characters.'
+                        ),
+                        'danger'
+                    )
+                    return redirect(
+                        url_for(
+                            'admin_routes.dink_events'
+                        )
+                    )
+
+                try:
+                    result = database.reject_pending_manual_evidence(
+                        evidence_id=evidence_id,
+                        review_source='WEB',
+                        reviewer_id=current_user.id,
+                        reviewer_name=current_user.username,
+                        reason=reason,
+                        reason_code=reason_code
+                    )
+
+                except ValueError as error:
+                    flash(
+                        str(error),
+                        'danger'
+                    )
+                    return redirect(
+                        url_for(
+                            'admin_routes.dink_events'
+                        )
+                    )
+
+                if result['status'] == 'REJECTED':
+                    flash(
+                        f'Manual submission #{evidence_id} was rejected.',
+                        'success'
+                    )
+
+                elif result['status'] == 'EVIDENCE_NOT_FOUND':
+                    flash(
+                        'That manual submission no longer exists.',
+                        'danger'
+                    )
+
+                elif result['status'] == 'INVALID_STATUS':
+                    flash(
+                        (
+                            f'Manual submission #{evidence_id} can no '
+                            'longer be rejected because it is no longer '
+                            'awaiting review.'
+                        ),
+                        'danger'
+                    )
+
+                elif result['status'] == 'EARLIER_PENDING_EVIDENCE':
+                    flash(
+                        result.get(
+                            'message',
+                            (
+                                'An earlier submission for this tile '
+                                'must be reviewed first.'
+                            )
+                        ),
+                        'danger'
+                    )
+
+                else:
+                    flash(
+                        'The manual submission could not be rejected.',
+                        'danger'
+                    )
+
+                return redirect(
+                    url_for(
+                        'admin_routes.dink_events'
+                    )
+                )
+
+            try:
+                result = database.accept_pending_manual_evidence(
+                    evidence_id=evidence_id,
+                    review_source='WEB',
+                    reviewer_id=current_user.id,
+                    reviewer_name=current_user.username,
+                    award_lost_mvp=(
+                        action == 'accept_manual_evidence_with_mvp'
+                    )
+                )
+
+            except ValueError as error:
+                flash(
+                    str(error),
+                    'danger'
+                )
+                return redirect(
+                    url_for(
+                        'admin_routes.dink_events'
+                    )
+                )
+
+            if result.get(
+                'newly_completed',
+                False
+            ):
+                completion_notifications.notify_progress_completions(
+                    [
+                        {
+                            'team_id': result['team_id'],
+                            'tile_id': result['tile_id'],
+                            'completed': True
+                        }
+                    ]
+                )
+
+            if result['status'] == 'ACCEPTED':
+                message = (
+                    f'Manual submission #{evidence_id} was accepted.'
+                )
+
+                if result.get(
+                    'audit_only',
+                    False
+                ):
+                    message += (
+                        ' It was accepted for audit only because '
+                        'the tile changed after submission.'
+                    )
+
+                elif result.get(
+                    'late_review',
+                    False
+                ):
+                    message += (
+                        ' The tile had already completed before '
+                        'this submission was reviewed.'
+                    )
+
+                late_review_points = float(
+                    result.get(
+                        'late_review_points',
+                        0
+                    )
+                    or 0
+                )
+
+                lost_mvp = float(
+                    result.get(
+                        'lost_mvp_contribution',
+                        0
+                    )
+                    or 0
+                )
+
+                if late_review_points > 0:
+                    message += (
+                        f' {late_review_points:g} discretionary '
+                        'MVP points were awarded.'
+                    )
+
+                elif lost_mvp > 0:
+                    message += (
+                        ' No discretionary MVP points were awarded.'
+                    )
+
+                flash(
+                    message,
+                    'success'
+                )
+
+            elif result['status'] == 'EVIDENCE_NOT_FOUND':
+                flash(
+                    'That manual submission no longer exists.',
+                    'danger'
+                )
+
+            elif result['status'] == 'INVALID_STATUS':
+                flash(
+                    (
+                        f'Manual submission #{evidence_id} has '
+                        'already been reviewed.'
+                    ),
+                    'danger'
+                )
+
+            elif result['status'] == 'EARLIER_PENDING_EVIDENCE':
+                flash(
+                    result.get(
+                        'message',
+                        (
+                            'An earlier submission for this tile '
+                            'must be reviewed first.'
+                        )
+                    ),
+                    'danger'
+                )
+
+            else:
+                flash(
+                    result.get(
+                        'message',
+                        'This manual submission could not be accepted.'
+                    ),
+                    'danger'
+                )
+
+            return redirect(
+                url_for(
+                    'admin_routes.dink_events'
+                )
+            )
+
         event_id_value = request.form.get(
             'event_id',
             ''
@@ -666,6 +920,10 @@ def dink_events():
             }
         )
 
+    pending_manual_evidence_entries = (
+        database.get_pending_manual_evidence_review_rows()
+    )
+
     manual_evidence_entries = (
         database.get_accepted_manual_evidence_invalidation_rows()
     )
@@ -673,6 +931,9 @@ def dink_events():
     return render_template(
         'admin_templates/dink_events.html',
         event_entries=event_entries,
+        pending_manual_evidence_entries=(
+            pending_manual_evidence_entries
+        ),
         manual_evidence_entries=manual_evidence_entries
     )
 
