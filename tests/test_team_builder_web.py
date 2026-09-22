@@ -270,6 +270,13 @@ def test_team_builder_posts_selected_players_and_shows_preview(
     assert "Combat Level" in html
     assert "Skilling Score" in html
     assert "Why this team?" in html
+    assert "Balance Score" in html
+    assert "Total penalty" in html
+    assert "Gap penalty" in html
+    assert "Coverage penalty" in html
+    assert "Lower is better." in html
+    assert "Team 1 coverage" in html
+    assert "Team 2 coverage" in html
     assert "Solo Boss Score" in html
     assert "Slayer Boss Score" in html
     assert "DT2 Boss Score" in html

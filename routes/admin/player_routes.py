@@ -60,6 +60,7 @@ def balance_players():
     group_members = []
     selected_player_names = []
     suggested_teams = None
+    layout_score = None
     failed_players = []
 
     keep_apart_text = str(
@@ -183,6 +184,9 @@ def balance_players():
                         team_count,
                         keep_apart_groups=keep_apart_groups
                     )
+                    layout_score = team_balancing.score_team_layout(
+                        suggested_teams
+                    )
                 except ValueError as error:
                     flash(
                         str(error),
@@ -203,6 +207,7 @@ def balance_players():
         team_count=team_count,
         keep_apart_text=keep_apart_text,
         suggested_teams=suggested_teams,
+        layout_score=layout_score,
         failed_players=failed_players
     )
 

@@ -167,6 +167,46 @@
         {% endif %}
 
         {% if suggested_teams %}
+            {% if layout_score %}
+                <section class="osrs-team-panel">
+                    <h2 class="osrs-team-heading">Balance Score</h2>
+
+                    <p>
+                        Total penalty:
+                        {{ "%.2f"|format(layout_score.total_penalty) }}
+                    </p>
+                    <p>
+                        Gap penalty:
+                        {{ "%.2f"|format(layout_score.gap_penalty_total) }}
+                    </p>
+                    <p>
+                        Coverage penalty:
+                        {{ "%.2f"|format(layout_score.coverage_penalty_total) }}
+                    </p>
+                    <p>
+                        Lower is better. This score is currently displayed for review only;
+                        it is not changing the suggested teams yet.
+                    </p>
+
+                    <h3>Coverage checks</h3>
+                    <ul>
+                        {% for coverage in layout_score.coverage.team_coverage %}
+                            <li>
+                                Team {{ coverage.team_number }} coverage:
+                                strong PvMer =
+                                {{ "yes" if coverage.has_strong_pvmer else "no" }},
+                                group PvMer =
+                                {{ "yes" if coverage.has_group_pvmer else "no" }},
+                                strong skiller =
+                                {{ "yes" if coverage.has_strong_skiller else "no" }},
+                                raids players =
+                                {{ coverage.raid_player_count }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </section>
+            {% endif %}
+
             <section class="osrs-summary" aria-label="Suggested team summary">
                 {% for team in suggested_teams %}
                     <div class="osrs-summary-card">

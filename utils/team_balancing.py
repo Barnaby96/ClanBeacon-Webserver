@@ -142,6 +142,54 @@ BOSS_SCORE_FIELDS = (
 )
 
 
+BALANCE_GAP_WEIGHTS = {
+    "player_count": 10000,
+    "raid_score": 90,
+    "endgame_boss_score": 85,
+    "group_boss_score": 65,
+    "combat_level": 55,
+    "combat_skill_total": 50,
+    "dt2_boss_score": 50,
+    "solo_boss_score": 40,
+    "slayer_boss_score": 40,
+    "skilling_score": 30,
+    "activity_boss_score": 30,
+    "total_level": 25,
+    "wilderness_boss_score": 20,
+    "midgame_boss_score": 15,
+    "clue_activity_score": 10
+}
+
+
+BALANCE_GAP_SCALES = {
+    "player_count": 1,
+    "raid_score": 1,
+    "endgame_boss_score": 1,
+    "group_boss_score": 1,
+    "combat_level": 5,
+    "combat_skill_total": 25,
+    "dt2_boss_score": 1,
+    "solo_boss_score": 1,
+    "slayer_boss_score": 1,
+    "skilling_score": 100,
+    "activity_boss_score": 1,
+    "total_level": 100,
+    "wilderness_boss_score": 1,
+    "midgame_boss_score": 1,
+    "clue_activity_score": 1
+}
+
+
+COVERAGE_PENALTY_WEIGHTS = {
+    "missing_strong_pvmer": 1200,
+    "missing_group_pvmer": 900,
+    "missing_raid_player": 1500,
+    "missing_extra_raid_player": 400,
+    "missing_strong_skiller": 800,
+    "keep_apart_conflict": 100000
+}
+
+
 def _safe_int(value, default=0):
     try:
         return int(value)
@@ -615,6 +663,278 @@ def build_balanced_teams(
         )
 
     return teams
+
+
+def _team_stat_total(team, stat_name):
+    if stat_name in team:
+        return _safe_int(
+            team.get(
+                stat_name
+            )
+        )
+
+    return sum(
+        _safe_int(
+            player.get(
+                stat_name
+            )
+        )
+        for player in team.get(
+            "players",
+            []
+        )
+    )
+
+
+def _calculate_gap_penalty(teams, stat_name):
+    values = [
+        _team_stat_total(
+            team,
+            stat_name
+        )
+        for team in teams
+    ]
+
+    if not values:
+        return {
+            "gap": 0,
+            "scaled_gap": 0,
+            "penalty": 0
+        }
+
+    gap = max(
+        values
+    ) - min(
+        values
+    )
+
+    scale = BALANCE_GAP_SCALES[
+        stat_name
+    ]
+
+    scaled_gap = gap / scale
+
+    return {
+        "gap": gap,
+        "scaled_gap": scaled_gap,
+        "penalty": scaled_gap * BALANCE_GAP_WEIGHTS[stat_name]
+    }
+
+
+def _player_is_strong_pvmer(player):
+    return (
+        player["raid_score"] > 0
+        or player["endgame_boss_score"] > 0
+        or player["dt2_boss_score"] >= 4
+        or player["solo_boss_score"] >= 8
+        or player["slayer_boss_score"] >= 8
+    )
+
+
+def _player_is_group_pvmer(player):
+    return (
+        player["group_boss_score"] >= 5
+        or player["raid_score"] > 0
+    )
+
+
+def _player_is_raid_player(player):
+    return player["raid_score"] > 0
+
+
+def _player_skilling_coverage_score(player):
+    return (
+        player["skilling_score"]
+        + (
+            player["activity_boss_score"] * 100
+        )
+    )
+
+
+def _strong_skiller_threshold(teams):
+    players = [
+        player
+        for team in teams
+        for player in team.get(
+            "players",
+            []
+        )
+    ]
+
+    if not players:
+        return 0
+
+    scores = sorted(
+        (
+            _player_skilling_coverage_score(
+                player
+            )
+            for player in players
+        ),
+        reverse=True
+    )
+
+    threshold_index = min(
+        len(
+            scores
+        ) - 1,
+        max(
+            len(
+                teams
+            ) - 1,
+            0
+        )
+    )
+
+    return scores[
+        threshold_index
+    ]
+
+
+def _player_is_strong_skiller(player, threshold):
+    return _player_skilling_coverage_score(
+        player
+    ) >= threshold
+
+
+def _calculate_team_coverage(team, strong_skiller_threshold):
+    players = team.get(
+        "players",
+        []
+    )
+
+    raid_player_count = sum(
+        1
+        for player in players
+        if _player_is_raid_player(
+            player
+        )
+    )
+
+    return {
+        "team_number": team["team_number"],
+        "has_strong_pvmer": any(
+            _player_is_strong_pvmer(
+                player
+            )
+            for player in players
+        ),
+        "has_group_pvmer": any(
+            _player_is_group_pvmer(
+                player
+            )
+            for player in players
+        ),
+        "has_strong_skiller": any(
+            _player_is_strong_skiller(
+                player,
+                strong_skiller_threshold
+            )
+            for player in players
+        ),
+        "raid_player_count": raid_player_count
+    }
+
+
+def _calculate_coverage_penalties(teams):
+    strong_skiller_threshold = _strong_skiller_threshold(
+        teams
+    )
+
+    team_coverage = [
+        _calculate_team_coverage(
+            team,
+            strong_skiller_threshold
+        )
+        for team in teams
+    ]
+
+    penalties = {
+        "missing_strong_pvmer": 0,
+        "missing_group_pvmer": 0,
+        "missing_raid_player": 0,
+        "missing_extra_raid_player": 0,
+        "missing_strong_skiller": 0,
+        "keep_apart_conflict": 0
+    }
+
+    for coverage in team_coverage:
+        if not coverage["has_strong_pvmer"]:
+            penalties["missing_strong_pvmer"] += (
+                COVERAGE_PENALTY_WEIGHTS["missing_strong_pvmer"]
+            )
+
+        if not coverage["has_group_pvmer"]:
+            penalties["missing_group_pvmer"] += (
+                COVERAGE_PENALTY_WEIGHTS["missing_group_pvmer"]
+            )
+
+        if coverage["raid_player_count"] == 0:
+            penalties["missing_raid_player"] += (
+                COVERAGE_PENALTY_WEIGHTS["missing_raid_player"]
+            )
+
+        if coverage["raid_player_count"] < 2:
+            penalties["missing_extra_raid_player"] += (
+                COVERAGE_PENALTY_WEIGHTS["missing_extra_raid_player"]
+            )
+
+        if not coverage["has_strong_skiller"]:
+            penalties["missing_strong_skiller"] += (
+                COVERAGE_PENALTY_WEIGHTS["missing_strong_skiller"]
+            )
+
+    penalties["keep_apart_conflict"] = sum(
+        len(
+            team.get(
+                "keep_apart_conflicts",
+                []
+            )
+        )
+        * COVERAGE_PENALTY_WEIGHTS["keep_apart_conflict"]
+        for team in teams
+    )
+
+    return {
+        "team_coverage": team_coverage,
+        "strong_skiller_threshold": strong_skiller_threshold,
+        "penalties": penalties,
+        "total_penalty": sum(
+            penalties.values()
+        )
+    }
+
+
+def score_team_layout(teams):
+    gap_penalties = {
+        stat_name: _calculate_gap_penalty(
+            teams,
+            stat_name
+        )
+        for stat_name in BALANCE_GAP_WEIGHTS
+    }
+
+    coverage = _calculate_coverage_penalties(
+        teams
+    )
+
+    gap_penalty_total = sum(
+        gap_penalty["penalty"]
+        for gap_penalty in gap_penalties.values()
+    )
+
+    total_penalty = (
+        gap_penalty_total
+        + coverage["total_penalty"]
+    )
+
+    return {
+        "total_penalty": total_penalty,
+        "gap_penalty_total": gap_penalty_total,
+        "coverage_penalty_total": coverage["total_penalty"],
+        "gap_penalties": gap_penalties,
+        "coverage": coverage
+    }
 
 
 def _build_team_reasons(team):

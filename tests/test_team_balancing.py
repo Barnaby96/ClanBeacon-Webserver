@@ -365,3 +365,267 @@ def test_build_balanced_teams_tracks_bossing_category_totals():
         "raid_score" in team
         for team in result
     )
+
+
+
+
+def make_layout_team(team_number, players, keep_apart_conflicts=None):
+    scored_players = [
+        team_balancing.calculate_player_balance_scores(
+            player
+        )
+        for player in players
+    ]
+
+    team = {
+        "team_number": team_number,
+        "players": scored_players,
+        "player_count": len(
+            scored_players
+        ),
+        "total_level": sum(
+            player["total_level"]
+            for player in scored_players
+        ),
+        "combat_level": sum(
+            player["combat_level"]
+            for player in scored_players
+        ),
+        "skilling_score": sum(
+            player["skilling_score"]
+            for player in scored_players
+        ),
+        "keep_apart_conflicts": keep_apart_conflicts or []
+    }
+
+    for score_field in team_balancing.BOSS_SCORE_FIELDS:
+        team[score_field] = sum(
+            player[score_field]
+            for player in scored_players
+        )
+
+    return team
+
+
+def test_score_team_layout_penalises_stacked_raid_coverage():
+    raid_player_one = make_player(
+        "Raid Player One",
+        2100,
+        126
+    )
+    raid_player_one["latestSnapshot"]["data"]["bosses"] = {
+        "tombs_of_amascut": {
+            "kills": 151
+        }
+    }
+
+    raid_player_two = make_player(
+        "Raid Player Two",
+        2100,
+        126
+    )
+    raid_player_two["latestSnapshot"]["data"]["bosses"] = {
+        "chambers_of_xeric": {
+            "kills": 151
+        }
+    }
+
+    non_raid_player_one = make_player(
+        "Non Raid Player One",
+        2100,
+        126
+    )
+
+    non_raid_player_two = make_player(
+        "Non Raid Player Two",
+        2100,
+        126
+    )
+
+    stacked_layout = [
+        make_layout_team(
+            1,
+            [
+                raid_player_one,
+                raid_player_two
+            ]
+        ),
+        make_layout_team(
+            2,
+            [
+                non_raid_player_one,
+                non_raid_player_two
+            ]
+        )
+    ]
+
+    spread_layout = [
+        make_layout_team(
+            1,
+            [
+                raid_player_one,
+                non_raid_player_one
+            ]
+        ),
+        make_layout_team(
+            2,
+            [
+                raid_player_two,
+                non_raid_player_two
+            ]
+        )
+    ]
+
+    stacked_score = team_balancing.score_team_layout(
+        stacked_layout
+    )
+    spread_score = team_balancing.score_team_layout(
+        spread_layout
+    )
+
+    assert stacked_score["total_penalty"] > spread_score["total_penalty"]
+    assert (
+        stacked_score["coverage"]["penalties"]["missing_raid_player"]
+        > spread_score["coverage"]["penalties"]["missing_raid_player"]
+    )
+
+
+def test_score_team_layout_penalises_stacked_strong_skillers():
+    strong_skiller_one = make_player(
+        "Strong Skiller One",
+        2200,
+        100
+    )
+
+    strong_skiller_two = make_player(
+        "Strong Skiller Two",
+        2190,
+        100
+    )
+
+    weaker_skiller_one = make_player(
+        "Weaker Skiller One",
+        1500,
+        100
+    )
+
+    weaker_skiller_two = make_player(
+        "Weaker Skiller Two",
+        1500,
+        100
+    )
+
+    stacked_layout = [
+        make_layout_team(
+            1,
+            [
+                strong_skiller_one,
+                strong_skiller_two
+            ]
+        ),
+        make_layout_team(
+            2,
+            [
+                weaker_skiller_one,
+                weaker_skiller_two
+            ]
+        )
+    ]
+
+    spread_layout = [
+        make_layout_team(
+            1,
+            [
+                strong_skiller_one,
+                weaker_skiller_one
+            ]
+        ),
+        make_layout_team(
+            2,
+            [
+                strong_skiller_two,
+                weaker_skiller_two
+            ]
+        )
+    ]
+
+    stacked_score = team_balancing.score_team_layout(
+        stacked_layout
+    )
+    spread_score = team_balancing.score_team_layout(
+        spread_layout
+    )
+
+    assert stacked_score["total_penalty"] > spread_score["total_penalty"]
+    assert (
+        stacked_score["coverage"]["penalties"]["missing_strong_skiller"]
+        > spread_score["coverage"]["penalties"]["missing_strong_skiller"]
+    )
+
+
+def test_score_team_layout_penalises_keep_apart_conflicts_heavily():
+    clean_layout = [
+        make_layout_team(
+            1,
+            [
+                make_player(
+                    "Player One",
+                    2000,
+                    120
+                )
+            ]
+        ),
+        make_layout_team(
+            2,
+            [
+                make_player(
+                    "Player Two",
+                    2000,
+                    120
+                )
+            ]
+        )
+    ]
+
+    conflict_layout = [
+        make_layout_team(
+            1,
+            [
+                make_player(
+                    "Player One",
+                    2000,
+                    120
+                )
+            ],
+            keep_apart_conflicts=[
+                {
+                    "player_name": "Player One",
+                    "conflicts_with": [
+                        "Player Two"
+                    ]
+                }
+            ]
+        ),
+        make_layout_team(
+            2,
+            [
+                make_player(
+                    "Player Two",
+                    2000,
+                    120
+                )
+            ]
+        )
+    ]
+
+    clean_score = team_balancing.score_team_layout(
+        clean_layout
+    )
+    conflict_score = team_balancing.score_team_layout(
+        conflict_layout
+    )
+
+    assert (
+        conflict_score["total_penalty"]
+        - clean_score["total_penalty"]
+    ) >= team_balancing.COVERAGE_PENALTY_WEIGHTS["keep_apart_conflict"]
