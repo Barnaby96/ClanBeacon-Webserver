@@ -677,6 +677,10 @@ def build_balanced_teams(
         optimised_score
     )
 
+    _add_player_placement_notes(
+        teams
+    )
+
     for team in teams:
         team["optimisation_summary"] = optimisation_summary
         team["reasons"] = _build_team_reasons(
@@ -903,6 +907,104 @@ def _build_optimisation_summary(
         "changed_areas": changed_areas,
         "message": message
     }
+
+
+
+
+def _player_has_keep_apart_conflict(player, team):
+    return any(
+        conflict["player_name"] == player["player_name"]
+        for conflict in team.get(
+            "keep_apart_conflicts",
+            []
+        )
+    )
+
+
+def _build_player_placement_notes(
+    player,
+    team,
+    strong_skiller_threshold
+):
+    notes = [
+        (
+            f"Placed on Team {team['team_number']} after the optimiser "
+            "compared one-player moves and two-player swaps."
+        )
+    ]
+
+    if _player_is_raid_player(
+        player
+    ):
+        notes.append(
+            f"Contributes raid coverage with raid score {player['raid_score']}."
+        )
+
+    if _player_is_strong_pvmer(
+        player
+    ):
+        notes.append(
+            "Counts towards this team's strong PvMer coverage."
+        )
+
+    if _player_is_group_pvmer(
+        player
+    ):
+        notes.append(
+            "Counts towards this team's group PvM coverage."
+        )
+
+    if _player_is_strong_skiller(
+        player,
+        strong_skiller_threshold
+    ):
+        notes.append(
+            "Counts towards this team's strong skiller coverage."
+        )
+
+    if player["activity_boss_score"] > 0:
+        notes.append(
+            (
+                "Adds activity score for skilling-style tiles such as "
+                "Wintertodt, Tempoross, Zalcano, or Guardians of the Rift."
+            )
+        )
+
+    if _player_has_keep_apart_conflict(
+        player,
+        team
+    ):
+        notes.append(
+            "Warning: this player is involved in a keep-apart conflict on this team."
+        )
+
+    if len(
+        notes
+    ) == 1:
+        notes.append(
+            "Provides general team depth through account and score balance."
+        )
+
+    return notes
+
+
+def _add_player_placement_notes(teams):
+    strong_skiller_threshold = _strong_skiller_threshold(
+        teams
+    )
+
+    for team in teams:
+        for player in team.get(
+            "players",
+            []
+        ):
+            player["placement_notes"] = _build_player_placement_notes(
+                player,
+                team,
+                strong_skiller_threshold
+            )
+
+    return teams
 
 
 def _candidate_with_player_move(

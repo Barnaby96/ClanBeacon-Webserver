@@ -358,6 +358,18 @@
                                         <td>{{ player.activity_boss_score }}</td>
                                         <td>{{ player.clue_activity_score }}</td>
                                     </tr>
+                                    <tr>
+                                        <td colspan="15">
+                                            <details>
+                                                <summary>Placement Notes: Why this player?</summary>
+                                                <ul>
+                                                    {% for note in player.placement_notes %}
+                                                        <li>{{ note }}</li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </details>
+                                        </td>
+                                    </tr>
                                 {% endfor %}
                             </tbody>
                         </table>

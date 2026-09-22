@@ -270,6 +270,8 @@ def test_team_builder_posts_selected_players_and_shows_preview(
     assert "Combat Level" in html
     assert "Skilling Score" in html
     assert "Why this team?" in html
+    assert "Placement Notes" in html
+    assert "Why this player?" in html
     assert "Balance Score" in html
     assert "Jump to Teams" in html
     assert 'href="#suggested-teams"' in html

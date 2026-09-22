@@ -897,3 +897,63 @@ def test_build_balanced_teams_includes_optimisation_summary():
         team["optimisation_summary"] == summary
         for team in result
     )
+
+
+
+
+def test_build_balanced_teams_adds_player_placement_notes():
+    raid_player = make_player(
+        "Raid Player",
+        2100,
+        126
+    )
+    raid_player["latestSnapshot"]["data"]["bosses"] = {
+        "tombs_of_amascut": {
+            "kills": 151
+        }
+    }
+
+    skiller = make_player(
+        "Strong Skiller",
+        2200,
+        100
+    )
+    skiller["latestSnapshot"]["data"]["bosses"] = {
+        "wintertodt": {
+            "kills": 501
+        }
+    }
+
+    result = team_balancing.build_balanced_teams(
+        [
+            raid_player,
+            skiller
+        ],
+        team_count=2
+    )
+
+    players = [
+        player
+        for team in result
+        for player in team["players"]
+    ]
+
+    assert all(
+        player["placement_notes"]
+        for player in players
+    )
+
+    raid_notes = next(
+        player["placement_notes"]
+        for player in players
+        if player["player_name"] == "Raid Player"
+    )
+
+    assert any(
+        "one-player moves and two-player swaps" in note
+        for note in raid_notes
+    )
+    assert any(
+        "raid coverage" in note
+        for note in raid_notes
+    )
