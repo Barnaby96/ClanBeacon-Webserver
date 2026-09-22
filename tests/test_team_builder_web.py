@@ -271,10 +271,18 @@ def test_team_builder_posts_selected_players_and_shows_preview(
     assert "Skilling Score" in html
     assert "Why this team?" in html
     assert "Balance Score" in html
+    assert "Jump to Teams" in html
+    assert 'href="#suggested-teams"' in html
+    assert 'id="suggested-teams"' in html
     assert "Total penalty" in html
     assert "Gap penalty" in html
     assert "Coverage penalty" in html
-    assert "Lower is better." in html
+    assert "Build Teams automatically runs the optimiser" in html
+    assert "Optimiser result" in html
+    assert "Original greedy penalty" in html
+    assert "Optimised penalty" in html
+    assert "Total improvement" in html
+    assert "one-player move or two-player swap" in html
     assert "Team 1 coverage" in html
     assert "Team 2 coverage" in html
     assert "Solo Boss Score" in html

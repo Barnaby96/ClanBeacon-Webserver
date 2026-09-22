@@ -657,12 +657,28 @@ def build_balanced_teams(
         for score_field in BOSS_SCORE_FIELDS:
             target_team[score_field] += player[score_field]
 
+    greedy_teams = _clone_team_layout(
+        teams,
+        normalised_keep_apart_groups
+    )
+    greedy_score = score_team_layout(
+        greedy_teams
+    )
+
     teams = _optimise_team_layout(
         teams,
         normalised_keep_apart_groups
     )
+    optimised_score = score_team_layout(
+        teams
+    )
+    optimisation_summary = _build_optimisation_summary(
+        greedy_score,
+        optimised_score
+    )
 
     for team in teams:
+        team["optimisation_summary"] = optimisation_summary
         team["reasons"] = _build_team_reasons(
             team
         )
@@ -792,6 +808,101 @@ def _layout_total_penalty(teams):
     return score_team_layout(
         teams
     )["total_penalty"]
+
+
+
+
+def _penalty_change(
+    label,
+    before,
+    after
+):
+    improvement = before - after
+
+    return {
+        "label": label,
+        "before": before,
+        "after": after,
+        "improvement": improvement,
+        "direction": "improved" if improvement > 0 else "worsened"
+    }
+
+
+def _build_optimisation_summary(
+    greedy_score,
+    optimised_score
+):
+    changed_areas = []
+
+    for stat_name in BALANCE_GAP_WEIGHTS:
+        before = greedy_score["gap_penalties"][stat_name]["penalty"]
+        after = optimised_score["gap_penalties"][stat_name]["penalty"]
+
+        if before == after:
+            continue
+
+        changed_areas.append(
+            _penalty_change(
+                stat_name.replace(
+                    "_",
+                    " "
+                ),
+                before,
+                after
+            )
+        )
+
+    for penalty_name in COVERAGE_PENALTY_WEIGHTS:
+        before = greedy_score["coverage"]["penalties"][penalty_name]
+        after = optimised_score["coverage"]["penalties"][penalty_name]
+
+        if before == after:
+            continue
+
+        changed_areas.append(
+            _penalty_change(
+                penalty_name.replace(
+                    "_",
+                    " "
+                ),
+                before,
+                after
+            )
+        )
+
+    total_improvement = (
+        greedy_score["total_penalty"]
+        - optimised_score["total_penalty"]
+    )
+
+    changed_areas.sort(
+        key=lambda area: (
+            abs(
+                area["improvement"]
+            ),
+            area["label"]
+        ),
+        reverse=True
+    )
+
+    if total_improvement > 0:
+        message = (
+            "The optimiser improved the greedy layout. No further "
+            "one-player moves or two-player swaps improved the score."
+        )
+    else:
+        message = (
+            "The greedy layout was already the best layout found by "
+            "one-player moves and two-player swaps."
+        )
+
+    return {
+        "greedy_total_penalty": greedy_score["total_penalty"],
+        "optimised_total_penalty": optimised_score["total_penalty"],
+        "total_improvement": total_improvement,
+        "changed_areas": changed_areas,
+        "message": message
+    }
 
 
 def _candidate_with_player_move(

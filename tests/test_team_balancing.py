@@ -780,3 +780,120 @@ def test_optimise_team_layout_uses_player_swaps_to_improve_coverage():
         1,
         1
     ]
+
+
+
+
+def test_build_optimisation_summary_describes_improvements():
+    greedy_score = {
+        "total_penalty": 300,
+        "gap_penalties": {
+            stat_name: {
+                "penalty": 0
+            }
+            for stat_name in team_balancing.BALANCE_GAP_WEIGHTS
+        },
+        "coverage": {
+            "penalties": {
+                penalty_name: 0
+                for penalty_name in team_balancing.COVERAGE_PENALTY_WEIGHTS
+            }
+        }
+    }
+    greedy_score["gap_penalties"]["raid_score"]["penalty"] = 90
+    greedy_score["coverage"]["penalties"]["missing_raid_player"] = 1500
+
+    optimised_score = {
+        "total_penalty": 100,
+        "gap_penalties": {
+            stat_name: {
+                "penalty": 0
+            }
+            for stat_name in team_balancing.BALANCE_GAP_WEIGHTS
+        },
+        "coverage": {
+            "penalties": {
+                penalty_name: 0
+                for penalty_name in team_balancing.COVERAGE_PENALTY_WEIGHTS
+            }
+        }
+    }
+    optimised_score["gap_penalties"]["raid_score"]["penalty"] = 45
+    optimised_score["coverage"]["penalties"]["missing_raid_player"] = 0
+
+    summary = team_balancing._build_optimisation_summary(
+        greedy_score,
+        optimised_score
+    )
+
+    assert summary["greedy_total_penalty"] == 300
+    assert summary["optimised_total_penalty"] == 100
+    assert summary["total_improvement"] == 200
+    assert (
+        "No further one-player moves or two-player swaps improved the score."
+        in summary["message"]
+    )
+    assert {
+        "missing raid player",
+        "raid score"
+    }.issubset(
+        {
+            area["label"]
+            for area in summary["changed_areas"]
+        }
+    )
+
+
+def test_build_balanced_teams_includes_optimisation_summary():
+    raid_player_one = make_player(
+        "Raid Player One",
+        2100,
+        126
+    )
+    raid_player_one["latestSnapshot"]["data"]["bosses"] = {
+        "tombs_of_amascut": {
+            "kills": 151
+        }
+    }
+
+    raid_player_two = make_player(
+        "Raid Player Two",
+        2100,
+        126
+    )
+    raid_player_two["latestSnapshot"]["data"]["bosses"] = {
+        "chambers_of_xeric": {
+            "kills": 151
+        }
+    }
+
+    non_raid_player_one = make_player(
+        "Non Raid Player One",
+        2100,
+        126
+    )
+
+    non_raid_player_two = make_player(
+        "Non Raid Player Two",
+        2100,
+        126
+    )
+
+    result = team_balancing.build_balanced_teams(
+        [
+            raid_player_one,
+            raid_player_two,
+            non_raid_player_one,
+            non_raid_player_two
+        ],
+        team_count=2
+    )
+
+    summary = result[0]["optimisation_summary"]
+
+    assert summary["optimised_total_penalty"] <= summary["greedy_total_penalty"]
+    assert "message" in summary
+    assert all(
+        team["optimisation_summary"] == summary
+        for team in result
+    )

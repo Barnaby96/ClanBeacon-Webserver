@@ -99,6 +99,14 @@
                             The preview will avoid placing them together where possible.
                         </p>
 
+                        {% if suggested_teams %}
+                            <p>
+                                <a class="osrs-button" href="#suggested-teams">
+                                    Jump to Teams
+                                </a>
+                            </p>
+                        {% endif %}
+
                         <div class="osrs-table-wrap">
                             <table class="osrs-table">
                                 <thead>
@@ -168,6 +176,8 @@
 
         {% if suggested_teams %}
             {% if layout_score %}
+                {% set optimisation_summary = suggested_teams[0].optimisation_summary %}
+
                 <section class="osrs-team-panel">
                     <h2 class="osrs-team-heading">Balance Score</h2>
 
@@ -184,9 +194,47 @@
                         {{ "%.2f"|format(layout_score.coverage_penalty_total) }}
                     </p>
                     <p>
-                        Lower is better. This score is currently displayed for review only;
-                        it is not changing the suggested teams yet.
+                        Lower is better. Build Teams automatically runs the optimiser;
+                        there is no separate optimise button because the optimiser stops
+                        when no one-player move or two-player swap improves the score.
                     </p>
+
+                    <h3>Optimiser result</h3>
+                    <p>
+                        Original greedy penalty:
+                        {{ "%.2f"|format(optimisation_summary.greedy_total_penalty) }}
+                    </p>
+                    <p>
+                        Optimised penalty:
+                        {{ "%.2f"|format(optimisation_summary.optimised_total_penalty) }}
+                    </p>
+                    <p>
+                        Total improvement:
+                        {{ "%.2f"|format(optimisation_summary.total_improvement) }}
+                    </p>
+                    <p>
+                        {{ optimisation_summary.message }}
+                    </p>
+
+                    {% if optimisation_summary.changed_areas %}
+                        <h3>What changed</h3>
+                        <ul>
+                            {% for area in optimisation_summary.changed_areas %}
+                                <li>
+                                    {{ area.label|title }}:
+                                    {{ "%.2f"|format(area.before) }}
+                                    →
+                                    {{ "%.2f"|format(area.after) }}
+                                    {% if area.direction == "improved" %}
+                                        improved by
+                                    {% else %}
+                                        worsened by
+                                    {% endif %}
+                                    {{ "%.2f"|format(area.improvement|abs) }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
 
                     <h3>Coverage checks</h3>
                     <ul>
@@ -207,7 +255,11 @@
                 </section>
             {% endif %}
 
-            <section class="osrs-summary" aria-label="Suggested team summary">
+            <section
+                class="osrs-summary"
+                id="suggested-teams"
+                aria-label="Suggested team summary"
+            >
                 {% for team in suggested_teams %}
                     <div class="osrs-summary-card">
                         <span class="osrs-summary-label">
