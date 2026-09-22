@@ -40,6 +40,14 @@
                     Update All WOM Players
                 </button>
             </form>
+            <a
+                class="osrs-button"
+                href="{{ url_for(
+                    'player_management.balance_players'
+                ) }}"
+            >
+                Team Builder
+            </a>
         </section>
 
         {% for team in teams %}

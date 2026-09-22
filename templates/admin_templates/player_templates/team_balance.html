@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block content %}
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
+
+<div class="osrs-dashboard">
+    <main class="osrs-page">
+        <header class="osrs-page-header">
+            <h1 class="osrs-page-title">Team Builder</h1>
+            <p class="osrs-page-subtitle">
+                Build balanced preview teams from a Wise Old Man group.
+                This page does not save or move players.
+            </p>
+        </header>
+
+        <section class="osrs-player-section">
+            <form
+                action="{{ url_for('player_management.balance_players') }}"
+                method="get"
+            >
+                <label for="group_id">WOM Group ID</label>
+                <input
+                    id="group_id"
+                    name="group_id"
+                    type="number"
+                    min="1"
+                    value="{{ group_id }}"
+                    required
+                >
+
+                <label for="team_count">Number of teams</label>
+                <input
+                    id="team_count"
+                    name="team_count"
+                    type="number"
+                    min="1"
+                    value="{{ team_count }}"
+                    required
+                >
+
+                <button
+                    class="osrs-button"
+                    type="submit"
+                >
+                    Load WOM Group
+                </button>
+            </form>
+        </section>
+
+        {% if group_id %}
+            <section class="osrs-team-panel">
+                <h2 class="osrs-team-heading">
+                    {% if group_name %}
+                        {{ group_name }}
+                    {% else %}
+                        WOM Group {{ group_id }}
+                    {% endif %}
+                </h2>
+
+                {% if group_members %}
+                    <p>
+                        Select the players who are joining this event, then
+                        build a preview.
+                    </p>
+
+                    <form
+                        action="{{ url_for('player_management.balance_players') }}"
+                        method="post"
+                    >
+                        <input
+                            type="hidden"
+                            name="group_id"
+                            value="{{ group_id }}"
+                        >
+
+                        <label for="post_team_count">Number of teams</label>
+                        <input
+                            id="post_team_count"
+                            name="team_count"
+                            type="number"
+                            min="1"
+                            value="{{ team_count }}"
+                            required
+                        >
+
+                        <label for="keep_apart_text">Keep-apart groups</label>
+                        <textarea
+                            id="keep_apart_text"
+                            name="keep_apart_text"
+                            rows="5"
+                            placeholder="One group per line, separated by commas. Example:&#10;Winner One, Winner Two, Winner Three"
+                        >{{ keep_apart_text }}</textarea>
+
+                        <p>
+                            Put players who should be split up on the same line.
+                            The preview will avoid placing them together where possible.
+                        </p>
+
+                        <div class="osrs-table-wrap">
+                            <table class="osrs-table">
+                                <thead>
+                                    <tr>
+                                        <th>Include</th>
+                                        <th>Player</th>
+                                        <th>WOM Player ID</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {% for player in group_members %}
+                                        <tr>
+                                            <td>
+                                                <input
+                                                    type="checkbox"
+                                                    name="player_names"
+                                                    value="{{ player.player_name }}"
+                                                    {% if player.player_name.casefold() in selected_player_keys %}
+                                                        checked
+                                                    {% endif %}
+                                                >
+                                            </td>
+                                            <td>{{ player.player_name }}</td>
+                                            <td>
+                                                {% if player.player_id %}
+                                                    {{ player.player_id }}
+                                                {% else %}
+                                                    Unknown
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <button
+                            class="osrs-button"
+                            type="submit"
+                        >
+                            Build Team Preview
+                        </button>
+                    </form>
+                {% else %}
+                    <p class="osrs-empty-team">
+                        No players were found for this WOM group.
+                    </p>
+                {% endif %}
+            </section>
+        {% endif %}
+
+        {% if failed_players %}
+            <section class="osrs-team-panel">
+                <h2 class="osrs-team-heading">WOM Lookup Warnings</h2>
+
+                <ul>
+                    {% for failed_player in failed_players %}
+                        <li>
+                            {{ failed_player.player_name }}:
+                            {{ failed_player.error }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </section>
+        {% endif %}
+
+        {% if suggested_teams %}
+            <section class="osrs-summary" aria-label="Suggested team summary">
+                {% for team in suggested_teams %}
+                    <div class="osrs-summary-card">
+                        <span class="osrs-summary-label">
+                            Team {{ team.team_number }}
+                        </span>
+                        <span class="osrs-summary-value">
+                            {{ team.player_count }} players
+                        </span>
+                        <span>
+                            Total level: {{ team.total_level }}
+                        </span>
+                        <span>
+                            Combat total: {{ team.combat_level }}
+                        </span>
+                        <span>
+                            Skilling score: {{ team.skilling_score }}
+                        </span>
+                    </div>
+                {% endfor %}
+            </section>
+
+            {% for team in suggested_teams %}
+                <section class="osrs-team-panel">
+                    <h2 class="osrs-team-heading">
+                        Suggested Team {{ team.team_number }}
+                    </h2>
+
+                    <div class="osrs-table-wrap">
+                        <table class="osrs-table">
+                            <thead>
+                                <tr>
+                                    <th>Player</th>
+                                    <th>Total Level</th>
+                                    <th>Combat Level</th>
+                                    <th>Combat Skill Total</th>
+                                    <th>Skilling Score</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {% for player in team.players %}
+                                    <tr>
+                                        <td>{{ player.player_name }}</td>
+                                        <td>{{ player.total_level }}</td>
+                                        <td>{{ player.combat_level }}</td>
+                                        <td>{{ player.combat_skill_total }}</td>
+                                        <td>{{ player.skilling_score }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if team.reasons %}
+                        <h3>Why this team?</h3>
+                        <ul>
+                            {% for reason in team.reasons %}
+                                <li>{{ reason }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </section>
+            {% endfor %}
+        {% endif %}
+    </main>
+</div>
+{% endblock %}

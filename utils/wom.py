@@ -21,25 +21,91 @@ def _get_headers():
     return headers
 
 
+def get_group(group_id):
+    try:
+        group_id = int(group_id)
+    except (
+        TypeError,
+        ValueError
+    ) as error:
+        raise WiseOldManError(
+            "The Wise Old Man group ID must be a number."
+        ) from error
+
+    try:
+        response = requests.get(
+            f"https://api.wiseoldman.net/v2/groups/{group_id}",
+            headers=_get_headers(),
+            timeout=20
+        )
+
+        if response.status_code == 404:
+            raise WiseOldManError(
+                f"Wise Old Man group {group_id} was not found."
+            )
+
+        response.raise_for_status()
+        data = response.json()
+
+    except WiseOldManError:
+        raise
+    except (
+        requests.RequestException,
+        ValueError
+    ) as error:
+        raise WiseOldManError(
+            "Unable to retrieve the Wise Old Man group."
+        ) from error
+
+    return data
+
+
+def get_player(rsn):
+    rsn = str(
+        rsn or ""
+    ).strip()
+
+    if not rsn:
+        raise WiseOldManError(
+            "A player name is required for Wise Old Man lookup."
+        )
+
+    try:
+        response = requests.get(
+            f"https://api.wiseoldman.net/v2/players/{rsn}",
+            headers=_get_headers(),
+            timeout=20
+        )
+
+        if response.status_code == 404:
+            raise WiseOldManError(
+                f"Wise Old Man player '{rsn}' was not found."
+            )
+
+        response.raise_for_status()
+        data = response.json()
+
+    except WiseOldManError:
+        raise
+    except (
+        requests.RequestException,
+        ValueError
+    ) as error:
+        raise WiseOldManError(
+            f"Unable to retrieve Wise Old Man player '{rsn}'."
+        ) from error
+
+    return data
+
+
 def get_group_member(rsn):
     group_id = os.getenv("WOM_GROUP_ID")
     if not group_id:
         raise WiseOldManError("WOM_GROUP_ID is not configured.")
 
-    headers = _get_headers()
-
-    try:
-        response = requests.get(
-            f"https://api.wiseoldman.net/v2/groups/{group_id}",
-            headers=headers,
-            timeout=20
-        )
-        response.raise_for_status()
-        data = response.json()
-    except (requests.RequestException, ValueError) as error:
-        raise WiseOldManError(
-            "Unable to retrieve the Wise Old Man group."
-        ) from error
+    data = get_group(
+        group_id
+    )
 
     requested_rsn = rsn.strip().lower()
 

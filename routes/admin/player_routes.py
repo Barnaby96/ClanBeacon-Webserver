@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, Blu
 
 from utils.auth import admin_required
 from utils.branding import get_wom_user_agent
-from utils import db_entities, wom
+from utils import db_entities, wom, team_balancing
 from utils.database import add_player, get_players, get_player_by_id, remove_player, rename_player, \
     get_players_by_team_id, update_player, change_player_team, get_team_by_name, get_teams, \
     get_manage_players_roster, get_team_by_id
@@ -29,6 +29,181 @@ def player_list():
         teams=teams,
         team_count=team_count,
         player_count=player_count
+    )
+
+
+@player_routes.route('/players/balance', methods=['GET', 'POST'])
+@admin_required
+def balance_players():
+    group_id = str(
+        request.values.get(
+            "group_id",
+            ""
+        )
+    ).strip()
+
+    team_count_raw = str(
+        request.values.get(
+            "team_count",
+            "2"
+        )
+    ).strip()
+
+    try:
+        team_count = int(
+            team_count_raw
+        )
+    except ValueError:
+        team_count = 2
+
+    group_name = None
+    group_members = []
+    selected_player_names = []
+    suggested_teams = None
+    failed_players = []
+
+    keep_apart_text = str(
+        request.values.get(
+            "keep_apart_text",
+            ""
+        )
+    ).strip()
+
+    keep_apart_groups = team_balancing.parse_keep_apart_text(
+        keep_apart_text
+    )
+
+    if group_id:
+        try:
+            group_data = wom.get_group(
+                group_id
+            )
+        except wom.WiseOldManError as error:
+            flash(
+                str(error),
+                "danger"
+            )
+        else:
+            group_name = group_data.get(
+                "name"
+            )
+
+            seen_players = set()
+
+            for membership in group_data.get(
+                "memberships",
+                []
+            ):
+                player = membership.get(
+                    "player"
+                ) or {}
+
+                player_name = str(
+                    player.get("displayName")
+                    or player.get("username")
+                    or ""
+                ).strip()
+
+                if not player_name:
+                    continue
+
+                player_key = player_name.casefold()
+
+                if player_key in seen_players:
+                    continue
+
+                seen_players.add(
+                    player_key
+                )
+
+                group_members.append(
+                    {
+                        "player_id": player.get("id"),
+                        "player_name": player_name,
+                        "username": player.get("username")
+                    }
+                )
+
+            group_members.sort(
+                key=lambda player: player["player_name"].casefold()
+            )
+
+    if request.method == "POST":
+        selected_player_names = [
+            str(player_name).strip()
+            for player_name in request.form.getlist(
+                "player_names"
+            )
+            if str(player_name).strip()
+        ]
+
+        if team_count <= 0:
+            flash(
+                "Team count must be greater than zero.",
+                "danger"
+            )
+        elif not selected_player_names:
+            flash(
+                "Select at least one player before building teams.",
+                "warning"
+            )
+        else:
+            player_data = []
+
+            for player_name in selected_player_names:
+                try:
+                    player_data.append(
+                        wom.get_player(
+                            player_name
+                        )
+                    )
+                except wom.WiseOldManError as error:
+                    failed_players.append(
+                        {
+                            "player_name": player_name,
+                            "error": str(error)
+                        }
+                    )
+
+            if failed_players:
+                failed_names = ", ".join(
+                    failed_player["player_name"]
+                    for failed_player in failed_players
+                )
+
+                flash(
+                    f"Could not fetch WOM stats for: {failed_names}.",
+                    "warning"
+                )
+
+            if player_data:
+                try:
+                    suggested_teams = team_balancing.build_balanced_teams(
+                        player_data,
+                        team_count,
+                        keep_apart_groups=keep_apart_groups
+                    )
+                except ValueError as error:
+                    flash(
+                        str(error),
+                        "danger"
+                    )
+
+    selected_player_keys = {
+        player_name.casefold()
+        for player_name in selected_player_names
+    }
+
+    return render_template(
+        'admin_templates/player_templates/team_balance.html',
+        group_id=group_id,
+        group_name=group_name,
+        group_members=group_members,
+        selected_player_keys=selected_player_keys,
+        team_count=team_count,
+        keep_apart_text=keep_apart_text,
+        suggested_teams=suggested_teams,
+        failed_players=failed_players
     )
 
 
