@@ -9,6 +9,139 @@ COMBAT_SKILLS = (
 )
 
 
+SOLO_BOSS_METRICS = (
+    "vorkath",
+    "zulrah",
+    "phantom_muspah",
+    "the_gauntlet",
+    "the_corrupted_gauntlet",
+    "amoxliatl",
+    "doom_of_mokhaiotl",
+    "mad_angel",
+    "maggot_king",
+    "shellbane_gryphon"
+)
+
+
+SLAYER_BOSS_METRICS = (
+    "alchemical_hydra",
+    "cerberus",
+    "grotesque_guardians",
+    "abyssal_sire",
+    "thermonuclear_smoke_devil",
+    "kraken",
+    "araxxor"
+)
+
+
+DT2_BOSS_METRICS = (
+    "duke_sucellus",
+    "vardorvis",
+    "the_leviathan",
+    "the_whisperer"
+)
+
+
+ENDGAME_BOSS_METRICS = (
+    "tzkal_zuk",
+    "sol_heredit"
+)
+
+
+GROUP_BOSS_METRICS = (
+    "nex",
+    "commander_zilyana",
+    "general_graardor",
+    "kreearra",
+    "kril_tsutsaroth",
+    "nightmare",
+    "phosanis_nightmare",
+    "corporeal_beast",
+    "yama",
+    "the_hueycoatl",
+    "the_royal_titans"
+)
+
+
+RAID_METRICS = (
+    "chambers_of_xeric",
+    "chambers_of_xeric_challenge_mode",
+    "theatre_of_blood",
+    "theatre_of_blood_hard_mode",
+    "tombs_of_amascut",
+    "tombs_of_amascut_expert"
+)
+
+
+WILDERNESS_BOSS_METRICS = (
+    "callisto",
+    "venenatis",
+    "vetion",
+    "artio",
+    "spindel",
+    "calvarion",
+    "chaos_elemental",
+    "chaos_fanatic",
+    "crazy_archaeologist",
+    "scorpia"
+)
+
+
+MIDGAME_BOSS_METRICS = (
+    "barrows_chests",
+    "sarachnis",
+    "giant_mole",
+    "king_black_dragon",
+    "kalphite_queen",
+    "dagannoth_prime",
+    "dagannoth_rex",
+    "dagannoth_supreme",
+    "scurrius",
+    "lunar_chests",
+    "hespori",
+    "skotizo",
+    "bryophyta",
+    "obor",
+    "brutus",
+    "tztok_jad",
+    "deranged_archaeologist"
+)
+
+
+ACTIVITY_BOSS_METRICS = (
+    "wintertodt",
+    "tempoross",
+    "zalcano",
+    "guardians_of_the_rift"
+)
+
+
+CLUE_ACTIVITY_BOSS_METRICS = (
+    "mimic",
+)
+
+
+CLUE_ACTIVITY_METRICS = (
+    "clue_scrolls_all",
+    "clue_scrolls_elite",
+    "clue_scrolls_master"
+)
+
+
+BOSS_SCORE_FIELDS = (
+    "solo_boss_score",
+    "slayer_boss_score",
+    "dt2_boss_score",
+    "endgame_boss_score",
+    "group_boss_score",
+    "raid_score",
+    "wilderness_boss_score",
+    "midgame_boss_score",
+    "activity_boss_score",
+    "clue_activity_score"
+)
+
+
 def _safe_int(value, default=0):
     try:
         return int(value)
@@ -19,15 +152,152 @@ def _safe_int(value, default=0):
         return default
 
 
-def _get_skill_level(player_data, skill_name):
+def _get_snapshot_data(player_data):
     snapshot = player_data.get("latestSnapshot") or {}
-    snapshot_data = snapshot.get("data") or {}
+    return snapshot.get("data") or {}
+
+
+def _get_skill_level(player_data, skill_name):
+    snapshot_data = _get_snapshot_data(
+        player_data
+    )
     skills = snapshot_data.get("skills") or {}
     skill = skills.get(skill_name) or {}
 
     return _safe_int(
         skill.get("level")
     )
+
+
+def _get_metric_value(
+    player_data,
+    section_name,
+    metric_name
+):
+    snapshot_data = _get_snapshot_data(
+        player_data
+    )
+    section = snapshot_data.get(
+        section_name
+    ) or {}
+    metric = section.get(
+        metric_name
+    ) or {}
+
+    value = metric.get(
+        "kills"
+    )
+
+    if value is None:
+        value = metric.get(
+            "score"
+        )
+
+    return _safe_int(
+        value
+    )
+
+
+def _tiered_score(
+    value,
+    tiers
+):
+    value = _safe_int(
+        value
+    )
+
+    for minimum_value, score in tiers:
+        if value >= minimum_value:
+            return score
+
+    return 0
+
+
+def _normal_boss_score(value):
+    return _tiered_score(
+        value,
+        (
+            (501, 5),
+            (151, 4),
+            (51, 3),
+            (11, 2),
+            (1, 1)
+        )
+    )
+
+
+def _raid_score(value):
+    return _tiered_score(
+        value,
+        (
+            (151, 10),
+            (76, 8),
+            (26, 6),
+            (6, 4),
+            (1, 2)
+        )
+    )
+
+
+def _endgame_score(value):
+    return _tiered_score(
+        value,
+        (
+            (21, 10),
+            (6, 9),
+            (2, 7),
+            (1, 5)
+        )
+    )
+
+
+def _wilderness_boss_score(value):
+    return _tiered_score(
+        value,
+        (
+            (3001, 5),
+            (1501, 4),
+            (501, 3),
+            (101, 2),
+            (1, 1)
+        )
+    )
+
+
+def _calculate_metric_group_score(
+    player_data,
+    section_name,
+    metric_names,
+    score_function
+):
+    return sum(
+        score_function(
+            _get_metric_value(
+                player_data,
+                section_name,
+                metric_name
+            )
+        )
+        for metric_name in metric_names
+    )
+
+
+def _calculate_clue_activity_score(player_data):
+    boss_score = _calculate_metric_group_score(
+        player_data,
+        "bosses",
+        CLUE_ACTIVITY_BOSS_METRICS,
+        _normal_boss_score
+    )
+
+    activity_score = _calculate_metric_group_score(
+        player_data,
+        "activities",
+        CLUE_ACTIVITY_METRICS,
+        _normal_boss_score
+    )
+
+    return boss_score + activity_score
 
 
 def calculate_player_balance_scores(player_data):
@@ -59,6 +329,80 @@ def calculate_player_balance_scores(player_data):
         or ""
     ).strip()
 
+    solo_boss_score = _calculate_metric_group_score(
+        player_data,
+        "bosses",
+        SOLO_BOSS_METRICS,
+        _normal_boss_score
+    )
+
+    slayer_boss_score = _calculate_metric_group_score(
+        player_data,
+        "bosses",
+        SLAYER_BOSS_METRICS,
+        _normal_boss_score
+    )
+
+    dt2_boss_score = _calculate_metric_group_score(
+        player_data,
+        "bosses",
+        DT2_BOSS_METRICS,
+        _normal_boss_score
+    )
+
+    endgame_boss_score = _calculate_metric_group_score(
+        player_data,
+        "bosses",
+        ENDGAME_BOSS_METRICS,
+        _endgame_score
+    )
+
+    group_boss_score = _calculate_metric_group_score(
+        player_data,
+        "bosses",
+        GROUP_BOSS_METRICS,
+        _normal_boss_score
+    )
+
+    raid_score = _calculate_metric_group_score(
+        player_data,
+        "bosses",
+        RAID_METRICS,
+        _raid_score
+    )
+
+    wilderness_boss_score = _calculate_metric_group_score(
+        player_data,
+        "bosses",
+        WILDERNESS_BOSS_METRICS,
+        _wilderness_boss_score
+    )
+
+    midgame_boss_score = _calculate_metric_group_score(
+        player_data,
+        "bosses",
+        MIDGAME_BOSS_METRICS,
+        _normal_boss_score
+    )
+
+    activity_boss_score = _calculate_metric_group_score(
+        player_data,
+        "bosses",
+        ACTIVITY_BOSS_METRICS,
+        _normal_boss_score
+    )
+
+    activity_boss_score += _calculate_metric_group_score(
+        player_data,
+        "activities",
+        ("guardians_of_the_rift",),
+        _normal_boss_score
+    )
+
+    clue_activity_score = _calculate_clue_activity_score(
+        player_data
+    )
+
     return {
         "player_id": player_data.get("id"),
         "player_name": display_name,
@@ -67,7 +411,17 @@ def calculate_player_balance_scores(player_data):
         "combat_level": combat_level,
         "combat_skill_total": combat_skill_total,
         "skilling_score": skilling_score,
-        "overall_score": total_level
+        "overall_score": total_level,
+        "solo_boss_score": solo_boss_score,
+        "slayer_boss_score": slayer_boss_score,
+        "dt2_boss_score": dt2_boss_score,
+        "endgame_boss_score": endgame_boss_score,
+        "group_boss_score": group_boss_score,
+        "raid_score": raid_score,
+        "wilderness_boss_score": wilderness_boss_score,
+        "midgame_boss_score": midgame_boss_score,
+        "activity_boss_score": activity_boss_score,
+        "clue_activity_score": clue_activity_score
     }
 
 
@@ -181,6 +535,10 @@ def build_balanced_teams(
             "total_level": 0,
             "combat_level": 0,
             "skilling_score": 0,
+            **{
+                score_field: 0
+                for score_field in BOSS_SCORE_FIELDS
+            },
             "keep_apart_conflicts": []
         }
         for team_number in range(
@@ -195,6 +553,10 @@ def build_balanced_teams(
             player["overall_score"],
             player["combat_level"],
             player["skilling_score"],
+            max(
+                player[score_field]
+                for score_field in BOSS_SCORE_FIELDS
+            ),
             player["player_name"].casefold()
         ),
         reverse=True
@@ -214,7 +576,11 @@ def build_balanced_teams(
                 team["player_count"],
                 team["total_level"],
                 team["combat_level"],
-                team["skilling_score"]
+                team["skilling_score"],
+                *(
+                    team[score_field]
+                    for score_field in BOSS_SCORE_FIELDS
+                )
             )
         )
 
@@ -239,6 +605,9 @@ def build_balanced_teams(
         target_team["total_level"] += player["total_level"]
         target_team["combat_level"] += player["combat_level"]
         target_team["skilling_score"] += player["skilling_score"]
+
+        for score_field in BOSS_SCORE_FIELDS:
+            target_team[score_field] += player[score_field]
 
     for team in teams:
         team["reasons"] = _build_team_reasons(
@@ -301,7 +670,8 @@ def _build_team_reasons(team):
         )
 
     reasons.append(
-        "Players were assigned to keep team size and total level close."
+        "Players were assigned to keep team size, total level, "
+        "combat level, skilling score, and bossing categories close."
     )
 
     return reasons

@@ -185,6 +185,36 @@
                         <span>
                             Skilling score: {{ team.skilling_score }}
                         </span>
+                        <span>
+                            Solo boss score: {{ team.solo_boss_score }}
+                        </span>
+                        <span>
+                            Slayer boss score: {{ team.slayer_boss_score }}
+                        </span>
+                        <span>
+                            DT2 boss score: {{ team.dt2_boss_score }}
+                        </span>
+                        <span>
+                            End-game boss score: {{ team.endgame_boss_score }}
+                        </span>
+                        <span>
+                            Group boss score: {{ team.group_boss_score }}
+                        </span>
+                        <span>
+                            Raid score: {{ team.raid_score }}
+                        </span>
+                        <span>
+                            Wilderness boss score: {{ team.wilderness_boss_score }}
+                        </span>
+                        <span>
+                            Midgame boss score: {{ team.midgame_boss_score }}
+                        </span>
+                        <span>
+                            Activity score: {{ team.activity_boss_score }}
+                        </span>
+                        <span>
+                            Clue activity score: {{ team.clue_activity_score }}
+                        </span>
                     </div>
                 {% endfor %}
             </section>
@@ -204,6 +234,16 @@
                                     <th>Combat Level</th>
                                     <th>Combat Skill Total</th>
                                     <th>Skilling Score</th>
+                                    <th>Solo Boss Score</th>
+                                    <th>Slayer Boss Score</th>
+                                    <th>DT2 Boss Score</th>
+                                    <th>End-game Boss Score</th>
+                                    <th>Group Boss Score</th>
+                                    <th>Raid Score</th>
+                                    <th>Wilderness Boss Score</th>
+                                    <th>Midgame Boss Score</th>
+                                    <th>Activity Score</th>
+                                    <th>Clue Activity Score</th>
                                 </tr>
                             </thead>
 
@@ -215,6 +255,16 @@
                                         <td>{{ player.combat_level }}</td>
                                         <td>{{ player.combat_skill_total }}</td>
                                         <td>{{ player.skilling_score }}</td>
+                                        <td>{{ player.solo_boss_score }}</td>
+                                        <td>{{ player.slayer_boss_score }}</td>
+                                        <td>{{ player.dt2_boss_score }}</td>
+                                        <td>{{ player.endgame_boss_score }}</td>
+                                        <td>{{ player.group_boss_score }}</td>
+                                        <td>{{ player.raid_score }}</td>
+                                        <td>{{ player.wilderness_boss_score }}</td>
+                                        <td>{{ player.midgame_boss_score }}</td>
+                                        <td>{{ player.activity_boss_score }}</td>
+                                        <td>{{ player.clue_activity_score }}</td>
                                     </tr>
                                 {% endfor %}
                             </tbody>

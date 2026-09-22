@@ -270,6 +270,16 @@ def test_team_builder_posts_selected_players_and_shows_preview(
     assert "Combat Level" in html
     assert "Skilling Score" in html
     assert "Why this team?" in html
+    assert "Solo Boss Score" in html
+    assert "Slayer Boss Score" in html
+    assert "DT2 Boss Score" in html
+    assert "End-game Boss Score" in html
+    assert "Group Boss Score" in html
+    assert "Raid Score" in html
+    assert "Wilderness Boss Score" in html
+    assert "Midgame Boss Score" in html
+    assert "Activity Score" in html
+    assert "Clue Activity Score" in html
 
 
 def test_team_builder_requires_selected_players(

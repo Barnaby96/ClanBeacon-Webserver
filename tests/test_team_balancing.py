@@ -238,3 +238,130 @@ def test_parse_keep_apart_text_builds_groups_from_lines():
             "Bravo"
         ]
     ]
+
+
+def test_calculate_player_balance_scores_includes_bossing_categories():
+    player = make_player(
+        "PvM Tester",
+        total_level=2200,
+        combat_level=126,
+        attack=99,
+        strength=99,
+        defence=99,
+        ranged=99,
+        prayer=99,
+        magic=99,
+        slayer=99
+    )
+
+    player["latestSnapshot"]["data"]["bosses"] = {
+        "vorkath": {
+            "kills": 151
+        },
+        "alchemical_hydra": {
+            "kills": 51
+        },
+        "duke_sucellus": {
+            "kills": 11
+        },
+        "tzkal_zuk": {
+            "kills": 1
+        },
+        "general_graardor": {
+            "kills": 501
+        },
+        "chambers_of_xeric": {
+            "kills": 26
+        },
+        "callisto": {
+            "kills": 1501
+        },
+        "barrows_chests": {
+            "kills": 51
+        },
+        "wintertodt": {
+            "kills": 501
+        },
+        "mimic": {
+            "kills": 11
+        }
+    }
+
+    player["latestSnapshot"]["data"]["activities"] = {
+        "guardians_of_the_rift": {
+            "score": 151
+        },
+        "clue_scrolls_elite": {
+            "score": 11
+        },
+        "clue_scrolls_master": {
+            "score": 1
+        }
+    }
+
+    result = team_balancing.calculate_player_balance_scores(
+        player
+    )
+
+    assert result["solo_boss_score"] == 4
+    assert result["slayer_boss_score"] == 3
+    assert result["dt2_boss_score"] == 2
+    assert result["endgame_boss_score"] == 5
+    assert result["group_boss_score"] == 5
+    assert result["raid_score"] == 6
+    assert result["wilderness_boss_score"] == 4
+    assert result["midgame_boss_score"] == 3
+    assert result["activity_boss_score"] == 9
+    assert result["clue_activity_score"] == 5
+
+
+def test_build_balanced_teams_tracks_bossing_category_totals():
+    solo_player = make_player(
+        "Solo Boss Player",
+        2000,
+        120
+    )
+    solo_player["latestSnapshot"]["data"]["bosses"] = {
+        "zulrah": {
+            "kills": 501
+        }
+    }
+
+    raid_player = make_player(
+        "Raid Player",
+        2000,
+        120
+    )
+    raid_player["latestSnapshot"]["data"]["bosses"] = {
+        "tombs_of_amascut": {
+            "kills": 151
+        }
+    }
+
+    result = team_balancing.build_balanced_teams(
+        [
+            solo_player,
+            raid_player
+        ],
+        team_count=2
+    )
+
+    assert sum(
+        team["solo_boss_score"]
+        for team in result
+    ) == 5
+
+    assert sum(
+        team["raid_score"]
+        for team in result
+    ) == 10
+
+    assert all(
+        "solo_boss_score" in team
+        for team in result
+    )
+
+    assert all(
+        "raid_score" in team
+        for team in result
+    )
