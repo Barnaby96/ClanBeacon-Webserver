@@ -629,3 +629,154 @@ def test_score_team_layout_penalises_keep_apart_conflicts_heavily():
         conflict_score["total_penalty"]
         - clean_score["total_penalty"]
     ) >= team_balancing.COVERAGE_PENALTY_WEIGHTS["keep_apart_conflict"]
+
+
+
+
+def test_optimise_team_layout_uses_player_moves_to_improve_score():
+    raid_player = make_player(
+        "Raid Player",
+        2100,
+        126
+    )
+    raid_player["latestSnapshot"]["data"]["bosses"] = {
+        "tombs_of_amascut": {
+            "kills": 151
+        }
+    }
+
+    filler_one = make_player(
+        "Filler One",
+        2000,
+        110
+    )
+    filler_two = make_player(
+        "Filler Two",
+        2000,
+        110
+    )
+    filler_three = make_player(
+        "Filler Three",
+        2000,
+        110
+    )
+
+    starting_layout = [
+        make_layout_team(
+            1,
+            [
+                raid_player,
+                filler_one,
+                filler_two
+            ]
+        ),
+        make_layout_team(
+            2,
+            [
+                filler_three
+            ]
+        )
+    ]
+
+    optimised_layout = team_balancing._optimise_team_layout(
+        starting_layout,
+        []
+    )
+
+    starting_score = team_balancing.score_team_layout(
+        starting_layout
+    )
+    optimised_score = team_balancing.score_team_layout(
+        optimised_layout
+    )
+
+    assert optimised_score["total_penalty"] < starting_score["total_penalty"]
+    assert sorted(
+        team["player_count"]
+        for team in optimised_layout
+    ) == [
+        2,
+        2
+    ]
+
+
+def test_optimise_team_layout_uses_player_swaps_to_improve_coverage():
+    raid_player_one = make_player(
+        "Raid Player One",
+        2100,
+        126
+    )
+    raid_player_one["latestSnapshot"]["data"]["bosses"] = {
+        "tombs_of_amascut": {
+            "kills": 151
+        }
+    }
+
+    raid_player_two = make_player(
+        "Raid Player Two",
+        2100,
+        126
+    )
+    raid_player_two["latestSnapshot"]["data"]["bosses"] = {
+        "chambers_of_xeric": {
+            "kills": 151
+        }
+    }
+
+    non_raid_player_one = make_player(
+        "Non Raid Player One",
+        2100,
+        126
+    )
+
+    non_raid_player_two = make_player(
+        "Non Raid Player Two",
+        2100,
+        126
+    )
+
+    starting_layout = [
+        make_layout_team(
+            1,
+            [
+                raid_player_one,
+                raid_player_two
+            ]
+        ),
+        make_layout_team(
+            2,
+            [
+                non_raid_player_one,
+                non_raid_player_two
+            ]
+        )
+    ]
+
+    optimised_layout = team_balancing._optimise_team_layout(
+        starting_layout,
+        []
+    )
+
+    starting_score = team_balancing.score_team_layout(
+        starting_layout
+    )
+    optimised_score = team_balancing.score_team_layout(
+        optimised_layout
+    )
+
+    raid_counts = [
+        sum(
+            1
+            for player in team["players"]
+            if player["raid_score"] > 0
+        )
+        for team in optimised_layout
+    ]
+
+    assert optimised_score["total_penalty"] < starting_score["total_penalty"]
+    assert sorted(
+        raid_counts
+    ) == [
+        1,
+        1
+    ]

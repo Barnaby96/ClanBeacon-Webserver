@@ -657,12 +657,318 @@ def build_balanced_teams(
         for score_field in BOSS_SCORE_FIELDS:
             target_team[score_field] += player[score_field]
 
+    teams = _optimise_team_layout(
+        teams,
+        normalised_keep_apart_groups
+    )
+
     for team in teams:
         team["reasons"] = _build_team_reasons(
             team
         )
 
     return teams
+
+
+
+
+def _find_team_keep_apart_conflicts(
+    team,
+    keep_apart_groups
+):
+    conflicts = []
+
+    for player_index, player in enumerate(
+        team.get(
+            "players",
+            []
+        )
+    ):
+        comparison_team = {
+            "players": team.get(
+                "players",
+                []
+            )[:player_index]
+        }
+
+        player_conflicts = _find_keep_apart_conflicts(
+            comparison_team,
+            player,
+            keep_apart_groups
+        )
+
+        if player_conflicts:
+            conflicts.append(
+                {
+                    "player_name": player["player_name"],
+                    "conflicts_with": player_conflicts
+                }
+            )
+
+    return conflicts
+
+
+def _recalculate_team_totals(
+    team,
+    keep_apart_groups
+):
+    players = team.get(
+        "players",
+        []
+    )
+
+    team["player_count"] = len(
+        players
+    )
+    team["total_level"] = sum(
+        player["total_level"]
+        for player in players
+    )
+    team["combat_level"] = sum(
+        player["combat_level"]
+        for player in players
+    )
+    team["combat_skill_total"] = sum(
+        player["combat_skill_total"]
+        for player in players
+    )
+    team["skilling_score"] = sum(
+        player["skilling_score"]
+        for player in players
+    )
+
+    for score_field in BOSS_SCORE_FIELDS:
+        team[score_field] = sum(
+            player[score_field]
+            for player in players
+        )
+
+    team["keep_apart_conflicts"] = _find_team_keep_apart_conflicts(
+        team,
+        keep_apart_groups
+    )
+
+    return team
+
+
+def _recalculate_layout_totals(
+    teams,
+    keep_apart_groups
+):
+    for team in teams:
+        _recalculate_team_totals(
+            team,
+            keep_apart_groups
+        )
+
+    return teams
+
+
+def _clone_team_layout(
+    teams,
+    keep_apart_groups
+):
+    cloned_teams = [
+        {
+            "team_number": team["team_number"],
+            "players": list(
+                team.get(
+                    "players",
+                    []
+                )
+            ),
+            "keep_apart_conflicts": []
+        }
+        for team in teams
+    ]
+
+    return _recalculate_layout_totals(
+        cloned_teams,
+        keep_apart_groups
+    )
+
+
+def _layout_total_penalty(teams):
+    return score_team_layout(
+        teams
+    )["total_penalty"]
+
+
+def _candidate_with_player_move(
+    teams,
+    source_team_index,
+    player_index,
+    target_team_index,
+    keep_apart_groups
+):
+    candidate = _clone_team_layout(
+        teams,
+        keep_apart_groups
+    )
+
+    player = candidate[source_team_index]["players"].pop(
+        player_index
+    )
+    candidate[target_team_index]["players"].append(
+        player
+    )
+
+    return _recalculate_layout_totals(
+        candidate,
+        keep_apart_groups
+    )
+
+
+def _candidate_with_player_swap(
+    teams,
+    first_team_index,
+    first_player_index,
+    second_team_index,
+    second_player_index,
+    keep_apart_groups
+):
+    candidate = _clone_team_layout(
+        teams,
+        keep_apart_groups
+    )
+
+    first_player = candidate[first_team_index]["players"][first_player_index]
+    second_player = candidate[second_team_index]["players"][second_player_index]
+
+    candidate[first_team_index]["players"][first_player_index] = second_player
+    candidate[second_team_index]["players"][second_player_index] = first_player
+
+    return _recalculate_layout_totals(
+        candidate,
+        keep_apart_groups
+    )
+
+
+def _iter_player_move_candidates(
+    teams,
+    keep_apart_groups
+):
+    for source_team_index, source_team in enumerate(
+        teams
+    ):
+        for player_index in range(
+            len(
+                source_team.get(
+                    "players",
+                    []
+                )
+            )
+        ):
+            for target_team_index, target_team in enumerate(
+                teams
+            ):
+                if source_team_index == target_team_index:
+                    continue
+
+                yield _candidate_with_player_move(
+                    teams,
+                    source_team_index,
+                    player_index,
+                    target_team_index,
+                    keep_apart_groups
+                )
+
+
+def _iter_player_swap_candidates(
+    teams,
+    keep_apart_groups
+):
+    for first_team_index in range(
+        len(
+            teams
+        )
+    ):
+        for second_team_index in range(
+            first_team_index + 1,
+            len(
+                teams
+            )
+        ):
+            first_team = teams[first_team_index]
+            second_team = teams[second_team_index]
+
+            for first_player_index in range(
+                len(
+                    first_team.get(
+                        "players",
+                        []
+                    )
+                )
+            ):
+                for second_player_index in range(
+                    len(
+                        second_team.get(
+                            "players",
+                            []
+                        )
+                    )
+                ):
+                    yield _candidate_with_player_swap(
+                        teams,
+                        first_team_index,
+                        first_player_index,
+                        second_team_index,
+                        second_player_index,
+                        keep_apart_groups
+                    )
+
+
+def _select_improved_layout(
+    current_teams,
+    candidate_layouts
+):
+    current_score = _layout_total_penalty(
+        current_teams
+    )
+
+    for candidate in candidate_layouts:
+        candidate_score = _layout_total_penalty(
+            candidate
+        )
+
+        if candidate_score < current_score:
+            return candidate, True
+
+    return current_teams, False
+
+
+def _optimise_team_layout(
+    teams,
+    keep_apart_groups
+):
+    best_teams = _clone_team_layout(
+        teams,
+        keep_apart_groups
+    )
+
+    improved = True
+
+    while improved:
+        best_teams, improved = _select_improved_layout(
+            best_teams,
+            _iter_player_move_candidates(
+                best_teams,
+                keep_apart_groups
+            )
+        )
+
+        if improved:
+            continue
+
+        best_teams, improved = _select_improved_layout(
+            best_teams,
+            _iter_player_swap_candidates(
+                best_teams,
+                keep_apart_groups
+            )
+        )
+
+    return best_teams
 
 
 def _team_stat_total(team, stat_name):
