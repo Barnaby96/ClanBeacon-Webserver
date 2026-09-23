@@ -22,7 +22,7 @@
 
                 <div class="osrs-team-actions">
                     <a
-                        class="osrs-action-link"
+                        class="osrs-action-link osrs-wom-link"
                         href="/board/{{ team.team_name }}"
                     >
                         View Board
@@ -30,7 +30,7 @@
 
                     {% if can_view_all_data %}
                         <a
-                            class="osrs-action-link"
+                            class="osrs-action-link osrs-wom-link"
                             href="{{ url_for(
                                 'team_routes.edit_team',
                                 team_id=team.team_id
@@ -47,7 +47,7 @@
                         method="post"
                     >
                         <button
-                            class="osrs-action-link"
+                            class="osrs-action-link osrs-wom-link"
                             type="submit"
                         >
                             Update Team WOM
@@ -60,7 +60,7 @@
                         method="post"
                     >
                         <button
-                            class="osrs-action-link"
+                            class="osrs-action-link osrs-wom-link"
                             type="submit"
                         >
                             Refresh WOM Progress
