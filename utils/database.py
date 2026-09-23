@@ -3059,6 +3059,300 @@ def set_wom_last_processed_gain(
         conn.commit()
 
 
+def preview_wom_competition_import(
+    competition_id,
+    teams,
+    evidence_codeword,
+    wom_player_ids=None,
+    competition_starts_at=None,
+    competition_ends_at=None
+):
+    evidence_codeword = str(
+        evidence_codeword
+    ).strip()
+
+    if not evidence_codeword:
+        raise ValueError(
+            "Evidence codeword cannot be blank."
+        )
+
+    if wom_player_ids is None:
+        wom_player_ids = {}
+
+    plan = {
+        "has_changes": False,
+        "has_conflicts": False,
+        "teams_to_create": [],
+        "players_to_create": [],
+        "players_to_update": [],
+        "memberships_to_update": [],
+        "config_changes": [],
+        "conflicts": []
+    }
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        team_ids_by_name = {}
+
+        for team_name in teams:
+            cursor.execute(
+                '''
+                SELECT team_id
+                FROM teams
+                WHERE lower(team_name) = lower(%s)
+                ''',
+                (team_name,)
+            )
+
+            team_row = cursor.fetchone()
+
+            if team_row is None:
+                team_ids_by_name[team_name.lower()] = None
+                plan["teams_to_create"].append({
+                    "team_name": team_name
+                })
+            else:
+                team_ids_by_name[team_name.lower()] = team_row[0]
+
+        for team_name, player_names in teams.items():
+            target_team_id = team_ids_by_name.get(
+                team_name.lower()
+            )
+
+            for player_name in player_names:
+                wom_player_id = wom_player_ids.get(
+                    player_name.lower()
+                )
+
+                player_row = None
+
+                if wom_player_id is not None:
+                    cursor.execute(
+                        '''
+                        SELECT
+                            player_id,
+                            team_id,
+                            wom_player_id,
+                            player_name
+                        FROM players
+                        WHERE wom_player_id = %s
+                        ''',
+                        (wom_player_id,)
+                    )
+                    player_row = cursor.fetchone()
+
+                if player_row is None:
+                    cursor.execute(
+                        '''
+                        SELECT
+                            player_id,
+                            team_id,
+                            wom_player_id,
+                            player_name
+                        FROM players
+                        WHERE lower(player_name) = lower(%s)
+                        ''',
+                        (player_name,)
+                    )
+                    player_row = cursor.fetchone()
+
+                if player_row is None:
+                    plan["players_to_create"].append({
+                        "player_name": player_name,
+                        "team_name": team_name,
+                        "wom_player_id": wom_player_id
+                    })
+                    continue
+
+                cursor.execute(
+                    '''
+                    SELECT player_id
+                    FROM players
+                    WHERE lower(player_name) = lower(%s)
+                    AND player_id != %s
+                    ''',
+                    (
+                        player_name,
+                        player_row[0]
+                    )
+                )
+
+                name_owner = cursor.fetchone()
+
+                if name_owner is not None:
+                    plan["conflicts"].append({
+                        "player_name": player_name,
+                        "wom_team": team_name,
+                        "danbot_team": (
+                            "RuneScape name already belongs to "
+                            f"another {BOT_NAME} player"
+                        )
+                    })
+                    continue
+
+                existing_team_id = player_row[1]
+                existing_wom_player_id = player_row[2]
+                existing_player_name = player_row[3]
+
+                if (
+                    wom_player_id is not None
+                    and existing_wom_player_id is not None
+                    and existing_wom_player_id != wom_player_id
+                ):
+                    plan["conflicts"].append({
+                        "player_name": player_name,
+                        "wom_team": team_name,
+                        "danbot_team": "WOM identity mismatch"
+                    })
+                    continue
+
+                if wom_player_id is not None:
+                    cursor.execute(
+                        '''
+                        SELECT player_id, player_name
+                        FROM players
+                        WHERE wom_player_id = %s
+                        AND player_id != %s
+                        ''',
+                        (
+                            wom_player_id,
+                            player_row[0]
+                        )
+                    )
+
+                    wom_id_owner = cursor.fetchone()
+
+                    if wom_id_owner is not None:
+                        plan["conflicts"].append({
+                            "player_name": player_name,
+                            "wom_team": team_name,
+                            "danbot_team": (
+                                f"WOM ID already belongs to "
+                                f"{wom_id_owner[1]}"
+                            )
+                        })
+                        continue
+
+                if existing_player_name != player_name:
+                    plan["players_to_update"].append({
+                        "player_name": existing_player_name,
+                        "new_player_name": player_name
+                    })
+
+                if (
+                    wom_player_id is not None
+                    and existing_wom_player_id is None
+                ):
+                    plan["players_to_update"].append({
+                        "player_name": player_name,
+                        "wom_player_id": wom_player_id
+                    })
+
+                current_team_name = None
+
+                if existing_team_id is not None:
+                    cursor.execute(
+                        '''
+                        SELECT team_name
+                        FROM teams
+                        WHERE team_id = %s
+                        ''',
+                        (existing_team_id,)
+                    )
+
+                    existing_team = cursor.fetchone()
+
+                    if existing_team is not None:
+                        current_team_name = existing_team[0]
+
+                if (
+                    target_team_id is None
+                    or existing_team_id != target_team_id
+                ):
+                    if current_team_name != team_name:
+                        plan["memberships_to_update"].append({
+                            "player_name": player_name,
+                            "current_team_name": current_team_name,
+                            "new_team_name": team_name
+                        })
+
+        cursor.execute(
+            '''
+            SELECT
+                wom_competition_id,
+                wom_competition_starts_at,
+                wom_competition_ends_at,
+                evidence_codeword
+            FROM bingo_config
+            WHERE config_id = 1
+            '''
+        )
+
+        config_row = cursor.fetchone()
+
+        if config_row is None:
+            config_comparisons = {
+                "wom_competition_id": competition_id is not None,
+                "wom_competition_starts_at": (
+                    competition_starts_at is not None
+                ),
+                "wom_competition_ends_at": (
+                    competition_ends_at is not None
+                ),
+                "evidence_codeword": bool(evidence_codeword)
+            }
+        else:
+            cursor.execute(
+                '''
+                SELECT
+                    %s IS DISTINCT FROM %s,
+                    %s::timestamptz IS DISTINCT FROM %s,
+                    %s::timestamptz IS DISTINCT FROM %s,
+                    %s IS DISTINCT FROM %s
+                ''',
+                (
+                    config_row[0],
+                    competition_id,
+                    config_row[1],
+                    competition_starts_at,
+                    config_row[2],
+                    competition_ends_at,
+                    config_row[3],
+                    evidence_codeword
+                )
+            )
+
+            comparison_row = cursor.fetchone()
+
+            config_comparisons = {
+                "wom_competition_id": comparison_row[0],
+                "wom_competition_starts_at": comparison_row[1],
+                "wom_competition_ends_at": comparison_row[2],
+                "evidence_codeword": comparison_row[3]
+            }
+
+        for field, has_changed in config_comparisons.items():
+            if has_changed:
+                plan["config_changes"].append({
+                    "field": field
+                })
+
+    plan["has_conflicts"] = bool(
+        plan["conflicts"]
+    )
+
+    plan["has_changes"] = any([
+        plan["teams_to_create"],
+        plan["players_to_create"],
+        plan["players_to_update"],
+        plan["memberships_to_update"],
+        plan["config_changes"]
+    ])
+
+    return plan
+
+
 def import_wom_competition(
     competition_id,
     teams,
@@ -3081,182 +3375,19 @@ def import_wom_competition(
     with connect() as conn:
         cursor = conn.cursor()
 
-        conflicts = []
+        plan = preview_wom_competition_import(
+            competition_id,
+            teams,
+            evidence_codeword,
+            wom_player_ids,
+            competition_starts_at=competition_starts_at,
+            competition_ends_at=competition_ends_at
+        )
 
-        # Check every existing player before changing anything.
-        for team_name, player_names in teams.items():
-            cursor.execute(
-                '''
-                SELECT team_id
-                FROM teams
-                WHERE lower(team_name) = lower(%s)
-                ''',
-                (team_name,)
-            )
-            team_row = cursor.fetchone()
-            target_team_id = team_row[0] if team_row else None
-
-            for player_name in player_names:
-                wom_player_id = wom_player_ids.get(
-                    player_name.lower()
-                )
-
-                player_row = None
-
-                # A WOM player ID is the strongest identity match.
-                if wom_player_id is not None:
-                    cursor.execute(
-                        '''
-                        SELECT
-                            player_id,
-                            team_id,
-                            wom_player_id,
-                            player_name
-                        FROM players
-                        WHERE wom_player_id = %s
-                        ''',
-                        (wom_player_id,)
-                    )
-                    player_row = cursor.fetchone()
-
-                # Fall back to the RuneScape name for players imported
-                # before WOM IDs were stored.
-                if player_row is None:
-                    cursor.execute(
-                        '''
-                        SELECT
-                            player_id,
-                            team_id,
-                            wom_player_id,
-                            player_name
-                        FROM players
-                        WHERE lower(player_name) = lower(%s)
-                        ''',
-                        (player_name,)
-                    )
-                    player_row = cursor.fetchone()
-
-                if player_row is None:
-                    continue
-
-                # Prevent a WOM-identified player being renamed to a name
-                # already used by a different bingo player record.
-                cursor.execute(
-                    '''
-                    SELECT player_id
-                    FROM players
-                    WHERE lower(player_name) = lower(%s)
-                    AND player_id != %s
-                    ''',
-                    (
-                        player_name,
-                        player_row[0]
-                    )
-                )
-
-                name_owner = cursor.fetchone()
-
-                if name_owner is not None:
-                    conflicts.append({
-                        "player_name": player_name,
-                        "wom_team": team_name,
-                        "danbot_team": (
-                            "RuneScape name already belongs to "
-                            f"another {BOT_NAME} player"
-                        )
-                    })
-                    continue
-
-                existing_team_id = player_row[1]
-                existing_wom_player_id = player_row[2]
-
-                if (
-                    wom_player_id is not None
-                    and existing_wom_player_id is not None
-                    and existing_wom_player_id != wom_player_id
-                ):
-                    conflicts.append({
-                        "player_name": player_name,
-                        "wom_team": team_name,
-                        "danbot_team": "WOM identity mismatch"
-                    })
-                    continue
-
-                # Protect against one WOM account being attached to
-                # two different bingo player records.
-                if wom_player_id is not None:
-                    cursor.execute(
-                        '''
-                        SELECT player_id, player_name
-                        FROM players
-                        WHERE wom_player_id = %s
-                        AND player_id != %s
-                        ''',
-                        (
-                            wom_player_id,
-                            player_row[0]
-                        )
-                    )
-
-                    wom_id_owner = cursor.fetchone()
-
-                    if wom_id_owner is not None:
-                        conflicts.append({
-                            "player_name": player_name,
-                            "wom_team": team_name,
-                            "danbot_team": (
-                                f"WOM ID already belongs to "
-                                f"{wom_id_owner[1]}"
-                            )
-                        })
-                        continue
-
-                if target_team_id is None:
-                    cursor.execute(
-                        '''
-                        SELECT team_name
-                        FROM teams
-                        WHERE team_id = %s
-                        ''',
-                        (existing_team_id,)
-                    )
-                    existing_team = cursor.fetchone()
-
-                    conflicts.append({
-                        "player_name": player_name,
-                        "wom_team": team_name,
-                        "danbot_team": (
-                            existing_team[0]
-                            if existing_team
-                            else "None"
-                        )
-                    })
-
-                elif existing_team_id != target_team_id:
-                    cursor.execute(
-                        '''
-                        SELECT team_name
-                        FROM teams
-                        WHERE team_id = %s
-                        ''',
-                        (existing_team_id,)
-                    )
-                    existing_team = cursor.fetchone()
-
-                    conflicts.append({
-                        "player_name": player_name,
-                        "wom_team": team_name,
-                        "danbot_team": (
-                            existing_team[0]
-                            if existing_team
-                            else "None"
-                        )
-                    })
-
-        if conflicts:
+        if plan["has_conflicts"]:
             return {
                 "imported": False,
-                "conflicts": conflicts
+                "conflicts": plan["conflicts"]
             }
 
         teams_created = 0
@@ -3357,6 +3488,7 @@ def import_wom_competition(
                         UPDATE players
                         SET
                             player_name = %s,
+                            team_id = %s,
                             wom_player_id = COALESCE(
                                 wom_player_id,
                                 %s
@@ -3365,6 +3497,7 @@ def import_wom_competition(
                         ''',
                         (
                             player_name,
+                            team_id,
                             wom_player_id,
                             player_id
                         )

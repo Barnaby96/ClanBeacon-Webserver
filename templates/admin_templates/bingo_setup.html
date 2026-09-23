@@ -1,225 +1,405 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1 style="text-align: center; color: #fff;">Bingo Setup</h1>
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
 
-<form action="{{ url_for('admin_routes.bingo_setup') }}" method="POST"
-      style="width: 600px; min-width: 600px; margin: 0 auto; background-color: #1e1e1e;
-             padding: 20px; border-radius: 10px; box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);">
-
-    <div style="margin-bottom: 15px;">
-        <label for="competition_id"
-               style="display: block; margin-bottom: 5px; color: #ccc;">
-            Wise Old Man Competition ID:
-        </label>
-
-        <input type="number"
-               id="competition_id"
-               name="competition_id"
-               min="1"
-               value="{{ competition_id or '' }}"
-               required
-               style="width: 100%; padding: 10px; border: 1px solid #444;
-                      border-radius: 5px; background-color: #333; color: #ccc;
-                      box-sizing: border-box;">
-    </div>
-
-    <button type="submit"
-            style="width: 100%; padding: 10px; background-color: #444;
-                   color: #fff; border: none; border-radius: 5px;
-                   font-size: 16px; cursor: pointer;">
-        Load Competition
-    </button>
-</form>
-
-{% if competition %}
-<div style="width: 600px; min-width: 600px; margin: 20px auto 0 auto;
-            background-color: #1e1e1e; padding: 20px; border-radius: 10px;
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);">
-
-    <h2 style="color: #fff; margin-top: 0;">
-        {{ competition.title }}
-    </h2>
-
-    <p style="color: #ccc;">
-        Competition ID: {{ competition.id }}
-    </p>
-
-    <p style="color: #ccc;">
-        {{ participant_count }} participant{% if participant_count != 1 %}s{% endif %}
-        across {{ teams|length }} team{% if teams|length != 1 %}s{% endif %}
-    </p>
-
-    {% for team_name, players in teams.items() %}
-        <div style="margin-top: 20px;">
-            <h3 style="color: #fff;">{{ team_name }}</h3>
-
-            <ul style="color: #ccc;">
-                {% for player in players %}
-                    <li>{{ player }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-    {% endfor %}
-
-    {% if conflicts %}
-        <div style="margin-top: 25px; padding: 15px;
-                    background-color: #3a2020; border-radius: 5px;">
-
-            <h3 style="color: #fff; margin-top: 0;">
-                Import Conflicts
-            </h3>
-
-            <p style="color: #ccc;">
-                These players are already assigned to different
-                {{ bot_name }} teams:
+<div class="osrs-dashboard">
+    <main class="osrs-page">
+        <header class="osrs-page-header">
+            <h1 class="osrs-page-title">Bingo Setup</h1>
+            <p class="osrs-page-subtitle">
+                Import team names, player memberships and competition timing
+                from a Wise Old Man team competition.
             </p>
+        </header>
 
-            <ul style="color: #ccc;">
-                {% for conflict in conflicts %}
-                    <li>
-                        <strong>{{ conflict.player_name }}</strong>:
-                        WOM = {{ conflict.wom_team }},
-                        {{ bot_name }} = {{ conflict.danbot_team }}
-                    </li>
-                {% endfor %}
-            </ul>
-        </div>
-    {% else %}
-        <form action="{{ url_for('admin_routes.bingo_setup') }}"
-              method="POST"
-              style="margin-top: 25px;">
-
-            <input type="hidden"
-                   name="competition_id"
-                   value="{{ competition.id }}">
-
-            <input type="hidden"
-                   name="action"
-                   value="import">
-
-            <div style="margin-bottom: 20px;">
-                <label for="evidence_codeword"
-                       style="display: block; margin-bottom: 5px; color: #ccc;">
-                    Evidence Codeword:
-                </label>
-
-                <input type="text"
-                       id="evidence_codeword"
-                       name="evidence_codeword"
-                       value="{{ evidence_codeword or '' }}"
-                       required
-                       autocomplete="off"
-                       style="width: 100%; padding: 10px; border: 1px solid #444;
-                              border-radius: 5px; background-color: #333; color: #ccc;
-                              box-sizing: border-box;">
-
-                <p style="margin: 6px 0 0 0; color: #999; font-size: 14px;">
-                    Players submitting manual evidence must show this
-                    codeword clearly in their screenshot.
+        <section class="osrs-panel">
+            <div class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Load WOM Competition</h2>
+                <p class="osrs-panel-description">
+                    Enter the Wise Old Man competition ID to preview the
+                    import before saving anything.
                 </p>
             </div>
 
-            <button type="submit"
-                    style="width: 100%; padding: 10px;
-                           background-color: #2f6b3a; color: #fff;
-                           border: none; border-radius: 5px;
-                           font-size: 16px; cursor: pointer;">
-                Confirm Import
-            </button>
-        </form>
-    {% endif %}
-</div>
-{% endif %}
+            <div class="osrs-panel-body">
+                <form
+                    action="{{ url_for('admin_routes.bingo_setup') }}"
+                    method="POST"
+                    class="osrs-form-grid"
+                >
+                    <div class="osrs-form-field">
+                        <label
+                            for="competition_id"
+                            class="osrs-form-label"
+                        >
+                            Wise Old Man Competition ID
+                        </label>
 
-<div style="width: 900px; min-width: 900px; margin: 20px auto 0 auto;
-            background-color: #1e1e1e; padding: 20px; border-radius: 10px;
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);">
+                        <input
+                            type="number"
+                            id="competition_id"
+                            name="competition_id"
+                            min="1"
+                            value="{{ competition_id or '' }}"
+                            required
+                            class="osrs-form-input"
+                        >
+                    </div>
 
-    <h2 style="color: #fff; margin-top: 0;">
-        Recent WOM Refreshes
-    </h2>
+                    <div class="osrs-form-actions">
+                        <button
+                            type="submit"
+                            class="osrs-button"
+                        >
+                            Load Competition
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
 
-    {% if recent_wom_refreshes %}
-        <table style="width: 100%; border-collapse: collapse; color: #ccc;">
-            <thead>
-                <tr style="border-bottom: 1px solid #444;">
-                    <th style="text-align: left; padding: 8px;">When</th>
-                    <th style="text-align: left; padding: 8px;">Requested By</th>
-                    <th style="text-align: right; padding: 8px;">Competition</th>
-                    <th style="text-align: right; padding: 8px;">Metrics</th>
-                    <th style="text-align: right; padding: 8px;">Players</th>
-                    <th style="text-align: right; padding: 8px;">Tiles</th>
-                    <th style="text-align: right; padding: 8px;">Warnings</th>
-                </tr>
-            </thead>
+        {% if competition %}
+            <section class="osrs-panel">
+                <div class="osrs-panel-header">
+                    <h2 class="osrs-panel-title">
+                        {{ competition.title }}
+                    </h2>
+                    <p class="osrs-panel-description">
+                        Competition ID:
+                        <span class="osrs-number">
+                            {{ competition.id }}
+                        </span>
+                        ·
+                        {{ participant_count }}
+                        participant{% if participant_count != 1 %}s{% endif %}
+                        across
+                        {{ teams|length }}
+                        team{% if teams|length != 1 %}s{% endif %}
+                    </p>
+                </div>
 
-            <tbody>
-                {% for refresh in recent_wom_refreshes %}
-                    <tr style="border-bottom: 1px solid #333;">
-                        <td style="padding: 8px;">
-                            {{ refresh.requested_at }}
-                        </td>
-                        <td style="padding: 8px;">
-                            {{ refresh.requested_by_username or 'Unknown' }}
-                        </td>
-                        <td style="text-align: right; padding: 8px;">
-                            {% if refresh.no_competition %}
-                                Not configured
-                            {% else %}
-                                {{ refresh.competition_id }}
-                            {% endif %}
-                        </td>
-                        <td style="text-align: right; padding: 8px;">
-                            {{ refresh.metrics_processed }}
-                        </td>
-                        <td style="text-align: right; padding: 8px;">
-                            {{ refresh.players_processed }}
-                        </td>
-                        <td style="text-align: right; padding: 8px;">
-                            {{ refresh.tiles_completed }}
-                        </td>
-                        <td style="text-align: right; padding: 8px;">
-                            {{ refresh.warning_count }}
-                        </td>
-                    </tr>
-                    {% if refresh.warning_details %}
-                        <tr style="border-bottom: 1px solid #333;">
-                            <td colspan="7" style="padding: 8px 8px 12px 8px;">
-                                <strong style="color: #f0c36d;">
-                                    Warning details:
-                                </strong>
+                <div class="osrs-panel-body">
+                    {% if teams %}
+                        <div class="osrs-scroll-table">
+                            <table class="osrs-table">
+                                <thead>
+                                    <tr>
+                                        <th>Team</th>
+                                        <th>Players</th>
+                                    </tr>
+                                </thead>
 
-                                <ul style="margin: 6px 0 0 18px; color: #ddd;">
-                                    {% for warning in refresh.warning_details %}
-                                        <li>
-                                            {% if warning.metric %}
-                                                <strong>{{ warning.metric }}</strong>:
-                                            {% endif %}
-
-                                            {% if warning.wom_player_id %}
-                                                WOM player {{ warning.wom_player_id }} -
-                                            {% endif %}
-
-                                            {% if warning.tile_id %}
-                                                Tile {{ warning.tile_id }} -
-                                            {% endif %}
-
-                                            {{ warning.error }}
-                                        </li>
+                                <tbody>
+                                    {% for team_name, players in teams.items() %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ team_name }}</strong>
+                                            </td>
+                                            <td>
+                                                {{ players|join(', ') }}
+                                            </td>
+                                        </tr>
                                     {% endfor %}
-                                </ul>
-                            </td>
-                        </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="osrs-empty-state">
+                            No teams were found in this competition.
+                        </p>
                     {% endif %}
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p style="color: #ccc;">
-            No WOM refreshes have been recorded yet.
-        </p>
-    {% endif %}
-</div>
+                </div>
+            </section>
 
+            <section class="osrs-panel">
+                <div class="osrs-panel-header">
+                    <h2 class="osrs-panel-title">Import Review</h2>
+                    <p class="osrs-panel-description">
+                        Preview changes before confirming the WOM import.
+                    </p>
+                </div>
+
+                <div class="osrs-panel-body">
+                    <form
+                        action="{{ url_for('admin_routes.bingo_setup') }}"
+                        method="POST"
+                        class="osrs-form-grid"
+                    >
+                        <input
+                            type="hidden"
+                            name="competition_id"
+                            value="{{ competition.id }}"
+                        >
+
+                        <input
+                            type="hidden"
+                            name="action"
+                            value="preview"
+                        >
+
+                        <div class="osrs-form-field">
+                            <label
+                                for="evidence_codeword"
+                                class="osrs-form-label"
+                            >
+                                Evidence Codeword:
+                            </label>
+
+                            <input
+                                type="text"
+                                id="evidence_codeword"
+                                name="evidence_codeword"
+                                value="{{ evidence_codeword or '' }}"
+                                required
+                                autocomplete="off"
+                                class="osrs-form-input"
+                            >
+
+                            <p class="osrs-form-help">
+                                Players submitting manual evidence must show
+                                this codeword clearly in their screenshot.
+                            </p>
+                        </div>
+
+                        <div class="osrs-form-actions">
+                            <button
+                                type="submit"
+                                class="osrs-button osrs-button-secondary"
+                            >
+                                Preview Changes
+                            </button>
+                        </div>
+                    </form>
+
+                    {% if conflicts %}
+                        <div class="osrs-notice osrs-notice-warning">
+                            <h3>Import Conflicts</h3>
+                            <p>
+                                These players could not be safely matched to
+                                the WOM competition import:
+                            </p>
+
+                            <ul>
+                                {% for conflict in conflicts %}
+                                    <li>
+                                        <strong>{{ conflict.player_name }}</strong>:
+                                        WOM = {{ conflict.wom_team }},
+                                        {{ bot_name }} = {{ conflict.danbot_team }}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% elif import_plan %}
+                        {% if not import_plan.has_changes %}
+                            <div class="osrs-empty-state">
+                                <strong>No import changes found.</strong>
+                                The current {{ bot_name }} teams, players,
+                                competition timing and evidence codeword
+                                already match this WOM import.
+                            </div>
+                        {% else %}
+                            <div class="osrs-player-section">
+                                <h3 class="osrs-player-section-heading">
+                                    Planned Import Changes
+                                </h3>
+
+                                {% if import_plan.teams_to_create %}
+                                    <h4>Teams to create</h4>
+                                    <ul>
+                                        {% for team in import_plan.teams_to_create %}
+                                            <li>{{ team.team_name }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+
+                                {% if import_plan.players_to_create %}
+                                    <h4>Players to create</h4>
+                                    <ul>
+                                        {% for player in import_plan.players_to_create %}
+                                            <li>
+                                                {{ player.player_name }}
+                                                → {{ player.team_name }}
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+
+                                {% if import_plan.players_to_update %}
+                                    <h4>Players to update</h4>
+                                    <ul>
+                                        {% for player in import_plan.players_to_update %}
+                                            <li>
+                                                {{ player.current_player_name }}
+                                                → {{ player.new_player_name }}
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+
+                                {% if import_plan.memberships_to_update %}
+                                    <h4>Team memberships to update</h4>
+                                    <ul>
+                                        {% for membership in import_plan.memberships_to_update %}
+                                            <li>
+                                                {{ membership.player_name }}:
+                                                {{ membership.current_team_name }}
+                                                → {{ membership.new_team_name }}
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+
+                                {% if import_plan.config_changes %}
+                                    <h4>Configuration changes</h4>
+                                    <ul>
+                                        {% for change in import_plan.config_changes %}
+                                            <li>
+                                                {{ change.field|replace('_', ' ') }}
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </div>
+
+                            <form
+                                action="{{ url_for('admin_routes.bingo_setup') }}"
+                                method="POST"
+                                class="osrs-form-grid"
+                            >
+                                <input
+                                    type="hidden"
+                                    name="competition_id"
+                                    value="{{ competition.id }}"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="action"
+                                    value="import"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="evidence_codeword"
+                                    value="{{ evidence_codeword or '' }}"
+                                >
+
+                                <div class="osrs-form-actions">
+                                    <button
+                                        type="submit"
+                                        class="osrs-button"
+                                    >
+                                        Confirm Import
+                                    </button>
+                                </div>
+                            </form>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </section>
+        {% endif %}
+
+        <section class="osrs-panel">
+            <div class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Recent WOM Refreshes</h2>
+                <p class="osrs-panel-description">
+                    Recent WOM refresh jobs and any warnings raised while
+                    processing tracked metrics.
+                </p>
+            </div>
+
+            <div class="osrs-panel-body">
+                {% if recent_wom_refreshes %}
+                    <div class="osrs-scroll-table">
+                        <table class="osrs-table">
+                            <thead>
+                                <tr>
+                                    <th>When</th>
+                                    <th>Requested By</th>
+                                    <th>Competition</th>
+                                    <th>Metrics</th>
+                                    <th>Players</th>
+                                    <th>Tiles</th>
+                                    <th>Warnings</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {% for refresh in recent_wom_refreshes %}
+                                    <tr>
+                                        <td>{{ refresh.requested_at }}</td>
+                                        <td>
+                                            {{ refresh.requested_by_username or 'Unknown' }}
+                                        </td>
+                                        <td class="osrs-number">
+                                            {% if refresh.no_competition %}
+                                                Not configured
+                                            {% else %}
+                                                {{ refresh.competition_id }}
+                                            {% endif %}
+                                        </td>
+                                        <td class="osrs-number">
+                                            {{ refresh.metrics_processed }}
+                                        </td>
+                                        <td class="osrs-number">
+                                            {{ refresh.players_processed }}
+                                        </td>
+                                        <td class="osrs-number">
+                                            {{ refresh.tiles_completed }}
+                                        </td>
+                                        <td class="osrs-number">
+                                            {{ refresh.warning_count }}
+                                        </td>
+                                    </tr>
+
+                                    {% if refresh.warning_details %}
+                                        <tr>
+                                            <td colspan="7">
+                                                <strong>
+                                                    Warning details:
+                                                </strong>
+
+                                                <ul>
+                                                    {% for warning in refresh.warning_details %}
+                                                        <li>
+                                                            {% if warning.metric %}
+                                                                <strong>
+                                                                    {{ warning.metric }}
+                                                                </strong>:
+                                                            {% endif %}
+
+                                                            {% if warning.wom_player_id %}
+                                                                WOM player
+                                                                {{ warning.wom_player_id }} -
+                                                            {% endif %}
+
+                                                            {% if warning.tile_id %}
+                                                                Tile
+                                                                {{ warning.tile_id }} -
+                                                            {% endif %}
+
+                                                            {{ warning.error }}
+                                                        </li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="osrs-empty-state">
+                        No WOM refreshes have been recorded yet.
+                    </p>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+</div>
 {% endblock %}
