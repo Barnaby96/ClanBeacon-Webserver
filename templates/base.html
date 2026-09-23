@@ -335,6 +335,10 @@
                     <h1>Admin Menu <i id="dropdownIcon" class="fa fa-caret-down" style="padding-left: 10px"></i></h1>
                 </span>
                 <div class="dropdown-content" id="adminDropdownContent">
+                    <a href="/admin/">Admin Dashboard</a>
+                    {% if current_user.is_organiser %}
+                        <a href="/admin/user_accounts">Manage User Accounts</a>
+                    {% endif %}
                     <a href="/team/teams">Manage Teams</a>
                     <a href="/player/players">Manage Players</a>
                     <a href="/tile/tiles">Manage Tiles</a>

@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block content %}
+<title>Admin Dashboard</title>
+
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
+
+<div class="osrs-dashboard">
+    <main class="osrs-page">
+        <header class="osrs-player-header">
+            <div class="osrs-player-identity">
+                <p class="osrs-page-subtitle">
+                    Staff Tools
+                </p>
+
+                <h1 class="osrs-page-title">
+                    Admin Dashboard
+                </h1>
+
+            </div>
+        </header>
+
+        <section class="osrs-player-section">
+            <h2 class="osrs-player-section-heading">
+                Setup Tools
+            </h2>
+
+            <div class="osrs-scroll-table">
+                <table class="osrs-table">
+                    <thead>
+                        <tr>
+                            <th>Tool</th>
+                            <th>Purpose</th>
+                            <th>Open</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% if current_user.is_organiser %}
+                            <tr>
+                                <td>
+                                    <span class="osrs-player-name">
+                                        User Accounts
+                                    </span>
+                                </td>
+                                <td>
+                                    Promote or demote dashboard users between
+                                    player, admin, and organiser access.
+                                </td>
+                                <td>
+                                    <a
+                                        class="osrs-button"
+                                        href="{{ url_for('admin_routes.user_accounts') }}"
+                                    >
+                                        Open
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endif %}
+
+                        <tr>
+                            <td>
+                                <span class="osrs-player-name">
+                                    Bingo Setup
+                                </span>
+                            </td>
+                            <td>
+                                Configure WOM competition details and event
+                                settings.
+                            </td>
+                            <td>
+                                <a
+                                    class="osrs-button"
+                                    href="{{ url_for('admin_routes.bingo_setup') }}"
+                                >
+                                    Open
+                                </a>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>
+                                <span class="osrs-player-name">
+                                    Players
+                                </span>
+                            </td>
+                            <td>
+                                Manage player records, linked accounts, and WOM
+                                data.
+                            </td>
+                            <td>
+                                <a class="osrs-button" href="/player/players">
+                                    Open
+                                </a>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>
+                                <span class="osrs-player-name">
+                                    Teams
+                                </span>
+                            </td>
+                            <td>
+                                Manage teams, webhooks, roles, and team photos.
+                            </td>
+                            <td>
+                                <a class="osrs-button" href="/team/teams">
+                                    Open
+                                </a>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>
+                                <span class="osrs-player-name">
+                                    Tiles
+                                </span>
+                            </td>
+                            <td>
+                                Manage bingo tiles, trigger rules, and scoring
+                                setup.
+                            </td>
+                            <td>
+                                <a class="osrs-button" href="/tile/tiles">
+                                    Open
+                                </a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="osrs-player-section">
+            <h2 class="osrs-player-section-heading">
+                Evidence and Dink Tools
+            </h2>
+
+            <div class="osrs-scroll-table">
+                <table class="osrs-table">
+                    <thead>
+                        <tr>
+                            <th>Tool</th>
+                            <th>Purpose</th>
+                            <th>Open</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr>
+                            <td>
+                                <span class="osrs-player-name">
+                                    Dink Events
+                                </span>
+                            </td>
+                            <td>
+                                Review Dink events, submitted drops, and
+                                evidence.
+                            </td>
+                            <td>
+                                <a
+                                    class="osrs-button"
+                                    href="{{ url_for('admin_routes.dink_events') }}"
+                                >
+                                    Open
+                                </a>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>
+                                <span class="osrs-player-name">
+                                    Dink Player Identities
+                                </span>
+                            </td>
+                            <td>
+                                Review and link Dink account identities.
+                            </td>
+                            <td>
+                                <a
+                                    class="osrs-button"
+                                    href="{{ url_for('admin_routes.dink_identities') }}"
+                                >
+                                    Open
+                                </a>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>
+                                <span class="osrs-player-name">
+                                    Blocked Connection Attempts
+                                </span>
+                            </td>
+                            <td>
+                                Review Dink audit records and blocked
+                                connection attempts.
+                            </td>
+                            <td>
+                                <a class="osrs-button" href="/admin/dink_audit">
+                                    Open
+                                </a>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>
+                                <span class="osrs-player-name">
+                                    Submit Data
+                                </span>
+                            </td>
+                            <td>
+                                Manually submit staff-approved bingo data.
+                            </td>
+                            <td>
+                                <a class="osrs-button" href="/admin/submit_a_tile">
+                                    Open
+                                </a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}

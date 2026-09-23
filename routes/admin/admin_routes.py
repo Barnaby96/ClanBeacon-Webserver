@@ -20,6 +20,95 @@ admin_routes = Blueprint("admin_routes", __name__)
 def home():
     return render_template('admin_templates/admin_home.html')
 
+
+@admin_routes.route('/user_accounts', methods=['GET', 'POST'])
+@admin_required
+def user_accounts():
+    if not current_user.is_organiser:
+        abort(403)
+
+    if request.method == 'POST':
+        target_user_id_raw = request.form.get(
+            'user_id',
+            ''
+        ).strip()
+        account_role = request.form.get(
+            'account_role',
+            ''
+        ).strip().upper()
+
+        try:
+            target_user_id = int(
+                target_user_id_raw
+            )
+
+            if target_user_id <= 0:
+                raise ValueError
+
+        except ValueError:
+            flash(
+                'Please choose a valid dashboard user.',
+                'danger'
+            )
+            return redirect(
+                url_for('admin_routes.user_accounts')
+            )
+
+        if (
+            target_user_id == int(current_user.id)
+            and account_role != 'ORGANISER'
+        ):
+            flash(
+                'You cannot remove your own organiser access.',
+                'danger'
+            )
+            return redirect(
+                url_for('admin_routes.user_accounts')
+            )
+
+        try:
+            updated_user = database.update_user_account_role(
+                target_user_id,
+                account_role
+            )
+
+        except ValueError as error:
+            flash(
+                str(error),
+                'danger'
+            )
+            return redirect(
+                url_for('admin_routes.user_accounts')
+            )
+
+        if updated_user is None:
+            flash(
+                'Dashboard user not found.',
+                'danger'
+            )
+        else:
+            flash(
+                f'Updated {updated_user[1]} to {updated_user[2]}.',
+                'success'
+            )
+
+        return redirect(
+            url_for('admin_routes.user_accounts')
+        )
+
+    users = database.get_dashboard_users()
+
+    return render_template(
+        'admin_templates/user_accounts.html',
+        users=users,
+        account_roles=[
+            'PLAYER',
+            'ADMIN',
+            'ORGANISER'
+        ]
+    )
+
+
 @admin_routes.route('/dink_audit', methods=['GET'])
 @admin_required
 def dink_audit():

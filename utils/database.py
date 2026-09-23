@@ -3457,6 +3457,79 @@ class User(UserMixin):
     def is_player(self):
         return self.account_role == "PLAYER"
 
+
+def get_dashboard_users():
+    with connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT
+                users.user_id,
+                users.username,
+                users.email,
+                users.account_role,
+                users.is_admin,
+                users.player_id,
+                players.player_name
+            FROM users
+            LEFT JOIN players
+              ON players.player_id = users.player_id
+            ORDER BY LOWER(BTRIM(users.username))
+            '''
+        )
+
+        return cursor.fetchall()
+
+
+def update_user_account_role(
+    user_id,
+    account_role
+):
+    normalised_role = str(
+        account_role
+    ).strip().upper()
+
+    if normalised_role not in {
+        "PLAYER",
+        "ADMIN",
+        "ORGANISER"
+    }:
+        raise ValueError(
+            "Account role must be PLAYER, ADMIN, or ORGANISER."
+        )
+
+    with connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            UPDATE users
+            SET
+                account_role = %s,
+                is_admin = %s
+            WHERE user_id = %s
+            RETURNING
+                user_id,
+                username,
+                account_role,
+                is_admin,
+                player_id
+            ''',
+            (
+                normalised_role,
+                normalised_role in {
+                    "ADMIN",
+                    "ORGANISER"
+                },
+                user_id
+            )
+        )
+
+        updated_user = cursor.fetchone()
+        conn.commit()
+
+    return updated_user
+
+
 def add_user(username, password):
     username = username.strip()
 

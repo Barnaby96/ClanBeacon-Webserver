@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block content %}
+<title>User Accounts</title>
+
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
+
+<div class="osrs-dashboard">
+    <main class="osrs-page">
+        <header class="osrs-player-header">
+            <div class="osrs-player-identity">
+                <p class="osrs-page-subtitle">
+                    Organiser Tool
+                </p>
+
+                <h1 class="osrs-page-title">
+                    User Accounts
+                </h1>
+
+                <div class="osrs-team-actions">
+                    <a
+                        class="osrs-action-link"
+                        href="{{ url_for('admin_routes.home') }}"
+                    >
+                        Back to Admin Dashboard
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <section class="osrs-player-section">
+            <h2 class="osrs-player-section-heading">
+                Dashboard Access
+            </h2>
+
+            <p class="osrs-empty-state">
+                Promote or demote dashboard users between player, admin, and
+                organiser access. You cannot remove organiser access from your
+                own account.
+            </p>
+
+            <div class="osrs-scroll-table">
+                <table class="osrs-table">
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Username</th>
+                            <th>Linked Player</th>
+                            <th>Current Role</th>
+                            <th>Change Role</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for user in users %}
+                            <tr>
+                                <td>
+                                    <span class="osrs-number">
+                                        {{ user[0] }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="osrs-player-name">
+                                        {{ user[1] }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if user[6] %}
+                                        {{ user[6] }}
+                                    {% else %}
+                                        Not linked
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="osrs-player-name">
+                                        {{ user[3] }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <form
+                                        class="osrs-team-actions"
+                                        action="{{ url_for('admin_routes.user_accounts') }}"
+                                        method="post"
+                                    >
+                                        <input
+                                            type="hidden"
+                                            name="user_id"
+                                            value="{{ user[0] }}"
+                                        >
+
+                                        <label for="account_role_{{ user[0] }}">
+                                            New role
+                                        </label>
+
+                                        <select
+                                            id="account_role_{{ user[0] }}"
+                                            name="account_role"
+                                        >
+                                            {% for role in account_roles %}
+                                                <option
+                                                    value="{{ role }}"
+                                                    {% if role == user[3] %}
+                                                        selected
+                                                    {% endif %}
+                                                >
+                                                    {{ role }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+
+                                        <button
+                                            class="osrs-button"
+                                            type="submit"
+                                        >
+                                            Save
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}
