@@ -102,6 +102,10 @@
     margin-bottom: 30px;
 }
 
+.osrs-balance-summary {
+    grid-template-columns: repeat(3, minmax(180px, 260px));
+}
+
 .osrs-summary-card {
     position: relative;
     overflow: hidden;
@@ -351,6 +355,25 @@
 }
 
 .osrs-form-input:focus {
+    outline: 2px solid var(--osrs-gold-bright);
+    outline-offset: 1px;
+    border-color: #4f3a22;
+}
+
+.osrs-role-select {
+    min-width: 130px;
+    padding: 7px 10px;
+    border: 2px solid var(--osrs-border-dark);
+    border-radius: 4px;
+    background: var(--osrs-parchment-light);
+    color: var(--osrs-text-dark);
+    font-family: Arial, sans-serif;
+    font-size: 15px;
+    box-shadow:
+        inset 0 0 0 1px rgba(125, 90, 22, 0.24);
+}
+
+.osrs-role-select:focus {
     outline: 2px solid var(--osrs-gold-bright);
     outline-offset: 1px;
     border-color: #4f3a22;
@@ -716,6 +739,21 @@
     box-shadow:
         inset 0 0 0 2px rgba(211, 168, 59, 0.12),
         0 7px 18px var(--osrs-shadow);
+}
+
+.osrs-player-section > p,
+.osrs-player-section > ul {
+    padding: 0 20px;
+}
+
+.osrs-player-section > p:first-of-type,
+.osrs-player-section > ul:first-of-type {
+    margin-top: 16px;
+}
+
+.osrs-player-section > p:last-child,
+.osrs-player-section > ul:last-child {
+    margin-bottom: 18px;
 }
 
 .osrs-player-section-heading {

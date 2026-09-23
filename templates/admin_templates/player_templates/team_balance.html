@@ -16,146 +16,210 @@
             </p>
         </header>
 
-        <section class="osrs-player-section">
-            <form
-                action="{{ url_for('player_management.balance_players') }}"
-                method="get"
-            >
-                <label for="group_id">WOM Group ID</label>
-                <input
-                    id="group_id"
-                    name="group_id"
-                    type="number"
-                    min="1"
-                    value="{{ group_id }}"
-                    required
+        <section class="osrs-panel">
+            <div class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Load WOM Group</h2>
+                <p class="osrs-panel-description">
+                    Enter a Wise Old Man group ID and choose how many preview
+                    teams to build.
+                </p>
+            </div>
+
+            <div class="osrs-panel-body">
+                <form
+                    action="{{ url_for('player_management.balance_players') }}"
+                    method="get"
+                    class="osrs-form-grid"
                 >
-
-                <label for="team_count">Number of teams</label>
-                <input
-                    id="team_count"
-                    name="team_count"
-                    type="number"
-                    min="1"
-                    value="{{ team_count }}"
-                    required
-                >
-
-                <button
-                    class="osrs-button"
-                    type="submit"
-                >
-                    Load WOM Group
-                </button>
-            </form>
-        </section>
-
-        {% if group_id %}
-            <section class="osrs-team-panel">
-                <h2 class="osrs-team-heading">
-                    {% if group_name %}
-                        {{ group_name }}
-                    {% else %}
-                        WOM Group {{ group_id }}
-                    {% endif %}
-                </h2>
-
-                {% if group_members %}
-                    <p>
-                        Select the players who are joining this event, then
-                        build a preview.
-                    </p>
-
-                    <form
-                        action="{{ url_for('player_management.balance_players') }}"
-                        method="post"
-                    >
-                        <input
-                            type="hidden"
-                            name="group_id"
-                            value="{{ group_id }}"
+                    <div class="osrs-form-field">
+                        <label
+                            for="group_id"
+                            class="osrs-form-label"
                         >
+                            WOM Group ID
+                        </label>
 
-                        <label for="post_team_count">Number of teams</label>
                         <input
-                            id="post_team_count"
+                            id="group_id"
+                            name="group_id"
+                            type="number"
+                            min="1"
+                            value="{{ group_id }}"
+                            required
+                            class="osrs-form-input"
+                        >
+                    </div>
+
+                    <div class="osrs-form-field">
+                        <label
+                            for="team_count"
+                            class="osrs-form-label"
+                        >
+                            Number of teams
+                        </label>
+
+                        <input
+                            id="team_count"
                             name="team_count"
                             type="number"
                             min="1"
                             value="{{ team_count }}"
                             required
+                            class="osrs-form-input"
                         >
+                    </div>
 
-                        <label for="keep_apart_text">Keep-apart groups</label>
-                        <textarea
-                            id="keep_apart_text"
-                            name="keep_apart_text"
-                            rows="5"
-                            placeholder="One group per line, separated by commas. Example:&#10;Winner One, Winner Two, Winner Three"
-                        >{{ keep_apart_text }}</textarea>
-
-                        <p>
-                            Put players who should be split up on the same line.
-                            The preview will avoid placing them together where possible.
-                        </p>
-
-                        {% if suggested_teams %}
-                            <p>
-                                <a class="osrs-button" href="#suggested-teams">
-                                    Jump to Teams
-                                </a>
-                            </p>
-                        {% endif %}
-
-                        <div class="osrs-table-wrap">
-                            <table class="osrs-table">
-                                <thead>
-                                    <tr>
-                                        <th>Include</th>
-                                        <th>Player</th>
-                                        <th>WOM Player ID</th>
-                                    </tr>
-                                </thead>
-
-                                <tbody>
-                                    {% for player in group_members %}
-                                        <tr>
-                                            <td>
-                                                <input
-                                                    type="checkbox"
-                                                    name="player_names"
-                                                    value="{{ player.player_name }}"
-                                                    {% if player.player_name.casefold() in selected_player_keys %}
-                                                        checked
-                                                    {% endif %}
-                                                >
-                                            </td>
-                                            <td>{{ player.player_name }}</td>
-                                            <td>
-                                                {% if player.player_id %}
-                                                    {{ player.player_id }}
-                                                {% else %}
-                                                    Unknown
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-
+                    <div class="osrs-form-actions">
                         <button
                             class="osrs-button"
                             type="submit"
                         >
-                            Build Team Preview
+                            Load WOM Group
                         </button>
-                    </form>
-                {% else %}
-                    <p class="osrs-empty-team">
-                        No players were found for this WOM group.
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        {% if group_id %}
+            <section class="osrs-panel">
+                <div class="osrs-panel-header">
+                    <h2 class="osrs-panel-title">
+                        {% if group_name %}
+                            {{ group_name }}
+                        {% else %}
+                            WOM Group {{ group_id }}
+                        {% endif %}
+                    </h2>
+
+                    <p class="osrs-panel-description">
+                        Select the players who are joining this event, then
+                        build a preview.
                     </p>
-                {% endif %}
+                </div>
+
+                <div class="osrs-panel-body">
+                    {% if group_members %}
+                        <form
+                            action="{{ url_for('player_management.balance_players') }}"
+                            method="post"
+                            class="osrs-form-grid"
+                        >
+                            <input
+                                type="hidden"
+                                name="group_id"
+                                value="{{ group_id }}"
+                            >
+
+                            <div class="osrs-form-field">
+                                <label
+                                    for="post_team_count"
+                                    class="osrs-form-label"
+                                >
+                                    Number of teams
+                                </label>
+
+                                <input
+                                    id="post_team_count"
+                                    name="team_count"
+                                    type="number"
+                                    min="1"
+                                    value="{{ team_count }}"
+                                    required
+                                    class="osrs-form-input"
+                                >
+                            </div>
+
+                            <div class="osrs-form-field">
+                                <label
+                                    for="keep_apart_text"
+                                    class="osrs-form-label"
+                                >
+                                    Keep-apart groups
+                                </label>
+
+                                <textarea
+                                    id="keep_apart_text"
+                                    name="keep_apart_text"
+                                    rows="5"
+                                    placeholder="One group per line, separated by commas. Example:&#10;Winner One, Winner Two, Winner Three"
+                                    class="osrs-form-input"
+                                >{{ keep_apart_text }}</textarea>
+
+                                <p class="osrs-form-help">
+                                    Put players who should be split up on the
+                                    same line. The preview will avoid placing
+                                    them together where possible.
+                                </p>
+                            </div>
+
+                            <div class="osrs-scroll-table">
+                                <table class="osrs-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Include</th>
+                                            <th>Player</th>
+                                            <th>WOM Player ID</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        {% for player in group_members %}
+                                            <tr>
+                                                <td>
+                                                    <input
+                                                        type="checkbox"
+                                                        name="player_names"
+                                                        value="{{ player.player_name }}"
+                                                        {% if player.player_name.casefold() in selected_player_keys %}
+                                                            checked
+                                                        {% endif %}
+                                                    >
+                                                </td>
+                                                <td>
+                                                    <span class="osrs-player-name">
+                                                        {{ player.player_name }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    {% if player.player_id %}
+                                                        <span class="osrs-number">
+                                                            {{ player.player_id }}
+                                                        </span>
+                                                    {% else %}
+                                                        Unknown
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="osrs-form-actions">
+                                <button
+                                    class="osrs-button"
+                                    type="submit"
+                                >
+                                    Build Team Preview
+                                </button>
+
+                                {% if suggested_teams %}
+                                    <a
+                                        class="osrs-button"
+                                        href="#suggested-teams"
+                                    >
+                                        Jump to Teams
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </form>
+                    {% else %}
+                        <p class="osrs-empty-state">
+                            No players were found for this WOM group.
+                        </p>
+                    {% endif %}
+                </div>
             </section>
         {% endif %}
 
@@ -178,80 +242,133 @@
             {% if layout_score %}
                 {% set optimisation_summary = suggested_teams[0].optimisation_summary %}
 
-                <section class="osrs-team-panel">
-                    <h2 class="osrs-team-heading">Balance Score</h2>
+                <section class="osrs-panel">
+                    <div class="osrs-panel-header">
+                        <h2 class="osrs-panel-title">Balance Score</h2>
+                        <p class="osrs-panel-description">
+                            Lower penalty scores are better. Build Team Preview
+                            automatically runs the optimiser.
+                        </p>
+                    </div>
 
-                    <p>
-                        Total penalty:
-                        {{ "%.2f"|format(layout_score.total_penalty) }}
-                    </p>
-                    <p>
-                        Gap penalty:
-                        {{ "%.2f"|format(layout_score.gap_penalty_total) }}
-                    </p>
-                    <p>
-                        Coverage penalty:
-                        {{ "%.2f"|format(layout_score.coverage_penalty_total) }}
-                    </p>
-                    <p>
-                        Lower is better. Build Teams automatically runs the optimiser;
-                        there is no separate optimise button because the optimiser stops
-                        when no one-player move or two-player swap improves the score.
-                    </p>
+                    <div class="osrs-panel-body">
+                        <div class="osrs-summary osrs-balance-summary">
+                            <div class="osrs-summary-card">
+                                <span class="osrs-summary-label">
+                                    Total Penalty
+                                </span>
+                                <span class="osrs-summary-value">
+                                    {{ "%.2f"|format(layout_score.total_penalty) }}
+                                </span>
+                            </div>
 
-                    <h3>Optimiser result</h3>
-                    <p>
-                        Original greedy penalty:
-                        {{ "%.2f"|format(optimisation_summary.greedy_total_penalty) }}
-                    </p>
-                    <p>
-                        Optimised penalty:
-                        {{ "%.2f"|format(optimisation_summary.optimised_total_penalty) }}
-                    </p>
-                    <p>
-                        Total improvement:
-                        {{ "%.2f"|format(optimisation_summary.total_improvement) }}
-                    </p>
-                    <p>
-                        {{ optimisation_summary.message }}
-                    </p>
+                            <div class="osrs-summary-card">
+                                <span class="osrs-summary-label">
+                                    Gap Penalty
+                                </span>
+                                <span class="osrs-summary-value">
+                                    {{ "%.2f"|format(layout_score.gap_penalty_total) }}
+                                </span>
+                            </div>
 
-                    {% if optimisation_summary.changed_areas %}
-                        <h3>What changed</h3>
-                        <ul>
-                            {% for area in optimisation_summary.changed_areas %}
-                                <li>
-                                    {{ area.label|title }}:
-                                    {{ "%.2f"|format(area.before) }}
-                                    →
-                                    {{ "%.2f"|format(area.after) }}
-                                    {% if area.direction == "improved" %}
-                                        improved by
-                                    {% else %}
-                                        worsened by
-                                    {% endif %}
-                                    {{ "%.2f"|format(area.improvement|abs) }}
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    {% endif %}
+                            <div class="osrs-summary-card">
+                                <span class="osrs-summary-label">
+                                    Coverage Penalty
+                                </span>
+                                <span class="osrs-summary-value">
+                                    {{ "%.2f"|format(layout_score.coverage_penalty_total) }}
+                                </span>
+                            </div>
+                        </div>
 
-                    <h3>Coverage checks</h3>
-                    <ul>
-                        {% for coverage in layout_score.coverage.team_coverage %}
-                            <li>
-                                Team {{ coverage.team_number }} coverage:
-                                strong PvMer =
-                                {{ "yes" if coverage.has_strong_pvmer else "no" }},
-                                group PvMer =
-                                {{ "yes" if coverage.has_group_pvmer else "no" }},
-                                strong skiller =
-                                {{ "yes" if coverage.has_strong_skiller else "no" }},
-                                raids players =
-                                {{ coverage.raid_player_count }}
-                            </li>
-                        {% endfor %}
-                    </ul>
+                        <div class="osrs-player-section">
+                            <h3 class="osrs-player-section-heading">
+                                Optimiser Result
+                            </h3>
+
+                            <p>
+                                Original greedy penalty:
+                                <strong>
+                                    {{
+                                        "%.2f"|format(
+                                            optimisation_summary.greedy_total_penalty
+                                        )
+                                    }}
+                                </strong>
+                            </p>
+
+                            <p>
+                                Optimised penalty:
+                                <strong>
+                                    {{
+                                        "%.2f"|format(
+                                            optimisation_summary.optimised_total_penalty
+                                        )
+                                    }}
+                                </strong>
+                            </p>
+
+                            <p>
+                                Total improvement:
+                                <strong>
+                                    {{
+                                        "%.2f"|format(
+                                            optimisation_summary.total_improvement
+                                        )
+                                    }}
+                                </strong>
+                            </p>
+
+                            <p>{{ optimisation_summary.message }}</p>
+                        </div>
+
+                        {% if optimisation_summary.changed_areas %}
+                            <div class="osrs-player-section">
+                                <h3 class="osrs-player-section-heading">
+                                    What Changed
+                                </h3>
+
+                                <ul>
+                                    {% for area in optimisation_summary.changed_areas %}
+                                        <li>
+                                            {{ area.label|title }}:
+                                            {{ "%.2f"|format(area.before) }}
+                                            →
+                                            {{ "%.2f"|format(area.after) }}
+                                            {% if area.direction == "improved" %}
+                                                improved by
+                                            {% else %}
+                                                worsened by
+                                            {% endif %}
+                                            {{ "%.2f"|format(area.improvement|abs) }}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+
+                        <div class="osrs-player-section">
+                            <h3 class="osrs-player-section-heading">
+                                Coverage Checks
+                            </h3>
+
+                            <ul>
+                                {% for coverage in layout_score.coverage.team_coverage %}
+                                    <li>
+                                        Team {{ coverage.team_number }} coverage:
+                                        strong PvMer =
+                                        {{ "yes" if coverage.has_strong_pvmer else "no" }},
+                                        group PvMer =
+                                        {{ "yes" if coverage.has_group_pvmer else "no" }},
+                                        strong skiller =
+                                        {{ "yes" if coverage.has_strong_skiller else "no" }},
+                                        raids players =
+                                        {{ coverage.raid_player_count }}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
                 </section>
             {% endif %}
 

@@ -22,7 +22,7 @@
 
                 <div class="osrs-team-actions">
                     <a
-                        class="osrs-action-link"
+                        class="osrs-action-link osrs-wom-link"
                         href="{{ url_for('admin_routes.home') }}"
                     >
                         Back to Admin Dashboard
@@ -98,6 +98,7 @@
                                         <select
                                             id="account_role_{{ user[0] }}"
                                             name="account_role"
+                                            class="osrs-role-select"
                                         >
                                             {% for role in account_roles %}
                                                 <option
