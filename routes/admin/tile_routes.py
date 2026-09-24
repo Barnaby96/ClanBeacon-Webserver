@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, Blueprint
 
+from utils import db_entities
 from utils.auth import admin_required
 from utils.database import (
     remove_tile,
@@ -14,12 +15,140 @@ from utils.database import (
 
 tile_routes = Blueprint("tile_management", __name__)
 
+def _format_admin_count(value):
+    if value is None:
+        return "—"
+
+    return f"{value:,}"
+
+
+def _format_admin_label(value):
+    if value is None:
+        return "Unspecified"
+
+    return str(
+        value
+    ).replace(
+        "_",
+        " "
+    ).title()
+
+
+def _format_admin_tile_condition(condition):
+    condition_type = condition[3]
+    condition_trigger = condition[4]
+    target = condition[5]
+
+    condition_label = _format_admin_label(
+        condition_type
+    )
+
+    condition_text = (
+        f"{_format_admin_count(target)} x {condition_label}"
+    )
+
+    if condition_trigger:
+        return f"{condition_text}: {condition_trigger}"
+
+    return condition_text
+
+
+def _format_admin_tile_path(path, conditions_by_path):
+    completion_path = path[1]
+    route_mode = path[2]
+    route_target = path[3]
+    require_unique = path[4]
+
+    path_conditions = conditions_by_path.get(
+        completion_path,
+        []
+    )
+
+    condition_summary = "No conditions configured."
+
+    if path_conditions:
+        condition_summary = "; ".join(
+            _format_admin_tile_condition(condition)
+            for condition in path_conditions
+        )
+
+    route_label = _format_admin_label(
+        route_mode
+    )
+    unique_label = "Yes" if require_unique else "No"
+    target_summary = ""
+
+    if route_target is not None:
+        target_summary = (
+            f"Target {_format_admin_count(route_target)}; "
+        )
+
+    return (
+        f"Path {completion_path}: {route_label}; "
+        f"{target_summary}"
+        f"Unique required: {unique_label}; "
+        f"{condition_summary}"
+    )
+
+
+def _build_admin_tile_completion_summary(tile_id):
+    conditions_by_path = {}
+
+    for condition in get_tile_conditions(tile_id):
+        conditions_by_path.setdefault(
+            condition[2],
+            []
+        ).append(condition)
+
+    completion_paths = get_tile_completion_paths(tile_id)
+
+    if not completion_paths:
+        return "No completion paths configured."
+
+    return "\n".join(
+        _format_admin_tile_path(
+            path,
+            conditions_by_path
+        )
+        for path in completion_paths
+    )
+
 
 @tile_routes.route('/tiles', methods=['GET'])
 @admin_required
 def tile_list():
-    tiles = get_tiles()
-    return render_template('admin_templates/tile_templates/tile_list.html', tiles=tiles)
+    tiles = [
+        db_entities.Tile(tile)
+        for tile in get_tiles()
+    ]
+
+    for tile in tiles:
+        tile.admin_completion_summary = (
+            _build_admin_tile_completion_summary(
+                tile.tile_id
+            )
+        )
+
+    tiles_by_coordinate = {
+        tile.board_coordinate: tile
+        for tile in tiles
+        if tile.board_coordinate
+    }
+
+    unassigned_tiles = [
+        tile
+        for tile in tiles
+        if not tile.board_coordinate
+    ]
+
+    return render_template(
+        'admin_templates/tile_templates/tile_list.html',
+        tiles=tiles,
+        tiles_by_coordinate=tiles_by_coordinate,
+        unassigned_tiles=unassigned_tiles,
+        board_rows=list("ABCDE"),
+        board_columns=list(range(1, 6))
+    )
 
 @tile_routes.route('/tiles/new', methods=['GET', 'POST'])
 @admin_required

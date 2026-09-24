@@ -1,155 +1,622 @@
 {% extends "base.html" %}
 
 {% block content %}
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
 
-<div style="max-width: 95%; margin: 0 auto;">
-    <h1>Tiles</h1>
-    <form action="{{ url_for('tile_management.create_tile') }}" style="display:inline;">
-        <button type="submit">New Tile</button>
-    </form>
-    <style>
-    table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            font-family: Arial, sans-serif; /* Use a readable font */
+<style>
+    .osrs-admin-board-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+        gap: 24px;
+        align-items: start;
+    }
+
+    .osrs-admin-board-panel .osrs-panel-body {
+        background: #171717;
+    }
+
+    .osrs-admin-board-scroll {
+        overflow-x: auto;
+        padding-bottom: 6px;
+    }
+
+    .osrs-admin-board-frame {
+        min-width: 720px;
+        padding: 20px;
+        border: 28px solid transparent;
+        border-image-source:
+            url("{{ url_for('static', filename='images/bingo_board/board_frame.png') }}");
+        border-image-slice: 125;
+        border-image-repeat: stretch;
+        background: #171717;
+        filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.55));
+    }
+
+    .osrs-admin-board-grid table {
+        width: 100%;
+        margin: 0;
+        border-collapse: separate;
+        border-spacing: 4px;
+        table-layout: fixed;
+    }
+
+    .osrs-admin-board-grid th {
+        padding: 8px 6px;
+        border: 2px solid #171512;
+        border-radius: 2px;
+        background:
+            linear-gradient(
+                180deg,
+                #6d5a3b,
+                #382c1c
+            );
+        color: #ffe39c;
+        font-family: "RuneScape Bold", Arial, sans-serif;
+        text-align: center;
+        text-shadow: 1px 1px 0 #000;
+    }
+
+    .osrs-admin-board-grid td {
+        padding: 0;
+        border: none;
+        background: #171512;
+        text-align: center;
+    }
+
+    .osrs-admin-board-grid .osrs-board-axis-column,
+    .osrs-admin-board-grid .osrs-board-axis {
+        width: 42px;
+        min-width: 42px;
+        max-width: 42px;
+    }
+
+    .osrs-admin-tile,
+    .osrs-admin-empty-slot {
+        display: block;
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        border: 2px solid #2a2117;
+        border-radius: 3px;
+        font-family: "RuneScape Bold", Arial, sans-serif;
+        text-align: center;
+    }
+
+    .osrs-admin-tile {
+        padding: 10px;
+        cursor: pointer;
+        background:
+            linear-gradient(
+                180deg,
+                #725a38,
+                #3f301d
+            );
+        color: #fff4d2;
+        text-shadow: 1px 1px 0 #000;
+    }
+
+    .osrs-admin-tile:hover,
+    .osrs-admin-tile:focus {
+        filter: brightness(1.08);
+        transform: translateY(-1px);
+    }
+
+    .osrs-admin-empty-slot {
+        background: #262522;
+        color: #8d8270;
+    }
+
+    .osrs-admin-tile-coordinate {
+        position: absolute;
+        top: 7px;
+        left: 8px;
+        color: #f5d47d;
+        font-size: 13px;
+    }
+
+    .osrs-admin-tile-type {
+        position: absolute;
+        right: 8px;
+        bottom: 7px;
+        color: #d9c28b;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .osrs-admin-tile-name {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100%;
+        line-height: 1.2;
+        word-break: break-word;
+    }
+
+    .osrs-admin-unassigned-list {
+        display: grid;
+        gap: 10px;
+        max-height: 650px;
+        overflow-y: auto;
+        padding-right: 6px;
+    }
+
+    .osrs-admin-unassigned-tile {
+        width: 100%;
+        min-height: 58px;
+        padding: 10px 12px;
+        border: 2px solid #7b603a;
+        border-radius: 4px;
+        background:
+            linear-gradient(
+                180deg,
+                #725a38,
+                #3f301d
+            );
+        color: #fff4d2;
+        cursor: pointer;
+        font-family: "RuneScape Bold", Arial, sans-serif;
+        text-align: left;
+        text-shadow: 1px 1px 0 #000;
+    }
+
+    .osrs-admin-unassigned-tile:hover,
+    .osrs-admin-unassigned-tile:focus {
+        filter: brightness(1.08);
+    }
+
+    .osrs-admin-unassigned-meta {
+        display: block;
+        margin-top: 4px;
+        color: #d9c28b;
+        font-size: 13px;
+        text-transform: uppercase;
+    }
+
+    .osrs-admin-tile-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: rgba(0, 0, 0, 0.72);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+            opacity 140ms ease,
+            visibility 140ms ease;
+    }
+
+    .osrs-admin-tile-modal.is-open {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+
+    .osrs-admin-tile-modal-window {
+        width: min(680px, 100%);
+        max-height: min(760px, 92vh);
+        overflow: hidden;
+        border: 3px solid var(--osrs-border-dark);
+        border-radius: 7px;
+        background: var(--osrs-parchment);
+        color: #2d2419;
+        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+    }
+
+    .osrs-admin-tile-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 16px 20px;
+        border-bottom: 2px solid var(--osrs-border-dark);
+        background:
+            linear-gradient(
+                180deg,
+                var(--osrs-panel-top),
+                var(--osrs-panel-bottom)
+            );
+    }
+
+    .osrs-admin-tile-modal-header h2 {
+        margin: 0;
+        color: var(--osrs-gold-bright);
+        font-family: "RuneScape Quill Caps", Georgia, serif;
+        font-size: 30px;
+        font-weight: normal;
+        text-shadow: 1px 1px 0 #000;
+    }
+
+    .osrs-admin-tile-modal-close {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border: 2px solid #4f3a22;
+        border-radius: 4px;
+        background:
+            linear-gradient(
+                180deg,
+                #846a47,
+                #5d452d
+            );
+        color: #fff1b7;
+        cursor: pointer;
+        font-size: 26px;
+        line-height: 1;
+    }
+
+    .osrs-admin-tile-modal-body {
+        max-height: calc(92vh - 74px);
+        overflow-y: auto;
+        padding: 22px;
+    }
+
+    .osrs-admin-tile-details {
+        display: grid;
+        gap: 12px;
+        margin: 0 0 22px;
+    }
+
+    .osrs-admin-tile-details div {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 14px;
+        padding-bottom: 11px;
+        border-bottom: 1px solid rgba(92, 69, 37, 0.32);
+    }
+
+    .osrs-admin-tile-details dt {
+        color: #5f492d;
+        font-family: "RuneScape Bold", Arial, sans-serif;
+    }
+
+    .osrs-admin-tile-details dd {
+        margin: 0;
+        color: #2d2419;
+        font-family: "RuneScape Bold", Arial, sans-serif;
+        line-height: 1.35;
+        white-space: pre-line;
+        word-break: break-word;
+    }
+
+    .osrs-admin-completion-summary {
+        white-space: pre-line;
+    }
+
+    @media (max-width: 1000px) {
+        .osrs-admin-board-layout {
+            grid-template-columns: 1fr;
         }
+    }
+</style>
 
-        th {
-            background-color: #333; /* Darker background for navbar */
-            color: white;
-            position: sticky;
-            top: 0;
-            font-size: 16px; /* Larger font size for header */
-        }
+<div class="osrs-dashboard">
+    <main class="osrs-page">
+        <header class="osrs-page-header">
+            <h1 class="osrs-page-title">Manage Tiles</h1>
 
-        th, td {
-            border: 1px solid #ddd;
-            padding: 15px;
-            text-align: left;
-        }
+            <p class="osrs-page-subtitle">
+                Arrange the bingo board, review tile details and keep unused
+                tiles ready for later.
+            </p>
 
-        tr:nth-child(even) {
-            background-color: #1E1E1E;
-        }
+            <div class="osrs-form-actions">
+                <a
+                    class="osrs-button"
+                    href="{{ url_for('tile_management.create_tile') }}"
+                >
+                    Create Tile
+                </a>
+            </div>
+        </header>
 
-        tr:hover {
-            background-color: #444; /* Slightly darker hover effect */
-        }
+        <section class="osrs-summary" aria-label="Tile summary">
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">Total tiles</span>
+                <span class="osrs-summary-value">{{ tiles|length }} / 25</span>
+            </div>
 
-        /* Optional: Remove borders or adjust as needed */
-        /* table {
-            border: none;
-        } */
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">On board</span>
+                <span class="osrs-summary-value">
+                    {{ tiles_by_coordinate|length }} / 25
+                </span>
+            </div>
 
-        /* Optional: Add spacing between rows */
-        tr {
-            margin-bottom: 5px;
-        }
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">Unassigned</span>
+                <span class="osrs-summary-value">
+                    {{ unassigned_tiles|length }}
+                </span>
+            </div>
+        </section>
 
-        /* Optional: Style the search bar and header */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-        }
+        <section class="osrs-admin-board-layout">
+            <div class="osrs-panel osrs-admin-board-panel">
+                <header class="osrs-panel-header">
+                    <h2 class="osrs-panel-title">Board Layout</h2>
 
-        .search-bar {
-            display: flex;
-        }
+                    <p class="osrs-panel-description">
+                        Click a tile to view details. Drag-and-drop ordering
+                        will be added in the next chunk.
+                    </p>
+                </header>
 
-        .search-bar input[type="text"] {
-            border: none;
-            padding: 10px;
-            color: #000;
-            background-color: #fff;
-        }
+                <div class="osrs-panel-body">
+                    <div class="osrs-admin-board-scroll">
+                        <div class="osrs-admin-board-frame">
+                            <div class="osrs-admin-board-grid">
+                                <table>
+                                    <colgroup>
+                                        <col class="osrs-board-axis-column">
 
-        .search-bar input[type="submit"] {
-            border: none;
-            padding: 10px;
-            color: #fff;
-            background-color: #444;
-            cursor: pointer;
-        }
+                                        {% for column in board_columns %}
+                                            <col>
+                                        {% endfor %}
+                                    </colgroup>
+                                    <thead>
+                                        <tr>
+                                            <th aria-hidden="true"></th>
 
-        a {
-            color: white;
-        }
+                                            {% for column in board_columns %}
+                                                <th>{{ column }}</th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
 
-        .action-buttons {
-            display: flex;
-            gap: 10px; /* Add some space between the buttons */
-        }
+                                    <tbody>
+                                        {% for row in board_rows %}
+                                            <tr>
+                                                <th class="osrs-board-axis">
+                                                    {{ row }}
+                                                </th>
 
-        .action-buttons form {
-            display: inline;
-        }
+                                                {% for column in board_columns %}
+                                                    {% set coordinate = row ~ column %}
+                                                    {% set tile = tiles_by_coordinate.get(coordinate) %}
 
-        .action-buttons button {
-            padding: 5px 10px;
-            cursor: pointer;
-            border: none;
-            color: white;
-            background-color: #4CAF50;
-            border-radius: 3px;
-        }
+                                                    <td>
+                                                        {% if tile %}
+                                                            <button
+                                                                class="osrs-admin-tile"
+                                                                type="button"
+                                                                data-tile-id="{{ tile.tile_id }}"
+                                                                data-tile-name="{{ tile.tile_name }}"
+                                                                data-tile-type="{{ tile.tile_type }}"
+                                                                data-tile-points="{{ tile.tile_points }}"
+                                                                data-tile-completion-summary="{{ tile.admin_completion_summary }}"
+                                                                data-tile-rules="{{ tile.tile_rules or '' }}"
+                                                                data-tile-coordinate="{{ tile.board_coordinate }}"
+                                                                data-edit-url="{{ url_for(
+                                                                    'tile_management.edit_tile',
+                                                                    tile_id=tile.tile_id
+                                                                ) }}"
+                                                                onclick="openAdminTileModal(this)"
+                                                            >
+                                                                <span class="osrs-admin-tile-coordinate">
+                                                                    {{ tile.board_coordinate }}
+                                                                </span>
 
-        .action-buttons button:hover {
-            background-color: limegreen;
-        }
+                                                                <span class="osrs-admin-tile-name">
+                                                                    {{ tile.tile_name }}
+                                                                </span>
 
-        .action-buttons .delete-button {
-            background-color: darkred;
-        }
-
-        .action-buttons .delete-button:hover {
-            background-color: red;
-        }
-    </style>
-    <table border="1">
-        <thead>
-            <tr>
-                <th>Order</th>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Triggers</th>
-                <th>Trigger Weights</th>
-                <th>Unique Drops</th>
-                <th>Triggers Required</th>
-                <th>Repetition</th>
-                <th>Points</th>
-                <th>Rules</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for tile in tiles %}
-                <tr>
-                    <td>{{ tile[0] }}</td>
-                    <td>{{ tile[1] }}</td>
-                    <td>{{ tile[2] }}</td>
-                    <td>{{ tile[3] }}</td>
-                    <td>{{ tile[4] }}</td>
-                    <td>{{ tile[5] }}</td>
-                    <td>{{ tile[6] }}</td>
-                    <td>{{ tile[7] }}</td>
-                    <td>{{ tile[8] }}</td>
-                    <td>{{ tile[9] }}</td>
-                    <td>
-                    <div class="action-buttons">
-                        <form action="{{ url_for('tile_management.edit_tile', tile_id=tile[0]) }}" method="GET">
-                            <button type="submit">Edit</button>
-                        </form>
-                        <form action="{{ url_for('tile_management.delete_tile', tile_id=tile[0]) }}" method="POST">
-                            <button type="submit" class="delete-button" onclick="return confirm('Are you sure you want to delete this tile?');">Delete</button>
-                        </form>
+                                                                <span class="osrs-admin-tile-type">
+                                                                    {{ tile.tile_type }}
+                                                                </span>
+                                                            </button>
+                                                        {% else %}
+                                                            <span
+                                                                class="osrs-admin-empty-slot"
+                                                                aria-label="Empty board slot {{ coordinate }}"
+                                                            ></span>
+                                                        {% endif %}
+                                                    </td>
+                                                {% endfor %}
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
-                    </td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                </div>
+            </div>
+
+            <aside class="osrs-panel">
+                <header class="osrs-panel-header">
+                    <h2 class="osrs-panel-title">Unassigned Tiles</h2>
+
+                    <p class="osrs-panel-description">
+                        These tiles are not currently placed on the board.
+                    </p>
+                </header>
+
+                <div class="osrs-panel-body">
+                    {% if unassigned_tiles %}
+                        <div class="osrs-admin-unassigned-list">
+                            {% for tile in unassigned_tiles %}
+                                <button
+                                    class="osrs-admin-unassigned-tile"
+                                    type="button"
+                                    data-tile-id="{{ tile.tile_id }}"
+                                    data-tile-name="{{ tile.tile_name }}"
+                                    data-tile-type="{{ tile.tile_type }}"
+                                    data-tile-points="{{ tile.tile_points }}"
+                                    data-tile-completion-summary="{{ tile.admin_completion_summary }}"
+                                    data-tile-rules="{{ tile.tile_rules or '' }}"
+                                    data-tile-coordinate="Unassigned"
+                                    data-edit-url="{{ url_for(
+                                        'tile_management.edit_tile',
+                                        tile_id=tile.tile_id
+                                    ) }}"
+                                    onclick="openAdminTileModal(this)"
+                                >
+                                    {{ tile.tile_name }}
+
+                                    <span class="osrs-admin-unassigned-meta">
+                                        {{ tile.tile_type }}
+                                        ·
+                                        {{ tile.tile_points }} pts
+                                    </span>
+                                </button>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="osrs-page-subtitle">
+                            Every tile is currently assigned to the board.
+                        </p>
+                    {% endif %}
+                </div>
+            </aside>
+        </section>
+    </main>
 </div>
+
+<div
+    id="adminTileModal"
+    class="osrs-admin-tile-modal"
+    aria-hidden="true"
+>
+    <section
+        class="osrs-admin-tile-modal-window"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="adminTileModalTitle"
+    >
+        <header class="osrs-admin-tile-modal-header">
+            <h2 id="adminTileModalTitle">Tile Details</h2>
+
+            <button
+                id="adminTileModalClose"
+                class="osrs-admin-tile-modal-close"
+                type="button"
+                aria-label="Close tile details"
+                onclick="closeAdminTileModal()"
+            >
+                &times;
+            </button>
+        </header>
+
+        <div class="osrs-admin-tile-modal-body">
+            <dl class="osrs-admin-tile-details">
+                <div>
+                    <dt>Coordinate</dt>
+                    <dd id="adminTileCoordinate"></dd>
+                </div>
+
+                <div>
+                    <dt>Type</dt>
+                    <dd id="adminTileType"></dd>
+                </div>
+
+                <div>
+                    <dt>Points</dt>
+                    <dd id="adminTilePoints"></dd>
+                </div>
+
+                <div>
+                    <dt>Completion Paths</dt>
+                    <dd
+                        id="adminTileCompletionSummary"
+                        class="osrs-admin-completion-summary"
+                    ></dd>
+                </div>
+
+                <div>
+                    <dt>Rules</dt>
+                    <dd id="adminTileRules"></dd>
+                </div>
+            </dl>
+
+            <div class="osrs-form-actions">
+                <a
+                    id="adminTileEditLink"
+                    class="osrs-button"
+                    href="#"
+                >
+                    Edit Tile
+                </a>
+
+                <button
+                    class="osrs-button osrs-button-secondary"
+                    type="button"
+                    onclick="closeAdminTileModal()"
+                >
+                    Close
+                </button>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+    function tileValue(source, key) {
+        return source.dataset[key] || "—";
+    }
+
+    function openAdminTileModal(source) {
+        const modal = document.getElementById("adminTileModal");
+
+        document.getElementById("adminTileModalTitle").innerText =
+            source.dataset.tileName || "Tile Details";
+        document.getElementById("adminTileCoordinate").innerText =
+            tileValue(source, "tileCoordinate");
+        document.getElementById("adminTileType").innerText =
+            tileValue(source, "tileType");
+        document.getElementById("adminTilePoints").innerText =
+            tileValue(source, "tilePoints");
+        document.getElementById("adminTileCompletionSummary").innerText =
+            tileValue(source, "tileCompletionSummary");
+        document.getElementById("adminTileRules").innerText =
+            tileValue(source, "tileRules");
+
+        document.getElementById("adminTileEditLink").href =
+            source.dataset.editUrl || "#";
+
+        modal.classList.add("is-open");
+        modal.setAttribute("aria-hidden", "false");
+        document.body.classList.add("osrs-modal-open");
+        document.getElementById("adminTileModalClose").focus();
+    }
+
+    function closeAdminTileModal() {
+        const modal = document.getElementById("adminTileModal");
+
+        modal.classList.remove("is-open");
+        modal.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("osrs-modal-open");
+    }
+
+    document.getElementById("adminTileModal").addEventListener(
+        "click",
+        function(event) {
+            if (event.target === this) {
+                closeAdminTileModal();
+            }
+        }
+    );
+
+    document.addEventListener(
+        "keydown",
+        function(event) {
+            if (
+                event.key === "Escape"
+                && document
+                    .getElementById("adminTileModal")
+                    .classList
+                    .contains("is-open")
+            ) {
+                closeAdminTileModal();
+            }
+        }
+    );
+</script>
 {% endblock %}
