@@ -1591,3 +1591,87 @@ def test_get_board_render_state_includes_completed_tile():
     }
 
     assert board_state["partial_coordinates"] == set()
+
+def test_update_tile_board_position_json_assigns_coordinate(client):
+    login_admin(client)
+
+    tile_id = create_test_tile(
+        "JSON Board Tile"
+    )
+
+    response = client.post(
+        f"/tile/tiles/board-position-json/{tile_id}",
+        data={
+            "board_coordinate": "A1"
+        }
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "ok": True
+    }
+
+    tile = db_entities.Tile(
+        database.get_tile_by_id(tile_id)
+    )
+
+    assert tile.board_coordinate == "A1"
+
+
+def test_update_tile_board_position_json_unassigns_blank_coordinate(client):
+    login_admin(client)
+
+    tile_id = create_test_tile(
+        "JSON Unassigned Board Tile"
+    )
+
+    database.set_tile_board_coordinate(
+        tile_id,
+        "C3"
+    )
+
+    response = client.post(
+        f"/tile/tiles/board-position-json/{tile_id}",
+        data={
+            "board_coordinate": ""
+        }
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "ok": True
+    }
+
+    tile = db_entities.Tile(
+        database.get_tile_by_id(tile_id)
+    )
+
+    assert tile.board_coordinate is None
+
+
+def test_update_tile_board_position_json_rejects_invalid_coordinate(client):
+    login_admin(client)
+
+    tile_id = create_test_tile(
+        "JSON Invalid Board Tile"
+    )
+
+    response = client.post(
+        f"/tile/tiles/board-position-json/{tile_id}",
+        data={
+            "board_coordinate": "Z9"
+        }
+    )
+
+    assert response.status_code == 400
+
+    response_data = response.get_json()
+
+    assert response_data["ok"] is False
+    assert response_data["error"]
+
+    tile = db_entities.Tile(
+        database.get_tile_by_id(tile_id)
+    )
+
+    assert tile.board_coordinate is None

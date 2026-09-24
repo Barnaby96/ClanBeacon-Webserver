@@ -176,6 +176,27 @@
         text-transform: uppercase;
     }
 
+    .osrs-admin-tile[draggable="true"],
+    .osrs-admin-unassigned-tile[draggable="true"] {
+        cursor: grab;
+    }
+
+    .osrs-admin-tile.is-dragging,
+    .osrs-admin-unassigned-tile.is-dragging {
+        cursor: grabbing;
+        opacity: 0.45;
+    }
+
+    .osrs-admin-board-slot.is-drag-over
+    .osrs-admin-tile,
+    .osrs-admin-board-slot.is-drag-over
+    .osrs-admin-empty-slot,
+    .osrs-admin-unassigned-drop-zone.is-drag-over {
+        outline: 3px solid #f5d47d;
+        outline-offset: -3px;
+        filter: brightness(1.12);
+    }
+
     .osrs-admin-tile-modal {
         position: fixed;
         inset: 0;
@@ -382,11 +403,16 @@
                                                     {% set coordinate = row ~ column %}
                                                     {% set tile = tiles_by_coordinate.get(coordinate) %}
 
-                                                    <td>
+                                                    <td
+                                                        class="osrs-admin-board-slot"
+                                                        data-board-coordinate="{{ coordinate }}"
+                                                    >
                                                         {% if tile %}
                                                             <button
                                                                 class="osrs-admin-tile"
                                                                 type="button"
+                                                                draggable="true"
+                                                                data-drag-tile="true"
                                                                 data-tile-id="{{ tile.tile_id }}"
                                                                 data-tile-name="{{ tile.tile_name }}"
                                                                 data-tile-type="{{ tile.tile_type }}"
@@ -398,7 +424,10 @@
                                                                     'tile_management.edit_tile',
                                                                     tile_id=tile.tile_id
                                                                 ) }}"
-                                                                onclick="openAdminTileModal(this)"
+                                                                onclick="openAdminTileModalFromClick(
+                                                                    event,
+                                                                    this
+                                                                )"
                                                             >
                                                                 <span class="osrs-admin-tile-coordinate">
                                                                     {{ tile.board_coordinate }}
@@ -439,13 +468,18 @@
                     </p>
                 </header>
 
-                <div class="osrs-panel-body">
+                <div
+                    class="osrs-panel-body osrs-admin-unassigned-drop-zone"
+                    data-unassigned-drop-zone="true"
+                >
                     {% if unassigned_tiles %}
                         <div class="osrs-admin-unassigned-list">
                             {% for tile in unassigned_tiles %}
                                 <button
                                     class="osrs-admin-unassigned-tile"
                                     type="button"
+                                    draggable="true"
+                                    data-drag-tile="true"
                                     data-tile-id="{{ tile.tile_id }}"
                                     data-tile-name="{{ tile.tile_name }}"
                                     data-tile-type="{{ tile.tile_type }}"
@@ -457,7 +491,10 @@
                                         'tile_management.edit_tile',
                                         tile_id=tile.tile_id
                                     ) }}"
-                                    onclick="openAdminTileModal(this)"
+                                    onclick="openAdminTileModalFromClick(
+                                        event,
+                                        this
+                                    )"
                                 >
                                     {{ tile.tile_name }}
 
@@ -594,6 +631,196 @@
         modal.setAttribute("aria-hidden", "true");
         document.body.classList.remove("osrs-modal-open");
     }
+
+    const adminTilePositionUrlTemplate = "{{ url_for(
+        'tile_management.update_tile_board_position_json',
+        tile_id=0
+    ) }}";
+
+    let draggedAdminTileId = null;
+
+    function buildAdminTilePositionUrl(tileId) {
+        return adminTilePositionUrlTemplate.replace(
+            /\/0$/,
+            "/" + encodeURIComponent(tileId)
+        );
+    }
+
+    function openAdminTileModalFromClick(event, source) {
+        if (source.dataset.wasDragged === "true") {
+            source.dataset.wasDragged = "false";
+            return;
+        }
+
+        openAdminTileModal(source);
+    }
+
+    function startAdminTileDrag(event) {
+        draggedAdminTileId = event.currentTarget.dataset.tileId;
+
+        event.currentTarget.classList.add("is-dragging");
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData(
+            "text/plain",
+            draggedAdminTileId
+        );
+    }
+
+    function finishAdminTileDrag(event) {
+        event.currentTarget.classList.remove("is-dragging");
+        event.currentTarget.dataset.wasDragged = "true";
+        draggedAdminTileId = null;
+
+        setTimeout(
+            function() {
+                event.currentTarget.dataset.wasDragged = "false";
+            },
+            250
+        );
+    }
+
+    function allowAdminTileDrop(event) {
+        if (!draggedAdminTileId) {
+            return;
+        }
+
+        event.preventDefault();
+        event.currentTarget.classList.add("is-drag-over");
+        event.dataTransfer.dropEffect = "move";
+    }
+
+    function clearAdminTileDropHighlight(event) {
+        event.currentTarget.classList.remove("is-drag-over");
+    }
+
+    function saveAdminTilePosition(tileId, boardCoordinate) {
+        const formData = new FormData();
+
+        formData.append(
+            "board_coordinate",
+            boardCoordinate || ""
+        );
+
+        fetch(
+            buildAdminTilePositionUrl(tileId),
+            {
+                method: "POST",
+                body: formData,
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest"
+                }
+            }
+        )
+            .then(function(response) {
+                return response.json().then(function(data) {
+                    return {
+                        response: response,
+                        data: data
+                    };
+                });
+            })
+            .then(function(result) {
+                if (
+                    !result.response.ok
+                    || !result.data.ok
+                ) {
+                    throw new Error(
+                        result.data.error
+                        || "Unable to update tile position."
+                    );
+                }
+
+                window.location.reload();
+            })
+            .catch(function(error) {
+                alert(error.message);
+            });
+    }
+
+    function dropAdminTileOnBoard(event) {
+        event.preventDefault();
+        clearAdminTileDropHighlight(event);
+
+        const tileId = (
+            event.dataTransfer.getData("text/plain")
+            || draggedAdminTileId
+        );
+
+        if (!tileId) {
+            return;
+        }
+
+        saveAdminTilePosition(
+            tileId,
+            event.currentTarget.dataset.boardCoordinate
+        );
+    }
+
+    function dropAdminTileOnUnassigned(event) {
+        event.preventDefault();
+        clearAdminTileDropHighlight(event);
+
+        const tileId = (
+            event.dataTransfer.getData("text/plain")
+            || draggedAdminTileId
+        );
+
+        if (!tileId) {
+            return;
+        }
+
+        saveAdminTilePosition(
+            tileId,
+            ""
+        );
+    }
+
+    document.querySelectorAll(
+        "[data-drag-tile='true']"
+    ).forEach(function(tile) {
+        tile.addEventListener(
+            "dragstart",
+            startAdminTileDrag
+        );
+        tile.addEventListener(
+            "dragend",
+            finishAdminTileDrag
+        );
+    });
+
+    document.querySelectorAll(
+        "[data-board-coordinate]"
+    ).forEach(function(slot) {
+        slot.addEventListener(
+            "dragover",
+            allowAdminTileDrop
+        );
+        slot.addEventListener(
+            "dragleave",
+            clearAdminTileDropHighlight
+        );
+        slot.addEventListener(
+            "drop",
+            dropAdminTileOnBoard
+        );
+    });
+
+    document.querySelectorAll(
+        "[data-unassigned-drop-zone='true']"
+    ).forEach(function(dropZone) {
+        dropZone.addEventListener(
+            "dragover",
+            allowAdminTileDrop
+        );
+        dropZone.addEventListener(
+            "dragleave",
+            clearAdminTileDropHighlight
+        );
+        dropZone.addEventListener(
+            "drop",
+            dropAdminTileOnUnassigned
+        );
+    });
 
     document.getElementById("adminTileModal").addEventListener(
         "click",

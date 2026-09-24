@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, Blueprint
+from flask import Flask, render_template, request, redirect, url_for, flash, Blueprint, jsonify
 
 from utils import db_entities
 from utils.auth import admin_required
@@ -535,6 +535,40 @@ def update_tile_board_position(tile_id):
             'tile_management.edit_tile',
             tile_id=tile_id
         )
+    )
+
+
+@tile_routes.route(
+    '/tiles/board-position-json/<int:tile_id>',
+    methods=['POST']
+)
+@admin_required
+def update_tile_board_position_json(tile_id):
+    payload = request.get_json(
+        silent=True
+    ) or request.form
+
+    board_coordinate = payload.get(
+        'board_coordinate'
+    )
+
+    try:
+        set_tile_board_coordinate(
+            tile_id,
+            board_coordinate
+        )
+    except ValueError as error:
+        return jsonify(
+            {
+                'ok': False,
+                'error': str(error)
+            }
+        ), 400
+
+    return jsonify(
+        {
+            'ok': True
+        }
     )
 
 
