@@ -141,6 +141,87 @@
     text-shadow: 1px 1px 0 #000;
 }
 
+.osrs-suggested-team-summary {
+    grid-template-columns: repeat(2, minmax(320px, 1fr));
+    align-items: start;
+}
+
+.osrs-suggested-team-card {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.osrs-suggested-team-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(211, 168, 59, 0.28);
+}
+
+.osrs-suggested-team-header .osrs-summary-label {
+    margin-bottom: 0;
+}
+
+.osrs-suggested-team-count {
+    flex: 0 0 auto;
+    color: var(--osrs-gold-bright);
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 20px;
+    line-height: 1;
+    text-align: right;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.osrs-suggested-team-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.osrs-suggested-team-section-title {
+    margin: 0;
+    color: var(--osrs-gold-bright);
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 18px;
+    line-height: 1;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.osrs-suggested-team-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px 16px;
+    margin: 0;
+}
+
+.osrs-suggested-team-stats-wide {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+}
+
+.osrs-suggested-team-stats div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+}
+
+.osrs-suggested-team-stats dt {
+    color: var(--osrs-text-muted);
+    font-size: 15px;
+}
+
+.osrs-suggested-team-stats dd {
+    margin: 0;
+    color: var(--osrs-text-main);
+    font-family: "RuneScape Bold", Arial, sans-serif;
+    font-size: 16px;
+    text-align: right;
+}
+
 .osrs-team-panel {
     overflow: hidden;
     margin-bottom: 26px;

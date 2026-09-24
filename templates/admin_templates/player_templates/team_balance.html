@@ -377,57 +377,96 @@
             {% endif %}
 
             <section
-                class="osrs-summary"
+                class="osrs-summary osrs-suggested-team-summary"
                 id="suggested-teams"
                 aria-label="Suggested team summary"
             >
                 {% for team in suggested_teams %}
-                    <div class="osrs-summary-card">
-                        <span class="osrs-summary-label">
-                            Team {{ team.team_number }}
-                        </span>
-                        <span class="osrs-summary-value">
-                            {{ team.player_count }} players
-                        </span>
-                        <span>
-                            Total level: {{ team.total_level }}
-                        </span>
-                        <span>
-                            Combat total: {{ team.combat_level }}
-                        </span>
-                        <span>
-                            Skilling score: {{ team.skilling_score }}
-                        </span>
-                        <span>
-                            Solo boss score: {{ team.solo_boss_score }}
-                        </span>
-                        <span>
-                            Slayer boss score: {{ team.slayer_boss_score }}
-                        </span>
-                        <span>
-                            DT2 boss score: {{ team.dt2_boss_score }}
-                        </span>
-                        <span>
-                            End-game boss score: {{ team.endgame_boss_score }}
-                        </span>
-                        <span>
-                            Group boss score: {{ team.group_boss_score }}
-                        </span>
-                        <span>
-                            Raid score: {{ team.raid_score }}
-                        </span>
-                        <span>
-                            Wilderness boss score: {{ team.wilderness_boss_score }}
-                        </span>
-                        <span>
-                            Midgame boss score: {{ team.midgame_boss_score }}
-                        </span>
-                        <span>
-                            Activity score: {{ team.activity_boss_score }}
-                        </span>
-                        <span>
-                            Clue activity score: {{ team.clue_activity_score }}
-                        </span>
+                    <div class="osrs-summary-card osrs-suggested-team-card">
+                        <div class="osrs-suggested-team-header">
+                            <span class="osrs-summary-label">
+                                Team {{ team.team_number }}
+                            </span>
+                            <span class="osrs-suggested-team-count">
+                                {{ team.player_count }} players
+                            </span>
+                        </div>
+
+                        <div class="osrs-suggested-team-section">
+                            <h3 class="osrs-suggested-team-section-title">
+                                Core
+                            </h3>
+                            <dl class="osrs-suggested-team-stats">
+                                <div>
+                                    <dt>Total level</dt>
+                                    <dd>{{ team.total_level }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Combat total</dt>
+                                    <dd>{{ team.combat_level }}</dd>
+                                </div>
+                            </dl>
+                        </div>
+
+                        <div class="osrs-suggested-team-section">
+                            <h3 class="osrs-suggested-team-section-title">
+                                Bossing
+                            </h3>
+                            <dl class="osrs-suggested-team-stats osrs-suggested-team-stats-wide">
+                                <div>
+                                    <dt>Solo boss</dt>
+                                    <dd>{{ team.solo_boss_score }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Slayer boss</dt>
+                                    <dd>{{ team.slayer_boss_score }}</dd>
+                                </div>
+                                <div>
+                                    <dt>DT2 boss</dt>
+                                    <dd>{{ team.dt2_boss_score }}</dd>
+                                </div>
+                                <div>
+                                    <dt>End-game</dt>
+                                    <dd>{{ team.endgame_boss_score }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Group boss</dt>
+                                    <dd>{{ team.group_boss_score }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Raid</dt>
+                                    <dd>{{ team.raid_score }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Wilderness</dt>
+                                    <dd>{{ team.wilderness_boss_score }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Midgame</dt>
+                                    <dd>{{ team.midgame_boss_score }}</dd>
+                                </div>
+                            </dl>
+                        </div>
+
+                        <div class="osrs-suggested-team-section">
+                            <h3 class="osrs-suggested-team-section-title">
+                                Activity
+                            </h3>
+                            <dl class="osrs-suggested-team-stats">
+                                <div>
+                                    <dt>Skilling score</dt>
+                                    <dd>{{ team.skilling_score }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Activity score</dt>
+                                    <dd>{{ team.activity_boss_score }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Clue activity</dt>
+                                    <dd>{{ team.clue_activity_score }}</dd>
+                                </div>
+                            </dl>
+                        </div>
                     </div>
                 {% endfor %}
             </section>
