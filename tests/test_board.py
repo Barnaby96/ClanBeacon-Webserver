@@ -355,7 +355,7 @@ def test_board_position_route_rejects_invalid_coordinate(client):
     assert tile.board_coordinate == "A3"
 
 
-def test_edit_tile_renders_current_board_position(client):
+def test_edit_tile_does_not_render_board_position_controls(client):
     tile_id = create_test_tile(
         "Board Position Form Tile"
     )
@@ -377,24 +377,9 @@ def test_edit_tile_renders_current_board_position(client):
         as_text=True
     )
 
-    assert "Board Position" in page_html
-    assert 'name="board_coordinate"' in page_html
-    assert "Save Board Position" in page_html
-
-    coordinate_position = page_html.index(
-        'value="C4"'
-    )
-
-    option_end = page_html.index(
-        "</option>",
-        coordinate_position
-    )
-
-    coordinate_option = page_html[
-        coordinate_position:option_end
-    ]
-
-    assert "selected" in coordinate_option
+    assert "Board placement is managed" in page_html
+    assert 'name="board_coordinate"' not in page_html
+    assert "Save Board Position" not in page_html
 
 
 def test_board_position_route_works_after_recorded_activity(client):

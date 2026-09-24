@@ -1,236 +1,468 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1 style="text-align: center; color: #fff;">
-    Edit Tile
-</h1>
-
-<form
-    action="{{ url_for('tile_management.edit_tile', tile_id=tile[0]) }}"
-    method="POST"
-    style="
-        width: calc(100% - 30px);
-        max-width: 760px;
-        margin: 0 auto;
-        background-color: #1e1e1e;
-        padding: 20px;
-        border-radius: 10px;
-        box-sizing: border-box;
-        box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
-    "
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
 >
-    <div style="margin-bottom: 15px;">
-        <label
-            for="tile_name"
-            style="display: block; margin-bottom: 5px; color: #ccc;"
-        >
-            Tile Name:
-        </label>
+<style>
+    .osrs-edit-tile-form .osrs-panel-body,
+    .osrs-edit-tile-form .completion-route,
+    .osrs-edit-tile-form .osrs-form-label,
+    .osrs-edit-tile-form label,
+    .osrs-edit-tile-form strong {
+        color: #1a1208 !important;
+        text-shadow: none !important;
+    }
 
-        <input
-            type="text"
-            id="tile_name"
-            name="tile_name"
-            value="{{ tile[1] }}"
-            required
-            style="
-                width: 100%;
-                padding: 10px;
-                border: 1px solid #444;
-                border-radius: 5px;
-                background-color: #333;
-                color: #ccc;
-                box-sizing: border-box;
-            "
-        >
-    </div>
+    .osrs-edit-tile-form .osrs-panel-header .osrs-panel-description strong {
+        color: var(--osrs-gold) !important;
+        text-shadow: 1px 1px 0 #000 !important;
+    }
 
-    <div style="margin-bottom: 15px;">
-        <label
-            for="tile_points"
-            style="display: block; margin-bottom: 5px; color: #ccc;"
-        >
-            Tile Points:
-        </label>
+    .osrs-edit-tile-form .osrs-form-label,
+    .osrs-edit-tile-form label {
+        font-family: "RuneScape Bold", Arial, sans-serif;
+        font-size: 18px;
+    }
 
-        <input
-            type="number"
-            id="tile_points"
-            name="tile_points"
-            step="0.01"
-            min="0"
-            value="{{ tile[8] }}"
-            required
-            style="
-                width: 100%;
-                padding: 10px;
-                border: 1px solid #444;
-                border-radius: 5px;
-                background-color: #333;
-                color: #ccc;
-                box-sizing: border-box;
-            "
-        >
-    </div>
-
-    <div style="margin-bottom: 20px;">
-        <label
-            for="tile_rules"
-            style="display: block; margin-bottom: 5px; color: #ccc;"
-        >
-            Tile Rules:
-        </label>
-
-        <textarea
-            id="tile_rules"
-            name="tile_rules"
-            style="
-                width: 100%;
-                padding: 10px;
-                border: 1px solid #444;
-                border-radius: 5px;
-                background-color: #333;
-                color: #ccc;
-                box-sizing: border-box;
-                resize: vertical;
-            "
-        >{{ tile[9] }}</textarea>
-    </div>
-
-    <hr style="border-color: #444; margin: 25px 0;">
-
-    <h2 style="color: #fff; margin-bottom: 5px;">
-        Completion Conditions
-    </h2>
-
-    <p style="color: #aaa; margin-top: 0;">
-        Each route can use <strong>ALL</strong>,
-        <strong>SUM</strong>, or <strong>N OF</strong> logic.
-        Separate routes are <strong>OR</strong> alternatives.
-    </p>
-
-    <div id="completion-routes"></div>
-
-    <button
-        type="button"
-        onclick="addCompletionRoute()"
-        style="
-            width: 100%;
-            padding: 10px;
-            margin-top: 10px;
-            background-color: #555;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        "
-    >
-        + Add OR Completion Route
-    </button>
-
-    <button
-        type="submit"
-        style="
-            width: 100%;
-            padding: 12px;
-            margin-top: 25px;
-            background-color: #444;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-        "
-    >
-        Update Tile
-    </button>
-</form>
-
-<form
-    action="{{ url_for('tile_management.update_tile_board_position', tile_id=tile[0]) }}"
-    method="POST"
-    style="
-        width: calc(100% - 30px);
-        max-width: 760px;
-        margin: 20px auto 0;
-        background-color: #1e1e1e;
-        padding: 20px;
+    .osrs-edit-tile-form input:not([type="hidden"]):not([type="checkbox"]),
+    .osrs-edit-tile-form select,
+    .osrs-edit-tile-form textarea {
+        display: block;
+        width: 100%;
         box-sizing: border-box;
-    "
->
-    <h2 style="margin-top: 0;">
-        Board Position
-    </h2>
+        padding: 9px 12px;
+        border: 2px solid var(--osrs-border-dark) !important;
+        border-radius: 4px;
+        outline: none;
+        background: var(--osrs-parchment-light) !important;
+        color: #111 !important;
+        font-family: Arial, sans-serif;
+        font-size: 15px;
+        box-shadow:
+            inset 0 0 0 1px rgba(125, 90, 22, 0.24);
+    }
 
-    <p style="color: #ccc;">
-        Choose where this tile appears on the 5×5 bingo board.
-        Moving it onto an occupied position will swap the existing
-        tile into this tile's previous position. If this tile is
-        currently unassigned, the displaced tile will become
-        unassigned.
-    </p>
+    .osrs-edit-tile-form input::placeholder,
+    .osrs-edit-tile-form textarea::placeholder {
+        color: #5f4a2e !important;
+        opacity: 1;
+    }
 
-    <label
-        for="board_coordinate"
-        style="
-            display: block;
-            margin-bottom: 5px;
-            color: #ccc;
-        "
-    >
-        Board Coordinate:
-    </label>
+    .osrs-edit-tile-form input:not([type="hidden"]):not([type="checkbox"]):focus,
+    .osrs-edit-tile-form select:focus,
+    .osrs-edit-tile-form textarea:focus {
+        box-shadow:
+            inset 0 0 0 1px var(--osrs-gold),
+            0 0 0 1px var(--osrs-gold-dark);
+    }
 
-    <select
-        id="board_coordinate"
-        name="board_coordinate"
-        style="
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 15px;
-            box-sizing: border-box;
-        "
-    >
-        <option
-            value=""
-            {% if tile|length <= 10 or tile[10] is none %}
-                selected
-            {% endif %}
-        >
-            Unassigned
-        </option>
+    .osrs-edit-tile-form .osrs-wide-button {
+        width: 100%;
+    }
 
-        {% for row in ['A', 'B', 'C', 'D', 'E'] %}
-            {% for column in range(1, 6) %}
-                {% set coordinate = row ~ column %}
-                <option
-                    value="{{ coordinate }}"
-                    {% if
-                        tile|length > 10
-                        and tile[10] == coordinate
-                    %}
-                        selected
-                    {% endif %}
+    .osrs-edit-tile-form input[type="checkbox"] {
+        width: auto;
+        accent-color: var(--osrs-gold-dark);
+    }
+
+    .osrs-edit-tile-form .completion-route {
+        border: 2px solid var(--osrs-border-dark) !important;
+        background: var(--osrs-parchment-light) !important;
+        box-shadow:
+            inset 0 0 0 1px rgba(125, 90, 22, 0.24);
+    }
+    .osrs-edit-tile-form .osrs-red-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 34px;
+        padding: 7px 13px;
+        border: 2px solid #2a0907;
+        border-radius: 4px;
+        background:
+            linear-gradient(
+                180deg,
+                #a83a31 0%,
+                #84251e 48%,
+                #4f100d 100%
+            );
+        color: #fff4d8 !important;
+        font-family: "RuneScape Bold", Arial, sans-serif;
+        font-size: 17px;
+        line-height: 1;
+        text-shadow: 1px 1px 0 #000 !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 190, 150, 0.35),
+            inset 0 -2px 0 rgba(0, 0, 0, 0.45),
+            0 2px 5px rgba(0, 0, 0, 0.45);
+        cursor: pointer;
+    }
+
+    .osrs-edit-tile-form .osrs-red-button:hover,
+    .osrs-edit-tile-form .osrs-red-button:focus {
+        background:
+            linear-gradient(
+                180deg,
+                #c85143 0%,
+                #9d3028 48%,
+                #681714 100%
+            );
+        box-shadow:
+            inset 0 1px 0 rgba(255, 215, 180, 0.45),
+            inset 0 -2px 0 rgba(0, 0, 0, 0.42),
+            0 0 8px rgba(205, 70, 55, 0.55),
+            0 2px 5px rgba(0, 0, 0, 0.5);
+    }
+
+    .osrs-edit-tile-form .osrs-red-button-square {
+        min-width: 36px;
+        padding: 7px 10px;
+        font-size: 20px;
+    }
+
+</style>
+<div class="osrs-dashboard">
+    <main class="osrs-page">
+        <header class="osrs-page-header">
+            <h1 class="osrs-page-title">Edit Tile</h1>
+
+            <p class="osrs-page-subtitle">
+                Update this tile's name, points, rules and completion
+                conditions. Board placement is managed from the Manage Tiles
+                page.
+            </p>
+
+            <div class="osrs-form-actions">
+                <a
+                    class="osrs-button osrs-button-secondary"
+                    href="{{ url_for('tile_management.tile_list') }}"
                 >
-                    {{ coordinate }}
-                </option>
-            {% endfor %}
-        {% endfor %}
-    </select>
+                    Back to Manage Tiles
+                </a>
+            </div>
+        </header>
 
-    <button
-        type="submit"
-        style="
-            padding: 10px 18px;
-            cursor: pointer;
-        "
-    >
-        Save Board Position
-    </button>
-</form>
+        <form
+            class="osrs-edit-tile-form"
+            action="{{ url_for('tile_management.edit_tile', tile_id=tile[0]) }}"
+            method="POST"
+        >
+            <section class="osrs-panel">
+                <header class="osrs-panel-header">
+                    <h2 class="osrs-panel-title">Tile Details</h2>
+
+                    <p class="osrs-panel-description">
+                        Set the tile name, point value and rule text shown to
+                        participants.
+                    </p>
+                </header>
+
+                <div class="osrs-panel-body">
+                    <div class="osrs-form-grid">
+                        <div class="osrs-form-field">
+                            <label
+                                class="osrs-form-label"
+                                for="tile_name"
+                            >
+                                Tile Name
+                            </label>
+
+                            <input
+                                class="osrs-form-input"
+                                type="text"
+                                id="tile_name"
+                                name="tile_name"
+                                value="{{ tile[1] }}"
+                                required
+                            >
+                        </div>
+
+                        <div class="osrs-form-field">
+                            <label
+                                class="osrs-form-label"
+                                for="tile_points"
+                            >
+                                Tile Points
+                            </label>
+
+                            <input
+                                class="osrs-form-input"
+                                type="number"
+                                id="tile_points"
+                                name="tile_points"
+                                step="0.01"
+                                min="0"
+                                value="{{ tile[8] }}"
+                                required
+                            >
+                        </div>
+
+                        <div class="osrs-form-field">
+                            <label
+                                class="osrs-form-label"
+                                for="tile_rules"
+                            >
+                                Tile Rules
+                            </label>
+
+                            <textarea
+                                class="osrs-form-input"
+                                id="tile_rules"
+                                name="tile_rules"
+                            >{{ tile[9] }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="osrs-panel">
+                <header class="osrs-panel-header">
+                    <h2 class="osrs-panel-title">Completion Conditions</h2>
+
+                    <p class="osrs-panel-description">
+                        Each route can use <strong>ALL</strong>,
+                        <strong>SUM</strong>, or <strong>N OF</strong> logic.
+                        Separate routes are <strong>OR</strong> alternatives.
+                    </p>
+                </header>
+
+                <div class="osrs-panel-body">
+                    <div id="completion-routes"></div>
+
+                    <div class="osrs-form-actions">
+                        <button
+                            class="osrs-button osrs-button-secondary"
+                            type="button"
+                            onclick="addCompletionRoute()"
+                        >
+                            + Add OR Completion Route
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <div class="osrs-form-actions">
+                <button
+                    class="osrs-button"
+                    type="submit"
+                >
+                    Save Tile Changes
+                </button>
+            </div>
+        </form>
+    </main>
+</div>
 
 <script>
     let nextRouteNumber = 1;
+
+    const WOM_EXPERIENCE_METRICS = [
+        'overall',
+        'attack',
+        'defence',
+        'strength',
+        'hitpoints',
+        'ranged',
+        'prayer',
+        'magic',
+        'cooking',
+        'woodcutting',
+        'fletching',
+        'fishing',
+        'firemaking',
+        'crafting',
+        'smithing',
+        'mining',
+        'herblore',
+        'agility',
+        'thieving',
+        'slayer',
+        'farming',
+        'runecrafting',
+        'hunter',
+        'construction',
+        'sailing'
+    ];
+
+    const WOM_KILLCOUNT_METRICS = [
+        'abyssal_sire',
+        'alchemical_hydra',
+        'amoxliatl',
+        'araxxor',
+        'artio',
+        'barrows_chests',
+        'brutus',
+        'bryophyta',
+        'callisto',
+        'calvarion',
+        'cerberus',
+        'chambers_of_xeric',
+        'chambers_of_xeric_challenge_mode',
+        'chaos_elemental',
+        'chaos_fanatic',
+        'commander_zilyana',
+        'corporeal_beast',
+        'crazy_archaeologist',
+        'dagannoth_prime',
+        'dagannoth_rex',
+        'dagannoth_supreme',
+        'deranged_archaeologist',
+        'doom_of_mokhaiotl',
+        'duke_sucellus',
+        'general_graardor',
+        'giant_mole',
+        'grotesque_guardians',
+        'hespori',
+        'kalphite_queen',
+        'king_black_dragon',
+        'kraken',
+        'kreearra',
+        'kril_tsutsaroth',
+        'lunar_chests',
+        'mad_angel',
+        'maggot_king',
+        'mimic',
+        'nex',
+        'nightmare',
+        'phosanis_nightmare',
+        'obor',
+        'phantom_muspah',
+        'sarachnis',
+        'scorpia',
+        'scurrius',
+        'shellbane_gryphon',
+        'skotizo',
+        'sol_heredit',
+        'spindel',
+        'tempoross',
+        'the_gauntlet',
+        'the_corrupted_gauntlet',
+        'the_hueycoatl',
+        'the_leviathan',
+        'the_royal_titans',
+        'the_whisperer',
+        'theatre_of_blood',
+        'theatre_of_blood_hard_mode',
+        'thermonuclear_smoke_devil',
+        'tombs_of_amascut',
+        'tombs_of_amascut_expert',
+        'tzkal_zuk',
+        'tztok_jad',
+        'vardorvis',
+        'venenatis',
+        'vetion',
+        'vorkath',
+        'wintertodt',
+        'yama',
+        'zalcano',
+        'zulrah'
+    ];
+
+    function formatWomMetricLabel(metric) {
+        return metric
+            .split('_')
+            .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(' ');
+    }
+
+    function escapeAttribute(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    function buildMetricOptions(metrics, selectedValue) {
+        return metrics.map(metric => {
+            const selected = metric === selectedValue ? ' selected' : '';
+
+            return (
+                `<option value="${metric}"${selected}>`
+                + `${formatWomMetricLabel(metric)}`
+                + '</option>'
+            );
+        }).join('');
+    }
+
+    function setConditionTriggerControl(row, conditionType, selectedValue = null) {
+        const triggerContainer = row.querySelector(
+            '.condition-trigger-field'
+        );
+
+        const currentTrigger = row.querySelector(
+            '[name="condition_trigger"]'
+        );
+
+        let value = selectedValue;
+
+        if (value === null && currentTrigger) {
+            value = currentTrigger.value;
+        }
+
+        value = value || '';
+
+        let controlHtml = '';
+
+        if (conditionType === 'KILLCOUNT') {
+            const isValidMetric = WOM_KILLCOUNT_METRICS.includes(value);
+
+            controlHtml = `
+                <select
+                    class="osrs-form-input"
+                    name="condition_trigger"
+                    required
+                >
+                    <option value=""${isValidMetric ? '' : ' selected'}>
+                        Select WOM boss
+                    </option>
+                    ${buildMetricOptions(WOM_KILLCOUNT_METRICS, value)}
+                </select>
+            `;
+        } else if (conditionType === 'EXPERIENCE') {
+            const isValidMetric = WOM_EXPERIENCE_METRICS.includes(value);
+
+            controlHtml = `
+                <select
+                    class="osrs-form-input"
+                    name="condition_trigger"
+                    required
+                >
+                    <option value=""${isValidMetric ? '' : ' selected'}>
+                        Select WOM skill
+                    </option>
+                    ${buildMetricOptions(WOM_EXPERIENCE_METRICS, value)}
+                </select>
+            `;
+        } else {
+            const required = conditionType === 'MANUAL' ? '' : ' required';
+            const placeholder = (
+                conditionType === 'MANUAL'
+                    ? ' placeholder="Not required"'
+                    : ''
+            );
+
+            controlHtml = `
+                <input
+                    class="osrs-form-input"
+                    type="text"
+                    name="condition_trigger"
+                    value="${escapeAttribute(value)}"
+                    ${required}
+                    ${placeholder}
+                >
+            `;
+        }
+
+        triggerContainer.innerHTML = `
+            <label class="osrs-form-label">
+                Boss / Skill / Item / Pet
+            </label>
+            ${controlHtml}
+        `;
+    }
 
     function createConditionRow(routeNumber) {
         const row = document.createElement('div');
@@ -252,11 +484,7 @@
             >
 
             <div>
-                <label style="
-                    display: block;
-                    margin-bottom: 5px;
-                    color: #ccc;
-                ">
+                <label class="osrs-form-label">
                     Type
                 </label>
 
@@ -264,15 +492,6 @@
                     name="condition_type"
                     required
                     onchange="conditionTypeChanged(this)"
-                    style="
-                        width: 100%;
-                        padding: 10px;
-                        border: 1px solid #444;
-                        border-radius: 5px;
-                        background-color: #333;
-                        color: #ccc;
-                        box-sizing: border-box;
-                    "
                 >
                     <option value="KILLCOUNT">Killcount</option>
                     <option value="EXPERIENCE">Experience</option>
@@ -283,74 +502,37 @@
                 </select>
             </div>
 
-            <div>
-                <label style="
-                    display: block;
-                    margin-bottom: 5px;
-                    color: #ccc;
-                ">
-                    Boss / Skill / Item / Pet
-                </label>
-
-                <input
-                    type="text"
-                    name="condition_trigger"
-                    required
-                    style="
-                        width: 100%;
-                        padding: 10px;
-                        border: 1px solid #444;
-                        border-radius: 5px;
-                        background-color: #333;
-                        color: #ccc;
-                        box-sizing: border-box;
-                    "
-                >
-            </div>
+            <div class="condition-trigger-field"></div>
 
             <div>
-                <label style="
-                    display: block;
-                    margin-bottom: 5px;
-                    color: #ccc;
-                ">
+                <label class="osrs-form-label">
                     Amount
                 </label>
 
                 <input
+                    class="osrs-form-input"
                     type="number"
                     name="condition_target"
                     value="1"
                     min="1"
                     required
-                    style="
-                        width: 100%;
-                        padding: 10px;
-                        border: 1px solid #444;
-                        border-radius: 5px;
-                        background-color: #333;
-                        color: #ccc;
-                        box-sizing: border-box;
-                    "
                 >
             </div>
 
             <button
+                class="osrs-red-button osrs-red-button-square"
                 type="button"
                 onclick="removeCondition(this)"
                 title="Remove condition"
-                style="
-                    padding: 10px 14px;
-                    background-color: #663333;
-                    color: #fff;
-                    border: none;
-                    border-radius: 5px;
-                    cursor: pointer;
-                "
+                aria-label="Remove condition"
             >
                 X
             </button>
         `;
+
+        conditionTypeChanged(
+            row.querySelector('[name="condition_type"]')
+        );
 
         return row;
     }
@@ -377,11 +559,14 @@
         route.dataset.routeNumber = routeNumber;
 
         route.style.cssText = `
-            border: 1px solid #444;
-            border-radius: 8px;
-            padding: 15px;
+            border: 2px solid var(--osrs-border-dark);
+            border-radius: 7px;
+            padding: 16px;
             margin-top: 15px;
-            background-color: #282828;
+            background: var(--osrs-parchment-light);
+            color: var(--osrs-text-dark);
+            box-shadow:
+                inset 0 0 0 1px rgba(125, 90, 22, 0.24);
         `;
 
         route.innerHTML = `
@@ -392,21 +577,14 @@
                 gap: 10px;
                 margin-bottom: 12px;
             ">
-                <strong style="color: #fff;">
+                <strong class="osrs-form-label">
                     Completion Route ${routeNumber}
                 </strong>
 
                 <button
+                    class="osrs-red-button"
                     type="button"
                     onclick="removeRoute(this)"
-                    style="
-                        padding: 7px 10px;
-                        background-color: #663333;
-                        color: #fff;
-                        border: none;
-                        border-radius: 5px;
-                        cursor: pointer;
-                    "
                 >
                     Remove Route
                 </button>
@@ -428,26 +606,13 @@
                 "
             >
                 <div>
-                    <label style="
-                        display: block;
-                        margin-bottom: 5px;
-                        color: #ccc;
-                    ">
+                    <label class="osrs-form-label">
                         Route Mode
                     </label>
 
                     <select
                         name="route_mode"
                         onchange="routeModeChanged(this)"
-                        style="
-                            width: 100%;
-                            padding: 10px;
-                            border: 1px solid #444;
-                            border-radius: 5px;
-                            background-color: #333;
-                            color: #ccc;
-                            box-sizing: border-box;
-                        "
                     >
                         <option value="ALL">
                             ALL - complete every condition
@@ -462,38 +627,22 @@
                 </div>
 
                 <div>
-                    <label style="
-                        display: block;
-                        margin-bottom: 5px;
-                        color: #ccc;
-                    ">
+                    <label class="osrs-form-label">
                         Route Target
                     </label>
 
                     <input
+                        class="osrs-form-input"
                         type="number"
                         name="route_target"
                         min="1"
                         placeholder="Not used for ALL"
                         readonly
-                        style="
-                            width: 100%;
-                            padding: 10px;
-                            border: 1px solid #444;
-                            border-radius: 5px;
-                            background-color: #333;
-                            color: #ccc;
-                            box-sizing: border-box;
-                        "
                     >
                 </div>
 
                 <div>
-                    <label style="
-                        display: block;
-                        margin-bottom: 5px;
-                        color: #ccc;
-                    ">
+                    <label class="osrs-form-label">
                         Unique Results
                     </label>
 
@@ -517,18 +666,9 @@
             <div class="conditions"></div>
 
             <button
+                class="osrs-button osrs-button-secondary osrs-wide-button"
                 type="button"
                 onclick="addCondition(this)"
-                style="
-                    width: 100%;
-                    padding: 9px;
-                    margin-top: 5px;
-                    background-color: #3d3d3d;
-                    color: #fff;
-                    border: none;
-                    border-radius: 5px;
-                    cursor: pointer;
-                "
             >
                 + Add AND Condition
             </button>
@@ -615,25 +755,23 @@
         }
     }
 
-    function conditionTypeChanged(select) {
+    function conditionTypeChanged(select, selectedTrigger = null) {
         const row = select.closest('.condition-row');
-        const trigger = row.querySelector(
-            '[name="condition_trigger"]'
+
+        setConditionTriggerControl(
+            row,
+            select.value,
+            selectedTrigger
         );
+
         const target = row.querySelector(
             '[name="condition_target"]'
         );
 
         if (select.value === 'MANUAL') {
-            trigger.value = '';
-            trigger.required = false;
-            trigger.disabled = false;
-            trigger.placeholder = 'Not required';
             target.value = 1;
             target.readOnly = true;
         } else {
-            trigger.required = true;
-            trigger.placeholder = '';
             target.readOnly = false;
         }
     }
@@ -645,24 +783,24 @@
         const type = row.querySelector(
             '[name="condition_type"]'
         );
-        const trigger = row.querySelector(
-            '[name="condition_trigger"]'
-        );
         const target = row.querySelector(
             '[name="condition_target"]'
         );
 
-        type.value = condition[3];
-
-        trigger.value = (
+        const triggerValue = (
             condition[4] === null
                 ? ''
                 : condition[4]
         );
 
-        target.value = condition[5];
+        type.value = condition[3];
 
-        conditionTypeChanged(type);
+        conditionTypeChanged(
+            type,
+            triggerValue
+        );
+
+        target.value = condition[5];
     }
 
     function populateCompletionRoute(route, completionPath) {
