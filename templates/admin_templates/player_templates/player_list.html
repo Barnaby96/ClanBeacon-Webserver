@@ -26,112 +26,134 @@
                 <span class="osrs-summary-value">{{ player_count }}</span>
             </div>
         </section>
-        <section class="osrs-player-section">
-            <form
-                action="{{ url_for(
-                    'player_management.update_all_wom_players'
-                ) }}"
-                method="post"
-            >
-                <button
-                    class="osrs-button"
-                    type="submit"
+        <section class="osrs-panel">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Roster Actions</h2>
+
+                <p class="osrs-panel-description">
+                    Refresh Wise Old Man details for all linked players.
+                </p>
+            </header>
+
+            <div class="osrs-panel-body">
+                <form
+                    action="{{ url_for(
+                        'player_management.update_all_wom_players'
+                    ) }}"
+                    method="post"
+                    class="osrs-form-actions"
                 >
-                    Update All WOM Players
-                </button>
-            </form>
+                    <button
+                        class="osrs-button"
+                        type="submit"
+                    >
+                        Update All WOM Players
+                    </button>
+                </form>
+            </div>
         </section>
 
         {% for team in teams %}
-            <section class="osrs-team-panel">
-                <h2 class="osrs-team-heading">
-                    {{ team.team_name }}
-                </h2>
+            <section class="osrs-panel">
+                <header class="osrs-panel-header">
+                    <h2 class="osrs-panel-title">
+                        {{ team.team_name }}
+                    </h2>
 
-                {% if team.players %}
-                    <div class="osrs-table-wrap">
-                        <table class="osrs-table">
-                            <thead>
-                                <tr>
-                                    <th>Player</th>
-                                    <th>MVP Points</th>
-                                    <th>Tile Contributions</th>
-                                    <th>Linked Discord</th>
-                                    <th>View</th>
-                                </tr>
-                            </thead>
+                    <p class="osrs-panel-description">
+                        {{ team.players|length }}
+                        player{% if team.players|length != 1 %}s{% endif %}
+                        assigned to this team.
+                    </p>
+                </header>
 
-                            <tbody>
-                                {% for player in team.players %}
+                <div class="osrs-panel-body">
+                    {% if team.players %}
+                        <div class="osrs-table-wrap">
+                            <table class="osrs-table">
+                                <thead>
                                     <tr>
-                                        <td>
-                                            <span class="osrs-player-name">
-                                                {{ player.player_name }}
-                                            </span>
-                                        </td>
+                                        <th>Player</th>
+                                        <th>MVP Points</th>
+                                        <th>Tile Contributions</th>
+                                        <th>Linked Discord</th>
+                                        <th>View</th>
+                                    </tr>
+                                </thead>
 
-                                        <td>
-                                            <span class="osrs-number">
-                                                {{ '%g' | format(player.mvp_points) }}
-                                            </span>
-                                        </td>
+                                <tbody>
+                                    {% for player in team.players %}
+                                        <tr>
+                                            <td>
+                                                <span class="osrs-player-name">
+                                                    {{ player.player_name }}
+                                                </span>
+                                            </td>
 
-                                        <td>
-                                            <span class="osrs-number">
-                                                {{ '%.2f' | format(player.tile_contributions) }}
-                                            </span>
-                                        </td>
+                                            <td>
+                                                <span class="osrs-number">
+                                                    {{ '%g' | format(player.mvp_points) }}
+                                                </span>
+                                            </td>
 
-                                        <td>
-                                            {% if player.discord_user_id %}
-                                                {% if player.discord_display_name
-                                                      or player.discord_username %}
-                                                    {% if player.discord_display_name %}
-                                                        <span class="osrs-discord-name">
-                                                            {{ player.discord_display_name }}
-                                                        </span>
-                                                    {% endif %}
+                                            <td>
+                                                <span class="osrs-number">
+                                                    {{ '%.2f' | format(player.tile_contributions) }}
+                                                </span>
+                                            </td>
 
-                                                    {% if player.discord_username %}
-                                                        <span class="osrs-discord-username">
-                                                            (@{{ player.discord_username }})
+                                            <td>
+                                                {% if player.discord_user_id %}
+                                                    {% if player.discord_display_name
+                                                          or player.discord_username %}
+                                                        {% if player.discord_display_name %}
+                                                            <span class="osrs-discord-name">
+                                                                {{ player.discord_display_name }}
+                                                            </span>
+                                                        {% endif %}
+
+                                                        {% if player.discord_username %}
+                                                            <span class="osrs-discord-username">
+                                                                (@{{ player.discord_username }})
+                                                            </span>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <span class="osrs-status-pending">
+                                                            Linked — name not yet available
                                                         </span>
                                                     {% endif %}
                                                 {% else %}
-                                                    <span class="osrs-status-pending">
-                                                        Linked — name not yet available
+                                                    <span class="osrs-status-unlinked">
+                                                        Not linked
                                                     </span>
                                                 {% endif %}
-                                            {% else %}
-                                                <span class="osrs-status-unlinked">
-                                                    Not linked
-                                                </span>
-                                            {% endif %}
-                                        </td>
+                                            </td>
 
-                                        <td>
-                                            <a
-                                                class="osrs-button"
-                                                href="{{ url_for(
-                                                    'user_routes.player',
-                                                    player_name=player.player_name
-                                                ) }}"
-                                            >
-                                                View
-                                            </a>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <p class="osrs-empty-team">
-                        No players assigned
-                    </p>
-                {% endif %}
+                                            <td>
+                                                <a
+                                                    class="osrs-button"
+                                                    href="{{ url_for(
+                                                        'user_routes.player',
+                                                        player_name=player.player_name
+                                                    ) }}"
+                                                >
+                                                    View
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="osrs-empty-state">
+                            No players assigned.
+                        </p>
+                    {% endif %}
+                </div>
             </section>
         {% endfor %}
+
     </main>
 </div>
 {% endblock %}
