@@ -1,18 +1,100 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1 style="text-align: center; color: #fff;">Create New Team</h1>
-<form action="{{ url_for('team_routes.create_team') }}" method="POST" style="width: 600px; min-width: 600px; margin: 0 auto; background-color: #1e1e1e; padding: 20px; border-radius: 10px; box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);">
-    <div style="margin-bottom: 15px;">
-        <label for="team_name" style="display: block; margin-bottom: 5px; color: #ccc;">Team Name:</label>
-        <input type="text" id="team_name" name="team_name" required style="width: 100%; padding: 10px; border: 1px solid #444; border-radius: 5px; background-color: #333; color: #ccc; box-sizing: border-box;">
-    </div>
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
 
-    <div style="margin-bottom: 15px;">
-        <label for="team_webhook" style="display: block; margin-bottom: 5px; color: #ccc;">Team Webhook:</label>
-        <input type="text" id="team_webhook" name="team_webhook" required style="width: 100%; padding: 10px; border: 1px solid #444; border-radius: 5px; background-color: #333; color: #ccc; box-sizing: border-box;">
-    </div>
+<div class="osrs-dashboard">
+    <main class="osrs-page">
+        <header class="osrs-page-header">
+            <h1 class="osrs-page-title">Create Team</h1>
 
-    <button type="submit" style="width: 100%; padding: 10px; background-color: #444; color: #fff; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">Create Team</button>
-</form>
+            <p class="osrs-page-subtitle">
+                Manually create a team for testing, corrections or non-WOM
+                events. For normal Bingo setup, use the WOM import first.
+            </p>
+
+            <div class="osrs-form-actions">
+                <a
+                    class="osrs-button osrs-button-secondary"
+                    href="{{ url_for('team_routes.team_list') }}"
+                >
+                    Back to Manage Teams
+                </a>
+            </div>
+        </header>
+
+        <section class="osrs-panel">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">
+                    Team Details
+                </h2>
+
+                <p class="osrs-panel-description">
+                    Add the team name now. The Discord webhook can be added
+                    here or later from Edit Team.
+                </p>
+            </header>
+
+            <div class="osrs-panel-body">
+                <form
+                    action="{{ url_for('team_routes.create_team') }}"
+                    method="POST"
+                    class="osrs-form-grid"
+                >
+                    <div class="osrs-form-field">
+                        <label
+                            class="osrs-form-label"
+                            for="team_name"
+                        >
+                            Team Name
+                        </label>
+
+                        <input
+                            class="osrs-form-input"
+                            type="text"
+                            id="team_name"
+                            name="team_name"
+                            required
+                        >
+                    </div>
+
+                    <div class="osrs-form-field">
+                        <label
+                            class="osrs-form-label"
+                            for="team_webhook"
+                        >
+                            Team Webhook
+                        </label>
+
+                        <input
+                            class="osrs-form-input"
+                            type="url"
+                            id="team_webhook"
+                            name="team_webhook"
+                            autocomplete="off"
+                            placeholder="https://discord.com/api/webhooks/..."
+                        >
+
+                        <p class="osrs-form-help">
+                            Optional. You can configure or replace the webhook
+                            from Edit Team later.
+                        </p>
+                    </div>
+
+                    <div class="osrs-form-actions">
+                        <button
+                            class="osrs-button"
+                            type="submit"
+                        >
+                            Create Team
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </main>
+</div>
 {% endblock %}

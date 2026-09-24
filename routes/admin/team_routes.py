@@ -140,10 +140,60 @@ def team_list():
 @admin_required
 def create_team():
     if request.method == 'POST':
-        team_name = request.form.get('team_name')
-        team_webhook = request.form.get('team_webhook')
+        team_name = str(
+            request.form.get(
+                'team_name',
+                ''
+            )
+        ).strip()
+        team_webhook = str(
+            request.form.get(
+                'team_webhook',
+                ''
+            )
+        ).strip()
 
-        add_team(team_name, 0, team_webhook)
+        if not team_name:
+            flash(
+                'Team Name cannot be blank.',
+                'danger'
+            )
+            return redirect(
+                url_for(
+                    'team_routes.create_team'
+                )
+            )
+
+        duplicate_team = None
+
+        for existing_team_data in get_teams():
+            existing_team = db_entities.Team(
+                existing_team_data
+            )
+
+            if (
+                existing_team.team_name.casefold()
+                == team_name.casefold()
+            ):
+                duplicate_team = existing_team
+                break
+
+        if duplicate_team is not None:
+            flash(
+                'A team with that name already exists.',
+                'danger'
+            )
+            return redirect(
+                url_for(
+                    'team_routes.create_team'
+                )
+            )
+
+        add_team(
+            team_name,
+            0,
+            team_webhook
+        )
 
         flash('Team created successfully!', 'success')
         return redirect(url_for('team_routes.team_list'))
