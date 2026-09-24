@@ -246,8 +246,7 @@
                     <div class="osrs-panel-header">
                         <h2 class="osrs-panel-title">Balance Score</h2>
                         <p class="osrs-panel-description">
-                            Lower penalty scores are better. Build Team Preview
-                            automatically runs the optimiser.
+                            Lower penalty scores are better. Build Teams automatically runs the optimiser.
                         </p>
                     </div>
 
@@ -255,7 +254,7 @@
                         <div class="osrs-summary osrs-balance-summary">
                             <div class="osrs-summary-card">
                                 <span class="osrs-summary-label">
-                                    Total Penalty
+                                    Total penalty
                                 </span>
                                 <span class="osrs-summary-value">
                                     {{ "%.2f"|format(layout_score.total_penalty) }}
@@ -264,7 +263,7 @@
 
                             <div class="osrs-summary-card">
                                 <span class="osrs-summary-label">
-                                    Gap Penalty
+                                    Gap penalty
                                 </span>
                                 <span class="osrs-summary-value">
                                     {{ "%.2f"|format(layout_score.gap_penalty_total) }}
@@ -273,7 +272,7 @@
 
                             <div class="osrs-summary-card">
                                 <span class="osrs-summary-label">
-                                    Coverage Penalty
+                                    Coverage penalty
                                 </span>
                                 <span class="osrs-summary-value">
                                     {{ "%.2f"|format(layout_score.coverage_penalty_total) }}
@@ -283,7 +282,7 @@
 
                         <div class="osrs-player-section">
                             <h3 class="osrs-player-section-heading">
-                                Optimiser Result
+                                Optimiser result
                             </h3>
 
                             <p>
@@ -319,13 +318,18 @@
                                 </strong>
                             </p>
 
+                            <p>
+                                The optimiser checks whether a one-player move or two-player swap
+                                improves the balance score.
+                            </p>
+
                             <p>{{ optimisation_summary.message }}</p>
                         </div>
 
                         {% if optimisation_summary.changed_areas %}
                             <div class="osrs-player-section">
                                 <h3 class="osrs-player-section-heading">
-                                    What Changed
+                                    What changed
                                 </h3>
 
                                 <ul>
