@@ -1,120 +1,125 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div style="max-width: 100%; margin: 0 auto;">
-    <h1>Teams</h1>
-    <form action="{{ url_for('team_routes.create_team') }}" style="display:inline;">
-        <button type="submit">New Team</button>
-    </form>
-    <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            font-family: Arial, sans-serif;
-            table-layout: auto; /* Ensures table takes the full width */
-        }
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
 
-        th {
-            background-color: #333;
-            color: white;
-            position: sticky;
-            top: 0;
-            font-size: 16px;
-        }
+<div class="osrs-dashboard">
+    {% set summary = namespace(webhooks=0, discord_roles=0) %}
 
-        th, td {
-            border: 1px solid #ddd;
-            padding: 15px;
-            text-align: left;
-            white-space: nowrap; /* Prevents text from wrapping */
-        }
+    {% for team in teams %}
+        {% if team[2] %}
+            {% set summary.webhooks = summary.webhooks + 1 %}
+        {% endif %}
 
-        tr:nth-child(even) {
-            background-color: #1E1E1E;
-        }
+        {% if team[4] %}
+            {% set summary.discord_roles = summary.discord_roles + 1 %}
+        {% endif %}
+    {% endfor %}
 
-        tr:hover {
-            background-color: #444;
-        }
+    <main class="osrs-page">
+        <header class="osrs-page-header">
+            <h1 class="osrs-page-title">Manage Teams</h1>
+            <p class="osrs-page-subtitle">
+                Review team setup and manage team names, photos, webhooks and
+                Discord role links.
+            </p>
+        </header>
 
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-        }
+        <section class="osrs-summary" aria-label="Team summary">
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">Teams</span>
+                <span class="osrs-summary-value">{{ teams|length }}</span>
+            </div>
 
-        .action-buttons form {
-            display: inline;
-        }
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">Webhooks configured</span>
+                <span class="osrs-summary-value">
+                    {{ summary.webhooks }} / {{ teams|length }}
+                </span>
+            </div>
 
-        .action-buttons button {
-            padding: 5px 10px;
-            cursor: pointer;
-            border: none;
-            color: white;
-            background-color: #4CAF50;
-            border-radius: 3px;
-        }
+            <div class="osrs-summary-card">
+                <span class="osrs-summary-label">Discord roles configured</span>
+                <span class="osrs-summary-value">
+                    {{ summary.discord_roles }} / {{ teams|length }}
+                </span>
+            </div>
+        </section>
 
-        .action-buttons button:hover {
-            background-color: limegreen;
-        }
+        <section class="osrs-player-section">
+            <div class="osrs-form-actions">
+                <a
+                    class="osrs-button"
+                    href="{{ url_for('team_routes.create_team') }}"
+                >
+                    Create Team
+                </a>
+            </div>
 
-        .action-buttons .delete-button {
-            background-color: darkred;
-        }
-
-        .action-buttons .delete-button:hover {
-            background-color: red;
-        }
-    </style>
-    <table>
-        <thead>
-            <tr>
-                <th>Team ID</th>
-                <th>Name</th>
-                <th>Points</th>
-                <th>Webhook</th>
-                <th>Discord Role</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for team in teams %}
-            <tr>
-                <td>{{ team[3] }}</td>
-                <td>{{ team[0] }}</td>
-                <td>{{ team[1] }}</td>
-                <td>
-                    {% if team[2] %}
-                        Configured
-                    {% else %}
-                        Not configured
-                    {% endif %}
-                </td>
-                <td>
-                    {% if team[4] %}
-                        Configured
-                    {% else %}
-                        Not configured
-                    {% endif %}
-                </td>
-                <td>
-                    <div class="action-buttons">
-                        <form action="{{ url_for('team_routes.edit_team', team_id=team[3]) }}" method="GET">
-                            <button type="submit">Edit</button>
-                        </form>
-                        <form action="{{ url_for('player_management.add_player_list', team_id=team[3]) }}" method="GET">
-                            <button type="submit">Add Players</button>
-                        </form>
-                        <form action="{{ url_for('team_routes.delete_team', team_id=team[3]) }}" method="POST">
-                            <button type="submit" class="delete-button" onclick="return confirm('Are you sure you want to delete this team?');">Delete</button>
-                        </form>
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            {% if teams %}
+                <div class="osrs-table-wrap">
+                    <table class="osrs-table">
+                        <thead>
+                            <tr>
+                                <th>Team</th>
+                                <th>Points</th>
+                                <th>Webhook</th>
+                                <th>Discord Role</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for team in teams %}
+                                <tr>
+                                    <td>{{ team[0] }}</td>
+                                    <td>{{ team[1] }}</td>
+                                    <td>
+                                        {% if team[2] %}
+                                            <span class="osrs-status-badge osrs-status-configured">
+                                                Configured
+                                            </span>
+                                        {% else %}
+                                            <span class="osrs-status-badge osrs-status-unconfigured">
+                                                Not configured
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if team[4] %}
+                                            <span class="osrs-status-badge osrs-status-configured">
+                                                Configured
+                                            </span>
+                                        {% else %}
+                                            <span class="osrs-status-badge osrs-status-unconfigured">
+                                                Not configured
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a
+                                            class="osrs-button"
+                                            href="{{ url_for(
+                                                'team_routes.edit_team',
+                                                team_id=team[3]
+                                            ) }}"
+                                        >
+                                            Edit
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="osrs-page-subtitle">
+                    No teams have been created yet.
+                </p>
+            {% endif %}
+        </section>
+    </main>
 </div>
 {% endblock %}
