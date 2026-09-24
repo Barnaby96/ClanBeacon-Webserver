@@ -416,7 +416,8 @@
 }
 
 .osrs-form-label {
-    color: var(--osrs-text);
+    color: #1a1208;
+    text-shadow: none;
     font-family: "RuneScape Bold", Arial, sans-serif;
     font-size: 18px;
 }
@@ -483,7 +484,8 @@
 .osrs-notice-warning {
     border-color: #9a6a27;
     background: rgba(206, 147, 55, 0.24);
-    color: #624419;
+    color: #1a1208;
+    text-shadow: none;
 }
 
 .osrs-form-actions {
@@ -950,7 +952,8 @@
     margin: 0;
     padding: 24px 18px;
     background: var(--osrs-parchment);
-    color: #69563c;
+    color: #1a1208;
+    text-shadow: none;
     font-family: "RuneScape Bold", Arial, sans-serif;
     font-size: 17px;
     text-align: center;
