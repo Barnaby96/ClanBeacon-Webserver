@@ -1,301 +1,457 @@
 {% extends "base.html" %}
 
 {% block content %}
+<title>My Account</title>
+
 <link
     rel="stylesheet"
     href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
 >
 
-<div class="osrs-dashboard">
-    <div style="max-width: 900px; margin: 0 auto;">
-        <h1>My Account</h1>
-        {% if request.args.get('link_required') == '1' %}
-        <div style="
-            background: rgba(92, 24, 24, 0.96);
-            border: 2px solid #b35a4a;
-            padding: 16px 18px;
-            margin: 0 0 24px 0;
-            color: #ffd8d2;
-        ">
-            <strong>RuneScape account link required</strong>
+<style>
+    .osrs-account-page .osrs-page {
+        max-width: 1080px;
+    }
 
-            <p style="margin: 8px 0 0 0;">
-                Link your RuneScape account before viewing Player Data.
-            </p>
-        </div>
-        {% endif %}
+    .osrs-account-page .osrs-page-header {
+        align-items: flex-start;
+    }
 
-        <div style="
-            background: rgba(26, 22, 17, 0.96);
-            border: 2px solid #765c32;
-            padding: 22px;
-            margin-bottom: 24px;
-        ">
-            <h2>Account Details</h2>
+    .osrs-account-intro {
+        max-width: 780px;
+        margin: 8px 0 0;
+        color: #d8c28a;
+        font-family: "RuneScape", Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.45;
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+    }
 
-            <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                    <th style="text-align: left; padding: 8px;">
-                        Username
-                    </th>
-                    <td style="padding: 8px;">
-                        {{ current_user.username }}
-                    </td>
-                </tr>
+    .osrs-account-layout {
+        display: grid;
+        gap: 22px;
+    }
 
-                <tr>
-                    <th style="text-align: left; padding: 8px;">
-                        Account Type
-                    </th>
-                    <td style="padding: 8px;">
-                        {{ current_user.account_role.title() }}
-                    </td>
-                </tr>
+    .osrs-account-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
 
-                <tr>
-                    <th style="text-align: left; padding: 8px;">
-                        RuneScape Account
-                    </th>
-                    <td style="padding: 8px;">
-                        {% if player %}
-                            {{ player.player_name }}
-                        {% else %}
-                            Not linked
-                        {% endif %}
-                    </td>
-                </tr>
+    .osrs-account-detail {
+        padding: 14px 16px;
+        border: 1px solid rgba(143, 115, 58, 0.55);
+        border-radius: 8px;
+        background: rgba(73, 56, 36, 0.14);
+    }
 
-                <tr>
-                    <th style="text-align: left; padding: 8px;">
-                        Team
-                    </th>
-                    <td style="padding: 8px;">
-                        {% if team %}
-                            {{ team.team_name }}
-                        {% else %}
-                            —
-                        {% endif %}
-                    </td>
-                </tr>
-            </table>
-        </div>
+    .osrs-account-detail-label {
+        margin: 0 0 6px;
+        color: #5c3512;
+        font-family: "RuneScape", Arial, sans-serif;
+        font-size: 16px;
+        letter-spacing: 0.02em;
+    }
 
-        <div style="
-            background: rgba(26, 22, 17, 0.96);
-            border: 2px solid #765c32;
-            padding: 22px;
-            margin-bottom: 24px;
-        ">
-            <h2>Discord &amp; RuneScape Link</h2>
+    .osrs-account-detail-value {
+        margin: 0;
+        color: #2c2218;
+        font-size: 17px;
+        font-weight: 700;
+        line-height: 1.35;
+    }
 
-            {% if player %}
-                <p>
-                    Your {{ bot_name }} account is linked to
-                    <strong>{{ player.player_name }}</strong>
-                    {% if team %}
-                        on <strong>{{ team.team_name }}</strong>
-                    {% endif %}.
+    .osrs-account-readable p,
+    .osrs-account-readable li {
+        color: #2c2218;
+        line-height: 1.5;
+    }
+
+    .osrs-account-readable p:first-child {
+        margin-top: 0;
+    }
+
+    .osrs-account-readable p:last-child {
+        margin-bottom: 0;
+    }
+
+    .osrs-account-readable ol {
+        margin: 0 0 18px;
+        padding-left: 24px;
+    }
+
+    .osrs-account-alert {
+        border: 1px solid rgba(179, 90, 74, 0.85);
+        border-radius: 8px;
+        padding: 14px 16px;
+        background: rgba(92, 24, 24, 0.96);
+        color: #ffd8d2;
+        line-height: 1.45;
+    }
+
+    .osrs-account-alert strong {
+        display: block;
+        color: #ffe9e4;
+        margin-bottom: 6px;
+    }
+
+    .osrs-account-alert p {
+        margin: 0;
+        color: #ffd8d2;
+    }
+
+    .osrs-account-code-card {
+        display: grid;
+        gap: 16px;
+        margin: 20px 0;
+        padding: 16px;
+        border: 1px solid rgba(143, 115, 58, 0.65);
+        border-radius: 8px;
+        background: rgba(73, 56, 36, 0.14);
+    }
+
+    .osrs-account-code-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .osrs-account-code-label {
+        margin: 0;
+        color: #5c3512;
+        font-family: "RuneScape", Arial, sans-serif;
+        font-size: 18px;
+    }
+
+    .osrs-account-code {
+        display: inline-block;
+        padding: 8px 10px;
+        border: 1px solid rgba(143, 115, 58, 0.7);
+        border-radius: 6px;
+        background: rgba(255, 244, 202, 0.7);
+        color: #2c2218;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 1rem;
+        word-break: break-word;
+    }
+
+    #dashboard-link-code {
+        font-size: 1.25rem;
+        letter-spacing: 0.04em;
+    }
+
+    .osrs-account-form {
+        display: grid;
+        gap: 16px;
+    }
+
+    .osrs-account-form-actions {
+        margin-top: 4px;
+    }
+
+    .osrs-account-form-actions .osrs-button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    @media (max-width: 760px) {
+        .osrs-account-detail-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="osrs-dashboard osrs-account-page">
+    <main class="osrs-page">
+        <header class="osrs-page-header">
+            <div>
+                <p class="osrs-page-subtitle">
+                    Player Account
                 </p>
-            {% else %}
-                {% if current_user.is_admin %}
+
+                <h1 class="osrs-page-title">
+                    My Account
+                </h1>
+
+                <p class="osrs-account-intro">
+                    Manage your {{ bot_name }} login, link your RuneScape
+                    account, and update your password.
+                </p>
+            </div>
+        </header>
+
+        <div class="osrs-account-layout">
+            {% if request.args.get('link_required') == '1' %}
+                <div class="osrs-account-alert">
+                    <strong>RuneScape account link required</strong>
+
                     <p>
-                        Linking a RuneScape account is optional for
-                        Admin and Organiser accounts.
+                        Link your RuneScape account before viewing Player Data.
                     </p>
-                {% endif %}
+                </div>
+            {% endif %}
 
-                <p>
-                    To link this {{ bot_name }} account:
-                </p>
+            <section class="osrs-panel">
+                <header class="osrs-panel-header">
+                    <h2 class="osrs-panel-title">
+                        Account Details
+                    </h2>
+                </header>
 
-                <ol>
-                    <li>
-                        In the <strong>{{ discord_server_name }}</strong>
-                        Discord, use <code>/register</code> to link your
-                        Discord account to your RuneScape account.
-                    </li>
-                    <li>
-                        Generate a temporary dashboard link code below.
-                    </li>
-                    <li>
-                        Use that code with
-                        <code>/link dashboard</code> in Discord.
-                    </li>
-                </ol>
+                <div class="osrs-panel-body">
+                    <div class="osrs-account-detail-grid">
+                        <div class="osrs-account-detail">
+                            <p class="osrs-account-detail-label">
+                                Username
+                            </p>
 
-                {% if link_code %}
-                    <div style="
-                        border: 1px solid #a5844a;
-                        padding: 18px;
-                        margin: 20px 0;
-                    ">
-                        <p style="margin-top: 0;">
-                            <strong>Your link code</strong>
-                        </p>
-
-                        <div style="
-                            display: flex;
-                            gap: 10px;
-                            align-items: center;
-                            flex-wrap: wrap;
-                            margin-bottom: 16px;
-                        ">
-                            <code
-                                id="dashboard-link-code"
-                                style="font-size: 1.25rem;"
-                            >{{ link_code }}</code>
-
-                            <button
-                                type="button"
-                                onclick="copyLinkCode(this)"
-                            >
-                                Copy Code
-                            </button>
+                            <p class="osrs-account-detail-value">
+                                {{ current_user.username }}
+                            </p>
                         </div>
+
+                        <div class="osrs-account-detail">
+                            <p class="osrs-account-detail-label">
+                                Account Type
+                            </p>
+
+                            <p class="osrs-account-detail-value">
+                                {{ current_user.account_role.title() }}
+                            </p>
+                        </div>
+
+                        <div class="osrs-account-detail">
+                            <p class="osrs-account-detail-label">
+                                RuneScape Account
+                            </p>
+
+                            <p class="osrs-account-detail-value">
+                                {% if player %}
+                                    {{ player.player_name }}
+                                {% else %}
+                                    Not linked
+                                {% endif %}
+                            </p>
+                        </div>
+
+                        <div class="osrs-account-detail">
+                            <p class="osrs-account-detail-label">
+                                Team
+                            </p>
+
+                            <p class="osrs-account-detail-value">
+                                {% if team %}
+                                    {{ team.team_name }}
+                                {% else %}
+                                    No team assigned
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="osrs-panel">
+                <header class="osrs-panel-header">
+                    <h2 class="osrs-panel-title">
+                        Discord and RuneScape Link
+                    </h2>
+                </header>
+
+                <div class="osrs-panel-body osrs-account-readable">
+                    {% if player %}
+                        <p>
+                            Your {{ bot_name }} account is linked to
+                            <strong>{{ player.player_name }}</strong>
+                            {% if team %}
+                                on <strong>{{ team.team_name }}</strong>
+                            {% endif %}.
+                        </p>
+                    {% else %}
+                        {% if current_user.is_admin %}
+                            <p>
+                                Linking a RuneScape account is optional for
+                                Admin and Organiser accounts.
+                            </p>
+                        {% endif %}
 
                         <p>
-                            <strong>Discord command</strong>
+                            To link this {{ bot_name }} account:
                         </p>
 
-                        <div style="
-                            display: flex;
-                            gap: 10px;
-                            align-items: center;
-                            flex-wrap: wrap;
-                        ">
-                            <code
-                                id="dashboard-link-command"
-                            >/link dashboard code:{{ link_code }}</code>
+                        <ol>
+                            <li>
+                                In the <strong>{{ discord_server_name }}</strong>
+                                Discord, use <code>/register</code> to link your
+                                Discord account to your RuneScape account.
+                            </li>
 
-                            <button
-                                type="button"
-                                onclick="copyLinkCommand(this)"
+                            <li>
+                                Generate a temporary dashboard link code below.
+                            </li>
+
+                            <li>
+                                Use that code with
+                                <code>/link dashboard</code> in Discord.
+                            </li>
+                        </ol>
+
+                        {% if link_code %}
+                            <div class="osrs-account-code-card">
+                                <div>
+                                    <p class="osrs-account-code-label">
+                                        Your link code
+                                    </p>
+
+                                    <div class="osrs-account-code-row">
+                                        <code
+                                            id="dashboard-link-code"
+                                            class="osrs-account-code"
+                                        >{{ link_code }}</code>
+
+                                        <button
+                                            class="osrs-button"
+                                            type="button"
+                                            onclick="copyLinkCode(this)"
+                                        >
+                                            Copy Code
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p class="osrs-account-code-label">
+                                        Discord command
+                                    </p>
+
+                                    <div class="osrs-account-code-row">
+                                        <code
+                                            id="dashboard-link-command"
+                                            class="osrs-account-code"
+                                        >/link dashboard code:{{ link_code }}</code>
+
+                                        <button
+                                            class="osrs-button"
+                                            type="button"
+                                            onclick="copyLinkCommand(this)"
+                                        >
+                                            Copy Discord Command
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <p>
+                                    This code expires in 10 minutes. Generating
+                                    another code invalidates this one.
+                                </p>
+                            </div>
+                        {% endif %}
+
+                        <form method="POST" class="osrs-account-form">
+                            <input
+                                type="hidden"
+                                name="action"
+                                value="generate_link_code"
                             >
-                                Copy Discord Command
-                            </button>
+
+                            <div class="osrs-account-form-actions">
+                                <button class="osrs-button" type="submit">
+                                    {% if link_code %}
+                                        Generate New Link Code
+                                    {% else %}
+                                        Generate Link Code
+                                    {% endif %}
+                                </button>
+                            </div>
+                        </form>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="osrs-panel">
+                <header class="osrs-panel-header">
+                    <h2 class="osrs-panel-title">
+                        Password
+                    </h2>
+                </header>
+
+                <div class="osrs-panel-body osrs-account-readable">
+                    <p>
+                        Change the password you use to sign in to {{ bot_name }}.
+                    </p>
+
+                    <form method="POST" class="osrs-account-form">
+                        <input
+                            type="hidden"
+                            name="action"
+                            value="change_password"
+                        >
+
+                        <div class="osrs-form-field">
+                            <label
+                                class="osrs-form-label"
+                                for="current_password"
+                            >
+                                Current Password
+                            </label>
+
+                            <input
+                                class="osrs-form-input"
+                                id="current_password"
+                                type="password"
+                                name="current_password"
+                                autocomplete="current-password"
+                                required
+                            >
                         </div>
 
-                        <p style="margin-bottom: 0; margin-top: 18px;">
-                            This code expires in 10 minutes.
-                            Generating another code invalidates this one.
-                        </p>
-                    </div>
-                {% endif %}
+                        <div class="osrs-form-field">
+                            <label
+                                class="osrs-form-label"
+                                for="new_password"
+                            >
+                                New Password
+                            </label>
 
-                <form method="POST">
-                    <input
-                        type="hidden"
-                        name="action"
-                        value="generate_link_code"
-                    >
+                            <input
+                                class="osrs-form-input"
+                                id="new_password"
+                                type="password"
+                                name="new_password"
+                                autocomplete="new-password"
+                                required
+                            >
+                        </div>
 
-                    <button type="submit">
-                        {% if link_code %}
-                            Generate New Link Code
-                        {% else %}
-                            Generate Link Code
-                        {% endif %}
-                    </button>
-                </form>
-            {% endif %}
+                        <div class="osrs-form-field">
+                            <label
+                                class="osrs-form-label"
+                                for="confirm_password"
+                            >
+                                Confirm New Password
+                            </label>
+
+                            <input
+                                class="osrs-form-input"
+                                id="confirm_password"
+                                type="password"
+                                name="confirm_password"
+                                autocomplete="new-password"
+                                required
+                            >
+                        </div>
+
+                        <div class="osrs-account-form-actions">
+                            <button class="osrs-button" type="submit">
+                                Change Password
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
         </div>
-
-        <div style="
-            background: rgba(26, 22, 17, 0.96);
-            border: 2px solid #765c32;
-            padding: 22px;
-        ">
-            <h2>Password</h2>
-
-                <p>
-                    Change the password you use to sign in to {{ bot_name }}.
-                </p>
-
-                <form method="POST">
-                    <input
-                        type="hidden"
-                        name="action"
-                        value="change_password"
-                    >
-
-                    <div style="margin-bottom: 14px;">
-                        <label for="current_password">
-                            Current Password
-                        </label>
-
-                        <input
-                            id="current_password"
-                            type="password"
-                            name="current_password"
-                            autocomplete="current-password"
-                            required
-                            style="
-                                display: block;
-                                width: 100%;
-                                box-sizing: border-box;
-                                margin-top: 6px;
-                                padding: 10px;
-                                background: #211d17;
-                                border: 1px solid #765c32;
-                                color: #fff;
-                            "
-                        >
-                    </div>
-
-                    <div style="margin-bottom: 14px;">
-                        <label for="new_password">
-                            New Password
-                        </label>
-
-                        <input
-                            id="new_password"
-                            type="password"
-                            name="new_password"
-                            autocomplete="new-password"
-                            required
-                            style="
-                                display: block;
-                                width: 100%;
-                                box-sizing: border-box;
-                                margin-top: 6px;
-                                padding: 10px;
-                                background: #211d17;
-                                border: 1px solid #765c32;
-                                color: #fff;
-                            "
-                        >
-                    </div>
-
-                    <div style="margin-bottom: 18px;">
-                        <label for="confirm_password">
-                            Confirm New Password
-                        </label>
-
-                        <input
-                            id="confirm_password"
-                            type="password"
-                            name="confirm_password"
-                            autocomplete="new-password"
-                            required
-                            style="
-                                display: block;
-                                width: 100%;
-                                box-sizing: border-box;
-                                margin-top: 6px;
-                                padding: 10px;
-                                background: #211d17;
-                                border: 1px solid #765c32;
-                                color: #fff;
-                            "
-                        >
-                    </div>
-
-                    <button type="submit">
-                        Change Password
-                    </button>
-                </form>
-        </div>
-    </div>
+    </main>
 </div>
 
 <script>

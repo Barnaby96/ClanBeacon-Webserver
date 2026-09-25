@@ -1,40 +1,128 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div style="max-width: 600px; margin: 0 auto; background-color: #1e1e1e; padding: 20px; border-radius: 10px; box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);">
-<h1 style="text-align: center; color: #fff;">{{ bot_name }} Login</h1>
+<title>Log In</title>
 
-<form method="POST" style="display: flex; flex-direction: column; gap: 15px;">
-    <input
-        type="text"
-        name="username"
-        placeholder="Username"
-        autocomplete="username"
-        required
-        style="padding: 10px; border: 1px solid #444; border-radius: 5px; background-color: #333; color: #ccc;"
-    >
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
 
-    <input
-        type="password"
-        name="password"
-        placeholder="Password"
-        autocomplete="current-password"
-        required
-        style="padding: 10px; border: 1px solid #444; border-radius: 5px; background-color: #333; color: #ccc;"
-    >
+<style>
+    .osrs-auth-page .osrs-page {
+        max-width: 720px;
+    }
 
-    <button
-        type="submit"
-        style="padding: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;"
-    >
-        Log In
-    </button>
-</form>
+    .osrs-auth-page .osrs-page-header {
+        text-align: center;
+        justify-content: center;
+    }
 
-<p style="text-align: center; margin-top: 15px;">
-    <a href="{{ url_for('register') }}" style="color: #4CAF50;">
-        Don't have an account? Create one here.
-    </a>
-</p>
+    .osrs-auth-panel {
+        max-width: 620px;
+        margin: 0 auto;
+    }
+
+    .osrs-auth-form {
+        display: grid;
+        gap: 16px;
+    }
+
+    .osrs-auth-actions {
+        display: grid;
+        gap: 12px;
+        margin-top: 4px;
+    }
+
+    .osrs-auth-actions .osrs-button {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .osrs-auth-link {
+        margin: 0;
+        color: #2c2218;
+        text-align: center;
+        line-height: 1.45;
+    }
+
+    .osrs-auth-link a {
+        color: #5c3512;
+        font-weight: 700;
+        text-decoration: underline;
+    }
+</style>
+
+<div class="osrs-dashboard osrs-auth-page">
+    <main class="osrs-page">
+        <header class="osrs-page-header">
+            <div>
+                <p class="osrs-page-subtitle">
+                    Account Access
+                </p>
+
+                <h1 class="osrs-page-title">
+                    {{ bot_name }} Login
+                </h1>
+            </div>
+        </header>
+
+        <section class="osrs-panel osrs-auth-panel">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">
+                    Log In
+                </h2>
+            </header>
+
+            <div class="osrs-panel-body">
+                <form method="POST" class="osrs-auth-form">
+                    <div class="osrs-form-field">
+                        <label class="osrs-form-label" for="username">
+                            Username
+                        </label>
+
+                        <input
+                            class="osrs-form-input"
+                            id="username"
+                            type="text"
+                            name="username"
+                            placeholder="Username"
+                            autocomplete="username"
+                            required
+                        >
+                    </div>
+
+                    <div class="osrs-form-field">
+                        <label class="osrs-form-label" for="password">
+                            Password
+                        </label>
+
+                        <input
+                            class="osrs-form-input"
+                            id="password"
+                            type="password"
+                            name="password"
+                            placeholder="Password"
+                            autocomplete="current-password"
+                            required
+                        >
+                    </div>
+
+                    <div class="osrs-auth-actions">
+                        <button class="osrs-button" type="submit">
+                            Log In
+                        </button>
+
+                        <p class="osrs-auth-link">
+                            Do not have an account?
+                            <a href="{{ url_for('register') }}">
+                                Create one here.
+                            </a>
+                        </p>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </main>
 </div>
 {% endblock %}

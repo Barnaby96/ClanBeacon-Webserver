@@ -85,7 +85,7 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('home'))
+        return redirect(url_for('user_routes.account'))
 
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
@@ -95,7 +95,7 @@ def login():
 
         if user and check_password(user.password, password):
             login_user(user)
-            return redirect(url_for('home'))
+            return redirect(url_for('user_routes.account'))
 
         flash(
             'Login unsuccessful. Please check your username and password.',

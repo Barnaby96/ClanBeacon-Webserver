@@ -1,9 +1,92 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <title>Home</title>
-    <div>
-        <h1>Welcome to Fatalis Bingo</h1>
-        <p>Please report any bugs to Danbis or Taercy</p>
-    </div>
+<title>Home</title>
+
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
+
+<style>
+    .osrs-public-page .osrs-page {
+        max-width: 980px;
+    }
+
+    .osrs-public-hero {
+        display: grid;
+        gap: 22px;
+        text-align: center;
+    }
+
+    .osrs-public-intro {
+        max-width: 760px;
+        margin: 0 auto;
+        color: #d8c28a;
+        font-family: "RuneScape", Arial, sans-serif;
+        font-size: 18px;
+        line-height: 1.45;
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+    }
+
+    .osrs-public-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        justify-content: center;
+    }
+
+    .osrs-public-panel-text {
+        color: #2c2218;
+        line-height: 1.5;
+        text-align: center;
+    }
+</style>
+
+<div class="osrs-dashboard osrs-public-page">
+    <main class="osrs-page">
+        <header class="osrs-page-header osrs-public-hero">
+            <div>
+                <p class="osrs-page-subtitle">
+                    Clan Bingo Dashboard
+                </p>
+
+                <h1 class="osrs-page-title">
+                    Welcome to {{ bot_name }}
+                </h1>
+
+                <p class="osrs-public-intro">
+                    Track Bingo progress, submit evidence, review your account,
+                    and keep up with your team throughout the event.
+                </p>
+            </div>
+
+            <div class="osrs-public-actions">
+                <a class="osrs-button" href="{{ url_for('login') }}">
+                    Log In
+                </a>
+
+                <a class="osrs-button" href="{{ url_for('register') }}">
+                    Create Account
+                </a>
+            </div>
+        </header>
+
+        <section class="osrs-panel">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">
+                    Getting Started
+                </h2>
+            </header>
+
+            <div class="osrs-panel-body">
+                <p class="osrs-public-panel-text">
+                    Log in with your {{ bot_name }} account to access your
+                    player tools. If you do not have an account yet, create one
+                    and follow the account-linking steps after signing in.
+                </p>
+            </div>
+        </section>
+    </main>
+</div>
 {% endblock %}
