@@ -1,77 +1,274 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block content %}
-<div style="max-width: 900px; margin: 0 auto; background-color: #1e1e1e; padding: 24px; border-radius: 10px;">
-    <h1 style="text-align: center; color: #fff; margin-top: 0;">Submit Evidence</h1>
+<title>Submit Evidence</title>
 
-    <p style="color: #ccc;">
-        Upload manual evidence for a bingo tile. Submissions will go into the review queue and must be accepted by staff before they count.
-    </p>
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
 
-    {% if can_submit_for_any_player %}
-    <form method="GET" action="{{ url_for('user_routes.submit_evidence') }}" style="margin-bottom: 20px;">
-        <label for="player_id" style="display: block; color: #ccc; margin-bottom: 5px;">Player to credit:</label>
-        <select id="player_id" name="player_id" onchange="this.form.submit()" style="width: 100%; padding: 10px; background-color: #333; color: #ccc; border: 1px solid #444; border-radius: 5px;">
-            {% for player in player_options %}
-                <option value="{{ player.player_id }}" {% if player.player_id == selected_player_id %}selected{% endif %}>
-                    {{ player.player_name }} — {{ player.team_name }}
-                </option>
-            {% endfor %}
-        </select>
-        <noscript>
-            <button type="submit" style="margin-top: 10px; padding: 10px; background-color: #444; color: #fff; border: none; border-radius: 5px;">Load Player</button>
-        </noscript>
-    </form>
-    {% endif %}
+<style>
+    .osrs-submit-evidence-page .osrs-page {
+        max-width: 980px;
+    }
 
-    <div style="margin-bottom: 20px; padding: 12px; background-color: #292929; border-radius: 8px; color: #ccc;">
-        <strong>Credited player:</strong> {{ submission_options.player_name }}
-    </div>
+    .osrs-submit-evidence-page .osrs-page-header {
+        align-items: flex-start;
+    }
 
-    {% if submission_options.tiles %}
-    <form method="POST" action="{{ url_for('user_routes.submit_evidence') }}" enctype="multipart/form-data">
-        {% if can_submit_for_any_player %}
-            <input type="hidden" name="player_id" value="{{ selected_player_id }}">
-        {% endif %}
+    .osrs-submit-intro {
+        max-width: 820px;
+        margin: 8px 0 0;
+        color: #d8c28a;
+        font-family: "RuneScape", Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.45;
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+    }
 
-        <div style="margin-bottom: 15px;">
-            <label for="condition_id" style="display: block; color: #ccc; margin-bottom: 5px;">Tile part:</label>
-            <select id="condition_id" name="condition_id" required style="width: 100%; padding: 10px; background-color: #333; color: #ccc; border: 1px solid #444; border-radius: 5px;">
-                {% for tile in submission_options.tiles %}
-                    <optgroup label="{{ tile.tile_name }}">
-                        {% for condition in tile.conditions %}
-                            <option value="{{ condition.condition_id }}">
-                                {{ tile.tile_name }} — {{ condition.condition_type }}: {{ condition.condition_trigger }} ({{ condition.progress }}/{{ condition.target }})
-                            </option>
-                        {% endfor %}
-                    </optgroup>
-                {% endfor %}
-            </select>
-        </div>
+    .osrs-submit-evidence-panel {
+        max-width: 920px;
+        margin: 0 auto;
+    }
 
-        <div style="margin-bottom: 15px;">
-            <label for="amount" style="display: block; color: #ccc; margin-bottom: 5px;">Amount:</label>
-            <input type="number" id="amount" name="amount" value="1" min="1" required style="width: 100%; padding: 10px; background-color: #333; color: #ccc; border: 1px solid #444; border-radius: 5px; box-sizing: border-box;">
-        </div>
+    .osrs-submit-evidence-page .osrs-panel-body {
+        display: grid;
+        gap: 18px;
+    }
 
-        <div style="margin-bottom: 15px;">
-            <label for="evidence_file" style="display: block; color: #ccc; margin-bottom: 5px;">Evidence image:</label>
-            <input type="file" id="evidence_file" name="evidence_file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" required style="width: 100%; padding: 10px; background-color: #333; color: #ccc; border: 1px solid #444; border-radius: 5px; box-sizing: border-box;">
-        </div>
+    .osrs-submit-form,
+    .osrs-submit-player-form {
+        display: grid;
+        gap: 16px;
+    }
 
-        <div style="margin-bottom: 15px;">
-            <label for="description" style="display: block; color: #ccc; margin-bottom: 5px;">Notes / details:</label>
-            <textarea id="description" name="description" rows="4" style="width: 100%; padding: 10px; background-color: #333; color: #ccc; border: 1px solid #444; border-radius: 5px; box-sizing: border-box;" placeholder="Optional notes for the reviewers"></textarea>
-        </div>
+    .osrs-submit-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+    }
 
-        <button type="submit" style="width: 100%; padding: 12px; background-color: #444; color: #fff; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
-            Submit Evidence
-        </button>
-    </form>
-    {% else %}
-        <p style="color: #ccc;">
-            There are no manual evidence options currently available for this player. This usually means their team has already completed the relevant tiles, or the remaining tiles are handled automatically.
-        </p>
-    {% endif %}
+    .osrs-submit-wide {
+        grid-column: 1 / -1;
+    }
+
+    .osrs-submit-evidence-page textarea.osrs-form-input {
+        min-height: 110px;
+        resize: vertical;
+    }
+
+    .osrs-submit-credit-notice {
+        margin: 0;
+    }
+
+    .osrs-submit-button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    @media (max-width: 760px) {
+        .osrs-submit-form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="osrs-dashboard osrs-submit-evidence-page">
+    <main class="osrs-page">
+        <header class="osrs-page-header">
+            <div>
+                <p class="osrs-page-subtitle">
+                    Bingo Player
+                </p>
+
+                <h1 class="osrs-page-title">
+                    Submit Evidence
+                </h1>
+
+                <p class="osrs-submit-intro">
+                    Upload manual evidence for a bingo tile. Submissions will
+                    go into the review queue and must be accepted by staff
+                    before they count.
+                </p>
+            </div>
+        </header>
+
+        <section class="osrs-panel osrs-submit-evidence-panel">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">
+                    Evidence Submission
+                </h2>
+            </header>
+
+            <div class="osrs-panel-body">
+                {% if can_submit_for_any_player %}
+                    <form
+                        method="GET"
+                        action="{{ url_for('user_routes.submit_evidence') }}"
+                        class="osrs-submit-player-form"
+                    >
+                        <div class="osrs-form-field">
+                            <label
+                                class="osrs-form-label"
+                                for="player_id"
+                            >
+                                Player to credit:
+                            </label>
+
+                            <select
+                                id="player_id"
+                                name="player_id"
+                                class="osrs-form-input"
+                                onchange="this.form.submit()"
+                            >
+                                {% for player in player_options %}
+                                    <option
+                                        value="{{ player.player_id }}"
+                                        {% if player.player_id == selected_player_id %}
+                                            selected
+                                        {% endif %}
+                                    >
+                                        {{ player.player_name }} - {{ player.team_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <noscript>
+                            <div class="osrs-form-actions">
+                                <button
+                                    class="osrs-button"
+                                    type="submit"
+                                >
+                                    Load Player
+                                </button>
+                            </div>
+                        </noscript>
+                    </form>
+                {% endif %}
+
+                <div class="osrs-notice osrs-submit-credit-notice">
+                    <strong>Credited player:</strong>
+                    {{ submission_options.player_name }}
+                </div>
+
+                {% if submission_options.tiles %}
+                    <form
+                        method="POST"
+                        action="{{ url_for('user_routes.submit_evidence') }}"
+                        enctype="multipart/form-data"
+                        class="osrs-submit-form"
+                    >
+                        {% if can_submit_for_any_player %}
+                            <input
+                                type="hidden"
+                                name="player_id"
+                                value="{{ selected_player_id }}"
+                            >
+                        {% endif %}
+
+                        <div class="osrs-submit-form-grid">
+                            <div class="osrs-form-field osrs-submit-wide">
+                                <label
+                                    class="osrs-form-label"
+                                    for="condition_id"
+                                >
+                                    Tile part
+                                </label>
+
+                                <select
+                                    id="condition_id"
+                                    name="condition_id"
+                                    class="osrs-form-input"
+                                    required
+                                >
+                                    {% for tile in submission_options.tiles %}
+                                        <optgroup label="{{ tile.tile_name }}">
+                                            {% for condition in tile.conditions %}
+                                                <option value="{{ condition.condition_id }}">
+                                                    {{ tile.tile_name }} - {{ condition.condition_type }}:
+                                                    {{ condition.condition_trigger }}
+                                                    ({{ condition.progress }}/{{ condition.target }})
+                                                </option>
+                                            {% endfor %}
+                                        </optgroup>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="osrs-form-field">
+                                <label
+                                    class="osrs-form-label"
+                                    for="amount"
+                                >
+                                    Amount
+                                </label>
+
+                                <input
+                                    type="number"
+                                    id="amount"
+                                    name="amount"
+                                    value="1"
+                                    min="1"
+                                    class="osrs-form-input"
+                                    required
+                                >
+                            </div>
+
+                            <div class="osrs-form-field">
+                                <label
+                                    class="osrs-form-label"
+                                    for="evidence_file"
+                                >
+                                    Evidence image
+                                </label>
+
+                                <input
+                                    type="file"
+                                    id="evidence_file"
+                                    name="evidence_file"
+                                    accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                                    class="osrs-form-input"
+                                    required
+                                >
+                            </div>
+
+                            <div class="osrs-form-field osrs-submit-wide">
+                                <label
+                                    class="osrs-form-label"
+                                    for="description"
+                                >
+                                    Notes / details
+                                </label>
+
+                                <textarea
+                                    id="description"
+                                    name="description"
+                                    rows="4"
+                                    class="osrs-form-input"
+                                    placeholder="Optional notes for the reviewers"
+                                ></textarea>
+                            </div>
+                        </div>
+
+                        <button
+                            class="osrs-button osrs-submit-button"
+                            type="submit"
+                        >
+                            Submit Evidence
+                        </button>
+                    </form>
+                {% else %}
+                    <p class="osrs-empty-state">
+                        There are no manual evidence options currently
+                        available for this player. This usually means their
+                        team has already completed the relevant tiles, or the
+                        remaining tiles are handled automatically.
+                    </p>
+                {% endif %}
+            </div>
+        </section>
+    </main>
 </div>
 {% endblock %}
