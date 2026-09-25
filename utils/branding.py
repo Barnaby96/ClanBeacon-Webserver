@@ -1,7 +1,7 @@
 import os
 
 
-DEFAULT_BOT_NAME = "DanBot"
+DEFAULT_BOT_NAME = "ClanBeacon"
 
 
 def get_bot_name():
