@@ -8,41 +8,46 @@
     href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
 >
 
+<style>
+    .osrs-user-accounts .osrs-user-role-form { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .osrs-user-accounts .osrs-user-role-form label { color: #1a1208; text-shadow: none; font-family: "RuneScape Bold", Arial, sans-serif; }
+    .osrs-user-accounts .osrs-role-select { background: #f2dfb4; color: #1a1208; border: 2px solid #3f2f1d; border-radius: 4px; padding: 8px 10px; min-width: 150px; }
+    .osrs-user-accounts .osrs-table td { vertical-align: middle; }
+</style>
+
 <div class="osrs-dashboard">
-    <main class="osrs-page">
-        <header class="osrs-player-header">
-            <div class="osrs-player-identity">
-                <p class="osrs-page-subtitle">
-                    Organiser Tool
-                </p>
-
-                <h1 class="osrs-page-title">
-                    User Accounts
-                </h1>
-
-                <div class="osrs-team-actions">
-                    <a
-                        class="osrs-action-link osrs-wom-link"
-                        href="{{ url_for('admin_routes.home') }}"
-                    >
-                        Back to Admin Dashboard
-                    </a>
-                </div>
-            </div>
-        </header>
-
-        <section class="osrs-player-section">
-            <h2 class="osrs-player-section-heading">
-                Dashboard Access
-            </h2>
-
-            <p class="osrs-empty-state">
-                Promote or demote dashboard users between player, admin, and
-                organiser access. You cannot remove organiser access from your
-                own account.
+    <main class="osrs-page osrs-user-accounts">
+        <header class="osrs-page-header">
+            <p class="osrs-page-subtitle">
+                Organiser Tool
             </p>
 
-            <div class="osrs-scroll-table">
+            <h1 class="osrs-page-title">
+                User Accounts
+            </h1>
+
+            <a
+                class="osrs-button"
+                href="{{ url_for('admin_routes.home') }}"
+            >
+                Back to Admin Dashboard
+            </a>
+        </header>
+        <section class="osrs-panel">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">
+                    Dashboard Access
+                </h2>
+
+                <p class="osrs-panel-description">
+                    Promote or demote dashboard users between player, admin,
+                    and organiser access. You cannot remove organiser access
+                    from your own account.
+                </p>
+            </header>
+
+            <div class="osrs-panel-body">
+                <div class="osrs-table-wrap">
                 <table class="osrs-table">
                     <thead>
                         <tr>
@@ -124,6 +129,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
             </div>
         </section>
     </main>
