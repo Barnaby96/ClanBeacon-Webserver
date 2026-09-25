@@ -1,27 +1,76 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1 style="text-align: center; color: #fff;">
-    Check Player Accounts
-</h1>
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
 
-<div style="width: 95%; margin: 0 auto; background-color: #1e1e1e;
-            padding: 20px; border-radius: 10px;
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
-            overflow-x: auto;">
+<style>
+    .osrs-dink-identities { max-width: min(98vw, 1600px); }
+    .osrs-dink-identities .osrs-panel-body { overflow: visible; }
+    .osrs-dink-identities .osrs-table-wrap { overflow-x: visible; }
+    .osrs-dink-identities .osrs-table { width: 100%; min-width: 0; table-layout: fixed; font-size: 0.9em; }
+    .osrs-dink-identities .osrs-table th, .osrs-dink-identities .osrs-table td { white-space: normal !important; overflow-wrap: anywhere !important; vertical-align: top; box-sizing: border-box; }
+    .osrs-dink-identities .osrs-table th:nth-child(1), .osrs-dink-identities .osrs-table td:nth-child(1) { width: 135px; }
+    .osrs-dink-identities .osrs-table th:nth-child(2), .osrs-dink-identities .osrs-table td:nth-child(2) { width: 190px; }
+    .osrs-dink-identities .osrs-table th:nth-child(3), .osrs-dink-identities .osrs-table td:nth-child(3) { width: 135px; }
+    .osrs-dink-identities .osrs-table th:nth-child(4), .osrs-dink-identities .osrs-table td:nth-child(4) { width: 95px; }
+    .osrs-dink-identities .osrs-table th:nth-child(5), .osrs-dink-identities .osrs-table td:nth-child(5) { width: 90px; text-align: center; }
+    .osrs-dink-identities .osrs-table th:nth-child(6), .osrs-dink-identities .osrs-table td:nth-child(6) { width: 150px; }
+    .osrs-dink-identities .osrs-table th:nth-child(7), .osrs-dink-identities .osrs-table td:nth-child(7) { width: 135px; }
+    .osrs-dink-identities .osrs-table th:nth-child(8), .osrs-dink-identities .osrs-table td:nth-child(8) { width: 210px; }
+    .osrs-dink-identities .osrs-table th:nth-child(9), .osrs-dink-identities .osrs-table td:nth-child(9) { width: 220px; }
+    .osrs-dink-identities details, .osrs-dink-identities details div, .osrs-dink-identities details strong { color: #1a1208 !important; text-shadow: none !important; }
+    .osrs-dink-identities select { width: 100% !important; box-sizing: border-box !important; background: #f2dfb4 !important; color: #1a1208 !important; border: 2px solid #3f2f1d !important; border-radius: 4px !important; padding: 8px !important; margin-bottom: 8px !important; }
+    .osrs-dink-identities .osrs-wide-button { width: 100%; }
+    .osrs-dink-status-linked { color: #1d5f25; font-weight: 700; }
+    .osrs-dink-status-conflict { color: #7a1c1c; font-weight: 700; }
+    .osrs-dink-status-warning { color: #7a4a12; font-weight: 700; }
+    .osrs-dink-status-checking { color: #5c4716; font-weight: 700; }
 
-    <p style="color: #ccc; margin-top: 0;">
-        Check RuneScape accounts that {{ bot_name }} could not match
-        automatically. Match an account to the correct bingo player
-        when needed.
-        Matching an account does not automatically accept any
-        submissions waiting for review.
-    </p>
+    .osrs-dink-identities .osrs-page-subtitle,
+    .osrs-dink-identities .osrs-panel-description,
+    .osrs-dink-identities .osrs-table td,
+    .osrs-dink-identities details,
+    .osrs-dink-identities details div,
+    .osrs-dink-identities select {
+        font-family: "RuneScape Plain", "RuneScape", Arial, sans-serif !important;
+        letter-spacing: 0.02em;
+    }
+</style>
 
+<div class="osrs-dashboard">
+    <main class="osrs-page osrs-dink-identities">
+        <header class="osrs-page-header">
+            <h1 class="osrs-page-title">Check Player Accounts</h1>
+
+            <p class="osrs-page-subtitle">
+                Check RuneScape accounts that {{ bot_name }} could not match automatically.
+                Match an account to the correct bingo player when needed.
+            </p>
+
+            <a class="osrs-button" href="/admin/">
+                Back to Admin Dashboard
+            </a>
+        </header>
+
+        <section class="osrs-panel">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Dink Account Identities</h2>
+
+                <p class="osrs-panel-description">
+                    Matching an account does not automatically accept any
+                    submissions waiting for review.
+                </p>
+            </header>
+
+            <div class="osrs-panel-body">
     {% if identity_entries %}
-        <table style="width: 100%; border-collapse: collapse; color: #ccc;">
+        <div class="osrs-table-wrap">
+                    <table class="osrs-table">
             <thead>
-                <tr style="background-color: #2b2b2b;">
+                <tr>
                     <th style="padding: 10px; text-align: left;">Status</th>
                     <th style="padding: 10px; text-align: left;">Reason</th>
                     <th style="padding: 10px; text-align: left;">RuneScape Account</th>
@@ -36,22 +85,22 @@
 
             <tbody>
                 {% for entry in identity_entries %}
-                    <tr style="border-top: 1px solid #444;">
+                    <tr>
                         <td style="padding: 10px; white-space: nowrap;">
                             {% if entry.display_status == 'LINKED' %}
-                                <span style="color: #7CFC98;">
+                                <span class="osrs-dink-status-linked">
                                     Account matched
                                 </span>
                             {% elif entry.display_status == 'CONFLICT' %}
-                                <span style="color: #ff7b7b;">
+                                <span class="osrs-dink-status-conflict">
                                     Needs staff check
                                 </span>
                             {% elif entry.display_status == 'PLAYER_NOT_FOUND' %}
-                                <span style="color: #ffb347;">
+                                <span class="osrs-dink-status-warning">
                                     Player not found
                                 </span>
                             {% else %}
-                                <span style="color: #f5d76e;">
+                                <span class="osrs-dink-status-checking">
                                     Checking account
                                 </span>
                             {% endif %}
@@ -190,10 +239,14 @@
                 {% endfor %}
             </tbody>
         </table>
+                    </div>
     {% else %}
-        <p style="color: #ccc;">
+        <p class="osrs-empty-state">
             No RuneScape accounts have been recorded yet.
         </p>
     {% endif %}
+            </div>
+        </section>
+    </main>
 </div>
 {% endblock %}
