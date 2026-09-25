@@ -405,7 +405,7 @@
             status.textContent = "Copying...";
             status.className = "osrs-dink-copy-status";
 
-            fetch("{{ url_for('static', filename='images/dink/dink.txt') }}")
+            fetch("{{ url_for('tutorial_routes.dink_settings') }}")
                 .then(function (response) {
                     if (!response.ok) {
                         throw new Error("Could not load Dink settings.");
