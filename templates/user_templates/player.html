@@ -8,10 +8,234 @@
     href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
 >
 
-<div class="osrs-dashboard">
+<style>
+    .osrs-player-data .osrs-player-page-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+        gap: 16px 32px;
+        align-items: start;
+    }
+
+    .osrs-player-data .osrs-player-page-header > div:first-child {
+        grid-column: 1;
+    }
+
+    .osrs-player-data .osrs-player-page-header .osrs-team-actions {
+        grid-column: 1;
+        justify-content: flex-start;
+    }
+
+    .osrs-player-data .osrs-player-search {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        align-self: start;
+        display: flex;
+        gap: 8px;
+        width: 100%;
+        max-width: 420px;
+        margin: 0;
+    }
+
+    .osrs-player-data .osrs-player-search input {
+        min-width: 0;
+        flex: 1;
+    }
+
+    @media (max-width: 900px) {
+        .osrs-player-data .osrs-player-page-header {
+            grid-template-columns: 1fr;
+        }
+
+        .osrs-player-data .osrs-player-search {
+            grid-column: 1;
+            grid-row: auto;
+            max-width: none;
+        }
+    }
+
+
+    .osrs-player-data .osrs-evidence-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 32px;
+        background: rgba(0, 0, 0, 0.72);
+    }
+
+    .osrs-player-data .osrs-evidence-modal.is-open {
+        display: flex;
+    }
+
+    .osrs-player-data .osrs-evidence-modal-panel {
+        width: min(1100px, 92vw);
+        max-height: 88vh;
+        overflow: hidden;
+        border: 1px solid rgba(143, 115, 58, 0.85);
+        border-radius: 6px;
+        background: #d9c891;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+    }
+
+    .osrs-player-data .osrs-evidence-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 22px;
+        background: linear-gradient(135deg, #5a3f22, #352514);
+        border-bottom: 2px solid #1a1208;
+    }
+
+    .osrs-player-data .osrs-evidence-modal-title {
+        margin: 0;
+        color: #f4d36a;
+        font-family: "RuneScape Bold", Arial, sans-serif;
+        font-size: 24px;
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+    }
+
+    .osrs-player-data .osrs-evidence-modal-close {
+        width: 36px;
+        height: 36px;
+        border: 1px solid #7d2f24;
+        border-radius: 4px;
+        background: linear-gradient(#b84d3f, #7d2f24);
+        color: #fff2c2;
+        cursor: pointer;
+        font-family: "RuneScape Bold", Arial, sans-serif;
+        font-size: 20px;
+        line-height: 1;
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+    }
+
+    .osrs-player-data .osrs-evidence-modal-close:hover,
+    .osrs-player-data .osrs-evidence-modal-close:focus {
+        filter: brightness(1.08);
+        outline: 2px solid rgba(244, 211, 106, 0.55);
+        outline-offset: 2px;
+    }
+
+    .osrs-player-data .osrs-evidence-modal-body {
+        max-height: calc(88vh - 82px);
+        overflow: auto;
+        padding: 24px;
+        background: #d9c891;
+    }
+
+    .osrs-player-data .osrs-evidence-modal-image {
+        display: block;
+        max-width: 100%;
+        max-height: calc(88vh - 130px);
+        margin: 0 auto;
+        border: 2px solid rgba(63, 47, 29, 0.75);
+        border-radius: 4px;
+        background: #1a1208;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+        object-fit: contain;
+    }
+
+    @media (max-width: 700px) {
+        .osrs-player-data .osrs-evidence-modal {
+            padding: 16px;
+        }
+
+        .osrs-player-data .osrs-evidence-modal-title {
+            font-size: 18px;
+        }
+
+        .osrs-player-data .osrs-evidence-modal-body {
+            padding: 14px;
+        }
+    }
+
+
+    .osrs-evidence-modal-status {
+        display: block;
+        margin: 0 auto 16px;
+        padding: 10px 14px;
+        max-width: 760px;
+        border: 1px solid rgba(143, 115, 58, 0.75);
+        border-radius: 4px;
+        background: linear-gradient(135deg, rgba(73, 56, 36, 0.96), rgba(48, 37, 24, 0.96));
+        color: #f4d36a;
+        font-family: "RuneScape Bold", Arial, sans-serif;
+        font-size: 15px;
+        text-align: center;
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+        box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
+    }
+
+
+    /* Player evidence modal layout fix: keep status above image and contain large Dink screenshots. */
+    .osrs-evidence-modal.is-open {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .osrs-evidence-modal-panel {
+        width: min(1100px, 92vw);
+        max-height: 88vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .osrs-evidence-modal-header {
+        flex: 0 0 auto;
+    }
+
+    .osrs-evidence-modal-body {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        overflow: auto;
+        padding: 20px;
+    }
+
+    .osrs-evidence-modal-status {
+        flex: 0 0 auto;
+        margin: 0;
+        align-self: center;
+    }
+
+    .osrs-evidence-modal-image {
+        display: block;
+        width: auto;
+        height: auto;
+        max-width: 100%;
+        max-height: calc(88vh - 170px);
+        object-fit: contain;
+        margin: 0 auto;
+    }
+
+    @media (max-width: 700px) {
+        .osrs-evidence-modal-panel {
+            width: 96vw;
+            max-height: 92vh;
+        }
+
+        .osrs-evidence-modal-body {
+            padding: 12px;
+        }
+
+        .osrs-evidence-modal-image {
+            max-height: calc(92vh - 150px);
+        }
+    }
+
+</style>
+
+<div class="osrs-dashboard osrs-player-data">
     <main class="osrs-page">
-        <header class="osrs-player-header">
-            <div class="osrs-player-identity">
+        <header class="osrs-page-header osrs-player-page-header">
+            <div>
                 <p class="osrs-page-subtitle">
                     Player Data
                 </p>
@@ -20,20 +244,21 @@
                     {{ player.player_name }}
                 </h1>
 
-                <div class="osrs-team-actions">
+                <div class="osrs-form-actions osrs-team-actions">
                     <a
-                        class="osrs-player-team-link osrs-wom-link"
+                        class="osrs-button"
                         href="/user/team/{{ team.team_name }}"
                     >
                         {{ team.team_name }}
                     </a>
 
                     <a
-                        class="osrs-action-link osrs-wom-link"
+                        class="osrs-button"
                         href="/board/{{ team.team_name }}"
                     >
                         View Board
                     </a>
+
                     <form
                         action="{{ url_for(
                             'user_routes.refresh_wom_competition'
@@ -41,7 +266,7 @@
                         method="post"
                     >
                         <button
-                            class="osrs-action-link osrs-wom-link"
+                            class="osrs-button"
                             type="submit"
                         >
                             Refresh WOM Progress
@@ -70,7 +295,10 @@
                         aria-label="Search players"
                     >
 
-                    <button type="submit">
+                    <button
+                        class="osrs-button"
+                        type="submit"
+                    >
                         Search
                     </button>
                 </form>
@@ -138,10 +366,14 @@
             </div>
         </section>
 
-        <section class="osrs-player-section">
-            <h2 class="osrs-player-section-heading">
-                Relevant Drops
-            </h2>
+        <section class="osrs-panel osrs-player-data-section">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">
+                    Relevant Drops
+                </h2>
+            </header>
+
+            <div class="osrs-panel-body">
 
             {% if relevant_drop_summary.drops %}
                 <div class="osrs-scroll-table">
@@ -179,12 +411,17 @@
                     No relevant drops recorded for this player yet.
                 </p>
             {% endif %}
+            </div>
         </section>
 
-        <section class="osrs-player-section">
-            <h2 class="osrs-player-section-heading">
-                Relevant Boss KC
-            </h2>
+        <section class="osrs-panel osrs-player-data-section">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">
+                    Relevant Boss KC
+                </h2>
+            </header>
+
+            <div class="osrs-panel-body">
 
             {% if relevant_boss_kc_summary.bosses %}
                 <div class="osrs-scroll-table">
@@ -237,12 +474,17 @@
                     No relevant boss KC gained during the current bingo.
                 </p>
             {% endif %}
+            </div>
         </section>
 
-        <section class="osrs-player-section">
-            <h2 class="osrs-player-section-heading">
-                Relevant XP Gained
-            </h2>
+        <section class="osrs-panel osrs-player-data-section">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">
+                    Relevant XP Gained
+                </h2>
+            </header>
+
+            <div class="osrs-panel-body">
 
             {% if relevant_xp_summary.skills %}
                 <div class="osrs-scroll-table">
@@ -295,12 +537,17 @@
                     No relevant XP gained during the current bingo.
                 </p>
             {% endif %}
+            </div>
         </section>
 
-        <section class="osrs-player-section">
-            <h2 class="osrs-player-section-heading">
-                Bingo Evidence
-            </h2>
+        <section class="osrs-panel osrs-player-data-section">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">
+                    Bingo Evidence
+                </h2>
+            </header>
+
+            <div class="osrs-panel-body">
 
             {% if bingo_evidence %}
                 <div
@@ -376,6 +623,7 @@
                                             data-evidence-title="{{
                                                 evidence.tile_name
                                             }}"
+                                                                                    data-evidence-status="{{ evidence.status }}"
                                         >
                                             View
                                         </button>
@@ -395,6 +643,7 @@
                     for this player yet.
                 </p>
             {% endif %}
+            </div>
         </section>
     </main>
 </div>
@@ -430,6 +679,13 @@
         </div>
 
         <div class="osrs-evidence-modal-body">
+            <div
+                id="evidence-modal-status"
+                class="osrs-evidence-modal-status"
+            >
+                Status unavailable
+            </div>
+
             <img
                 id="evidence-modal-image"
                 class="osrs-evidence-modal-image"
@@ -480,6 +736,10 @@
         "evidence-modal-title"
     );
 
+    const evidenceModalStatus = document.getElementById(
+        "evidence-modal-status"
+    );
+
     const evidenceModalClose = document.getElementById(
         "evidence-modal-close"
     );
@@ -487,6 +747,10 @@
     function openEvidenceModal(button) {
         const evidenceUrl = button.dataset.evidenceUrl;
         const evidenceTitle = button.dataset.evidenceTitle;
+        const evidenceStatus = (
+            button.dataset.evidenceStatus
+            || "Status unavailable"
+        );
 
         evidenceModalImage.src = evidenceUrl;
         evidenceModalImage.alt =
@@ -494,6 +758,10 @@
 
         evidenceModalTitle.textContent =
             evidenceTitle + " — Evidence";
+
+        if (evidenceModalStatus) {
+            evidenceModalStatus.textContent = "Status: " + evidenceStatus;
+        }
 
         evidenceModal.classList.add("is-open");
         evidenceModal.setAttribute(
@@ -514,6 +782,10 @@
         evidenceModalImage.src = "";
         evidenceModalImage.alt = "";
         evidenceModalTitle.textContent = "Bingo Evidence";
+
+        if (evidenceModalStatus) {
+            evidenceModalStatus.textContent = "Status unavailable";
+        }
     }
 
     document.querySelectorAll(
