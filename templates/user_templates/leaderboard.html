@@ -9,6 +9,53 @@
     href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
 >
 
+<style>
+    .osrs-leaderboard-overview-panel .osrs-leaderboard-summary {
+        background: transparent;
+        padding: 0;
+    }
+
+    .osrs-leaderboard-overview-panel .osrs-summary-card {
+        background: linear-gradient(135deg, rgba(73, 56, 36, 0.96), rgba(48, 37, 24, 0.96)) !important;
+        border: 1px solid rgba(143, 115, 58, 0.7) !important;
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22), inset 0 1px rgba(255, 255, 255, 0.08) !important;
+        color: #f4d36a !important;
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45) !important;
+    }
+
+    .osrs-leaderboard-overview-panel .osrs-summary-label,
+    .osrs-leaderboard-overview-panel .osrs-summary-value,
+    .osrs-leaderboard-overview-panel .osrs-team-name-list {
+        color: #f4d36a !important;
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45) !important;
+    }
+
+    .osrs-leaderboard-mentions-panel .osrs-clan-mvp-panel {
+        background: transparent;
+        padding: 0;
+    }
+
+    .osrs-leaderboard-mentions-panel .osrs-clan-mvp-heading {
+        color: #5b3f0c;
+        text-shadow: none;
+    }
+
+    .osrs-leaderboard-mentions-panel .osrs-clan-mvp-entry {
+        background: linear-gradient(135deg, rgba(73, 56, 36, 0.96), rgba(48, 37, 24, 0.96));
+        border: 1px solid rgba(143, 115, 58, 0.7);
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22), inset 0 1px rgba(255, 255, 255, 0.08);
+        color: #f4d36a;
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+    }
+
+    .osrs-leaderboard-mentions-panel .osrs-clan-mvp-name,
+    .osrs-leaderboard-mentions-panel .osrs-clan-mvp-score,
+    .osrs-leaderboard-mentions-panel .osrs-clan-mvp-team {
+        color: #f4d36a;
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+    }
+</style>
+
 <div class="osrs-dashboard osrs-leaderboard">
 
     <div class="osrs-leaderboard-header">
@@ -48,10 +95,12 @@
     </div>
 
 
-    <section class="osrs-player-section">
-        <div class="osrs-player-section-heading">
-            <h2>Team Rankings</h2>
-        </div>
+    <section class="osrs-panel osrs-leaderboard-rankings-panel">
+        <header class="osrs-panel-header">
+            <h2 class="osrs-panel-title">Team Rankings</h2>
+        </header>
+
+        <div class="osrs-panel-body osrs-leaderboard-panel-body">
 
         <div class="osrs-scroll-table osrs-leaderboard-table">
             <table>
@@ -138,13 +187,16 @@
                 </tbody>
             </table>
         </div>
+        </div>
     </section>
 
 
-    <section class="osrs-player-section">
-        <div class="osrs-player-section-heading">
-            <h2>Clan Overview</h2>
-        </div>
+    <section class="osrs-panel osrs-leaderboard-overview-panel">
+        <header class="osrs-panel-header">
+            <h2 class="osrs-panel-title">Clan Overview</h2>
+        </header>
+
+        <div class="osrs-panel-body osrs-leaderboard-panel-body">
 
         <div class="osrs-leaderboard-summary">
             <div class="osrs-summary-card">
@@ -209,13 +261,16 @@
                 {% endif %}
             </div>
         </div>
+        </div>
     </section>
 
 
-    <section class="osrs-player-section">
-        <div class="osrs-player-section-heading">
-            <h2>Honourable Mentions</h2>
-        </div>
+    <section class="osrs-panel osrs-leaderboard-mentions-panel">
+        <header class="osrs-panel-header">
+            <h2 class="osrs-panel-title">Honourable Mentions</h2>
+        </header>
+
+        <div class="osrs-panel-body osrs-leaderboard-panel-body">
 
         <div class="osrs-clan-mvp-panel">
             <div class="osrs-clan-mvp-heading">
@@ -262,6 +317,7 @@
                 No MVP Points awarded yet
             </div>
             {% endif %}
+        </div>
         </div>
     </section>
 
