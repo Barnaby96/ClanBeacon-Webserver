@@ -27,6 +27,19 @@ def ensure_schema():
     with connect() as conn:
         cursor = conn.cursor()
 
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_type = 'BASE TABLE'
+            """
+        )
+
+        if cursor.fetchone()[0] == 0:
+            reset_tables()
+            return
+
         cursor.execute('''
             DO $$
             BEGIN
