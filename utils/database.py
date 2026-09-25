@@ -1,4 +1,4 @@
-import os
+﻿import os
 import csv
 import json
 import hashlib
@@ -1513,6 +1513,97 @@ def get_recent_wom_refresh_audit_rows(limit=10):
         for row in rows
     ]
 
+
+def reset_bingo_event_data():
+    tables_to_clear = [
+        "bingo_config",
+        "chats",
+        "completed_tile_partial_snapshot",
+        "completed_tiles",
+        "dink_auth_audit",
+        "dink_event_progress",
+        "dink_events",
+        "drop_whitelist",
+        "drops",
+        "evidence_invalidations",
+        "killcount",
+        "manual_evidence",
+        "manual_evidence_condition_snapshots",
+        "manual_evidence_path_snapshots",
+        "manual_evidence_progress",
+        "manual_tile_progress",
+        "partial_completions",
+        "player_tile_credits",
+        "relevant_drops",
+        "requests",
+        "staff_review_decisions",
+        "tile_completion_paths",
+        "tile_condition_progress",
+        "tile_conditions",
+        "tiles",
+        "wom_condition_state",
+        "wom_metric_state",
+        "wom_refresh_audit"
+    ]
+
+    table_list = ", ".join(tables_to_clear)
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            UPDATE dink_identities
+            SET
+                player_id = NULL,
+                status = 'PENDING',
+                linked_at = NULL
+            WHERE player_id IS NOT NULL
+               OR status != 'PENDING'
+               OR linked_at IS NOT NULL
+            '''
+        )
+
+        cursor.execute(
+            '''
+            UPDATE users
+            SET player_id = NULL
+            WHERE player_id IS NOT NULL
+            '''
+        )
+
+        cursor.execute(
+            f'''
+            TRUNCATE TABLE {table_list}
+            RESTART IDENTITY
+            '''
+        )
+
+        cursor.execute(
+            '''
+            DELETE FROM players
+            '''
+        )
+
+        cursor.execute(
+            '''
+            DELETE FROM teams
+            '''
+        )
+
+        cursor.execute(
+            '''
+            ALTER SEQUENCE players_player_id_seq RESTART WITH 1
+            '''
+        )
+
+        cursor.execute(
+            '''
+            ALTER SEQUENCE teams_team_id_seq RESTART WITH 1
+            '''
+        )
+
+        conn.commit()
 
 def set_wom_competition_id(competition_id):
     with connect() as conn:
@@ -14021,10 +14112,10 @@ def get_player_bingo_evidence(player_id):
                 status = "Not accepted"
 
                 if reason:
-                    status = f"{status} — {reason}"
+                    status = f"{status} \u2014 {reason}"
             elif audit_only:
                 contribution = 0.0
-                status = "Accepted — audit only"
+                status = "Accepted \u2014 audit only"
             else:
                 contribution = (
                     float(row[8])
@@ -14033,11 +14124,11 @@ def get_player_bingo_evidence(player_id):
                 )
 
                 if contribution == 0.0 and late_review_mvp_awarded:
-                    status = "Accepted — MVP awarded"
+                    status = "Accepted \u2014 MVP awarded"
                 elif completed and contribution > 0.0:
-                    status = "Accepted — tile completed"
+                    status = "Accepted \u2014 tile completed"
                 else:
-                    status = "Accepted — progress recorded"
+                    status = "Accepted \u2014 progress recorded"
 
             evidence_rows.append(
                 {

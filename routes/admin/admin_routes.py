@@ -1,4 +1,4 @@
-import secrets
+﻿import secrets
 
 from flask import request, render_template, Blueprint, flash, redirect, url_for, abort, send_file
 from flask_login import current_user
@@ -1122,6 +1122,51 @@ def bingo_setup():
             'evidence_codeword',
             evidence_codeword
         ).strip()
+
+        if action == 'reset_bingo_data':
+            reset_password = request.form.get(
+                'reset_password',
+                ''
+            )
+            reset_competition_id = request.form.get(
+                'reset_competition_id',
+                ''
+            ).strip()
+            stored_competition_id = database.get_wom_competition_id()
+
+            if not current_user.is_organiser:
+                abort(403)
+
+            if stored_competition_id is None:
+                flash(
+                    'No Wise Old Man competition is currently configured.',
+                    'danger'
+                )
+            elif not database.check_password(
+                current_user.password,
+                reset_password
+            ):
+                flash(
+                    'Password confirmation was incorrect.',
+                    'danger'
+                )
+            elif reset_competition_id != str(stored_competition_id):
+                flash(
+                    'The typed Wise Old Man competition ID did not match '
+                    'the current configured competition.',
+                    'danger'
+                )
+            else:
+                database.reset_bingo_event_data()
+
+                flash(
+                    'Bingo event data has been reset. Dashboard accounts and '
+                    'Dink identity records were kept. Teams, players and '
+                    'Dink player links were cleared.',
+                    'success'
+                )
+
+            return redirect(url_for('admin_routes.bingo_setup'))
 
         try:
             competition = wom.get_competition_details(

@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block content %}
 <link
@@ -82,7 +82,7 @@
                         <span class="osrs-number">
                             {{ competition.id }}
                         </span>
-                        ·
+                        Â·
                         {{ participant_count }}
                         participant{% if participant_count != 1 %}s{% endif %}
                         across
@@ -231,7 +231,7 @@
                                         {% for player in import_plan.players_to_create %}
                                             <li>
                                                 {{ player.player_name }}
-                                                → {{ player.team_name }}
+                                                -&gt; {{ player.team_name }}
                                             </li>
                                         {% endfor %}
                                     </ul>
@@ -243,7 +243,7 @@
                                         {% for player in import_plan.players_to_update %}
                                             <li>
                                                 {{ player.current_player_name }}
-                                                → {{ player.new_player_name }}
+                                                -&gt; {{ player.new_player_name }}
                                             </li>
                                         {% endfor %}
                                     </ul>
@@ -256,7 +256,7 @@
                                             <li>
                                                 {{ membership.player_name }}:
                                                 {{ membership.current_team_name }}
-                                                → {{ membership.new_team_name }}
+                                                -&gt; {{ membership.new_team_name }}
                                             </li>
                                         {% endfor %}
                                     </ul>
@@ -407,6 +407,82 @@
                         No WOM refreshes have been recorded yet.
                     </p>
                 {% endif %}
+            </div>
+        </section>
+
+        <section class="osrs-panel">
+            <div class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Reset Bingo Data</h2>
+                <p class="osrs-panel-description">
+                    Clear the current Bingo tiles, progress, drops, WOM state,
+                    teams, players, allocations and Dink event logs while
+                    keeping dashboard accounts and Dink identity records.
+                </p>
+            </div>
+
+            <div class="osrs-panel-body">
+                <p class="osrs-empty-state">
+                    Current WOM Competition ID:
+                    <strong>{{ competition_id or 'Not configured' }}</strong>
+                </p>
+
+                <form
+                    action="{{ url_for('admin_routes.bingo_setup') }}"
+                    method="POST"
+                    class="osrs-form-grid"
+                    onsubmit="return confirm('This will permanently clear the current Bingo event data. Dashboard accounts and Dink identity records will be kept. Teams, players and Dink links will be cleared. Continue?');"
+                >
+                    <input
+                        type="hidden"
+                        name="action"
+                        value="reset_bingo_data"
+                    >
+
+                    <div class="osrs-form-field">
+                        <label
+                            for="reset_password"
+                            class="osrs-form-label"
+                        >
+                            Your Dashboard Password
+                        </label>
+
+                        <input
+                            type="password"
+                            id="reset_password"
+                            name="reset_password"
+                            required
+                            autocomplete="current-password"
+                            class="osrs-form-input"
+                        >
+                    </div>
+
+                    <div class="osrs-form-field">
+                        <label
+                            for="reset_competition_id"
+                            class="osrs-form-label"
+                        >
+                            Type Current WOM Competition ID
+                        </label>
+
+                        <input
+                            type="number"
+                            id="reset_competition_id"
+                            name="reset_competition_id"
+                            min="1"
+                            required
+                            class="osrs-form-input"
+                        >
+                    </div>
+
+                    <div class="osrs-form-actions">
+                        <button
+                            type="submit"
+                            class="osrs-button"
+                        >
+                            Reset Bingo Data
+                        </button>
+                    </div>
+                </form>
             </div>
         </section>
     </main>

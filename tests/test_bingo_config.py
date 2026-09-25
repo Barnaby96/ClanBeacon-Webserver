@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 from datetime import timezone
 from pathlib import Path
@@ -875,3 +875,229 @@ def test_bingo_setup_shows_recent_wom_refresh_audit_rows(
     assert ">1<" in compact_page
     assert "hunter" in page
     assert "Example warning" in page
+
+def test_bingo_setup_reset_refuses_wrong_password(
+    client
+):
+    create_admin_user()
+    login_admin(client)
+
+    database.import_wom_competition(
+        123456,
+        {
+            "Test Team": [
+                "Test Player"
+            ]
+        },
+        "Blackout Sky",
+        {
+            "test player": 987654
+        },
+        competition_starts_at="2026-09-05T16:00:00.000Z",
+        competition_ends_at="2026-09-12T16:00:00.000Z"
+    )
+
+    tile_id = database.add_tile(
+        "Reset Safety Tile",
+        "KILLCOUNT",
+        "Vorkath",
+        "1",
+        "FALSE",
+        1,
+        1,
+        5,
+        "Test tile"
+    )
+
+    response = client.post(
+        "/admin/bingo_setup",
+        data={
+            "action": "reset_bingo_data",
+            "reset_password": "wrong-password",
+            "reset_competition_id": "123456"
+        },
+        follow_redirects=True
+    )
+
+    assert response.status_code == 200
+
+    page = response.get_data(
+        as_text=True
+    )
+
+    assert "Password confirmation was incorrect." in page
+    assert database.get_wom_competition_id() == 123456
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM tiles
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        assert cursor.fetchone()[0] == 1
+
+
+def test_bingo_setup_reset_clears_event_data_teams_players_and_unlinks_dink_identities(
+    client
+):
+    create_admin_user()
+    login_admin(client)
+
+    database.import_wom_competition(
+        123456,
+        {
+            "Test Team": [
+                "Test Player"
+            ]
+        },
+        "Blackout Sky",
+        {
+            "test player": 987654
+        },
+        competition_starts_at="2026-09-05T16:00:00.000Z",
+        competition_ends_at="2026-09-12T16:00:00.000Z"
+    )
+
+    tile_id = database.add_tile(
+        "Reset Safety Tile",
+        "KILLCOUNT",
+        "Vorkath",
+        "1",
+        "FALSE",
+        1,
+        1,
+        5,
+        "Test tile"
+    )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT player_id
+            FROM players
+            WHERE lower(player_name) = lower(%s)
+            ''',
+            ("Test Player",)
+        )
+        player_id = cursor.fetchone()[0]
+
+        cursor.execute(
+            '''
+            UPDATE users
+            SET player_id = %s
+            WHERE lower(username) = lower(%s)
+            ''',
+            (
+                player_id,
+                "Bingo Setup Admin"
+            )
+        )
+
+        cursor.execute(
+            '''
+            INSERT INTO dink_identities (
+                dink_account_hash,
+                player_id,
+                observed_rsn,
+                status,
+                linked_at
+            )
+            VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+            ''',
+            (
+                "reset-test-hash",
+                player_id,
+                "Test Player",
+                "LINKED"
+            )
+        )
+
+        conn.commit()
+
+    response = client.post(
+        "/admin/bingo_setup",
+        data={
+            "action": "reset_bingo_data",
+            "reset_password": "test-password",
+            "reset_competition_id": "123456"
+        },
+        follow_redirects=True
+    )
+
+    assert response.status_code == 200
+
+    page = response.get_data(
+        as_text=True
+    )
+
+    assert "Bingo event data has been reset." in page
+    assert database.get_wom_competition_id() is None
+
+    assert database.get_team_by_name(
+        "Test Team"
+    ) is None
+
+    assert database.get_player_by_name(
+        "Test Player"
+    ) is None
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM users
+            WHERE lower(username) = lower(%s)
+            ''',
+            ("Bingo Setup Admin",)
+        )
+        assert cursor.fetchone()[0] == 1
+
+        cursor.execute(
+            '''
+            SELECT player_id
+            FROM users
+            WHERE lower(username) = lower(%s)
+            ''',
+            ("Bingo Setup Admin",)
+        )
+        assert cursor.fetchone()[0] is None
+
+        cursor.execute(
+            '''
+            SELECT COUNT(*)
+            FROM tiles
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+        assert cursor.fetchone()[0] == 0
+
+        cursor.execute(
+            '''
+            SELECT
+                player_id,
+                observed_rsn,
+                status,
+                linked_at
+            FROM dink_identities
+            WHERE dink_account_hash = %s
+            ''',
+            ("reset-test-hash",)
+        )
+
+        assert cursor.fetchone() == (
+            None,
+            "Test Player",
+            "PENDING",
+            None
+        )
