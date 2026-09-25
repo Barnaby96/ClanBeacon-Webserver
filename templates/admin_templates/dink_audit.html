@@ -1,24 +1,53 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1 style="text-align: center; color: #fff;">
-    Blocked Connection Attempts
-</h1>
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
 
-<div style="width: 95%; margin: 0 auto; background-color: #1e1e1e;
-            padding: 20px; border-radius: 10px;
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
-            overflow-x: auto;">
+<style>
+    .osrs-dink-audit { max-width: min(98vw, 1500px); }
+    .osrs-dink-audit .osrs-table { width: 100%; min-width: 0; table-layout: fixed; }
+    .osrs-dink-audit .osrs-table th, .osrs-dink-audit .osrs-table td { white-space: normal !important; overflow-wrap: anywhere !important; vertical-align: top; box-sizing: border-box; }
+    .osrs-dink-audit .osrs-table th:nth-child(1), .osrs-dink-audit .osrs-table td:nth-child(1) { width: 240px; }
+    .osrs-dink-audit .osrs-table th:nth-child(2), .osrs-dink-audit .osrs-table td:nth-child(2) { width: 280px; }
+    .osrs-dink-audit .osrs-table th:nth-child(3), .osrs-dink-audit .osrs-table td:nth-child(3) { width: 260px; }
+    .osrs-dink-audit .osrs-table th:nth-child(4), .osrs-dink-audit .osrs-table td:nth-child(4) { width: auto; }
+    .osrs-dink-audit details, .osrs-dink-audit details div, .osrs-dink-audit details strong { color: #1a1208 !important; text-shadow: none !important; }
+    .osrs-dink-audit .osrs-page-subtitle, .osrs-dink-audit .osrs-panel-description, .osrs-dink-audit .osrs-table td, .osrs-dink-audit details, .osrs-dink-audit details div { font-family: "RuneScape Plain", "RuneScape", Arial, sans-serif !important; letter-spacing: 0.02em; }
+</style>
 
-    <p style="color: #ccc; margin-top: 0;">
-        Showing the 100 most recent connection attempts
-        that {{ bot_name }} rejected before processing.
-    </p>
+<div class="osrs-dashboard">
+    <main class="osrs-page osrs-dink-audit">
+        <header class="osrs-page-header">
+            <h1 class="osrs-page-title">Blocked Connection Attempts</h1>
 
+            <p class="osrs-page-subtitle">
+                Showing the 100 most recent connection attempts that
+                {{ bot_name }} rejected before processing.
+            </p>
+
+            <a class="osrs-button" href="/admin/">
+                Back to Admin Dashboard
+            </a>
+        </header>
+
+        <section class="osrs-panel">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Connection Audit</h2>
+
+                <p class="osrs-panel-description">
+                    Review rejected Dink requests and their technical details.
+                </p>
+            </header>
+
+            <div class="osrs-panel-body">
     {% if audit_entries %}
-        <table style="width: 100%; border-collapse: collapse; color: #ccc;">
+        <div class="osrs-table-wrap">
+                    <table class="osrs-table">
             <thead>
-                <tr style="background-color: #2b2b2b;">
+                <tr>
                     <th style="padding: 10px; text-align: left;">Time</th>
                     <th style="padding: 10px; text-align: left;">Reason</th>
                     <th style="padding: 10px; text-align: left;">RuneScape Account</th>
@@ -28,7 +57,7 @@
 
             <tbody>
                 {% for entry in audit_entries %}
-                    <tr style="border-top: 1px solid #444;">
+                    <tr>
                         <td style="padding: 10px; white-space: nowrap;">
                             {{ entry.received_at }}
                         </td>
@@ -94,10 +123,14 @@
                 {% endfor %}
             </tbody>
         </table>
+                    </div>
     {% else %}
-        <p style="color: #ccc;">
+        <p class="osrs-empty-state">
             No blocked connection attempts have been recorded.
         </p>
     {% endif %}
+            </div>
+        </section>
+    </main>
 </div>
 {% endblock %}
