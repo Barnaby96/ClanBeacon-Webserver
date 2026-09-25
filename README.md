@@ -1,20 +1,76 @@
-# Old School RuneScape Clan Bingo Tracker
+# ClanBeacon Webserver
 
-This project is a Discord bot designed for tracking bingo events in Old School RuneScape clans.
+ClanBeacon Webserver is a Discord-connected web dashboard for running and tracking Old School RuneScape clan events, with a primary focus on clan Bingo.
 
-## Overview
+It is designed for clan organisers who want a central dashboard for teams, players, tiles, evidence, progress tracking, and event administration.
 
-The bot provides real-time tracking of bingo games, making it easy for clan members to keep up with the progress of the event. It's designed to be easy to use, with commands for starting games, updating scores, and displaying the current game status.
+## Project Status
 
-This bot makes use of discord webhooks and the Dink plugin. For the dink settings import, see the dink_settings.txt in the root directory. To import these settings, enable the dink plugin from the plugin hub and type ::dinkimport. Then make sure you create your own discord webhook and set the primary webhook setting to your webhook.
+Current focus areas include:
+
+- OSRS clan Bingo management
+- Team and player administration
+- Dink plugin drop and pet tracking
+- Wise Old Man competition tracking
+- Manual evidence submission
+- Admin and organiser dashboard tools
+- Discord bot integration
+
+## Features
+
+ClanBeacon currently supports:
+
+- Dashboard user accounts
+- Player, admin, and organiser roles
+- Team and player management
+- Bingo tile management
+- Leaderboard and team progress pages
+- Manual evidence submission
+- Dink webhook ingestion for relevant drops and pets
+- Dink setup export with private webhook injection
+- Wise Old Man configuration for competition tracking
+- Organiser tools such as account role changes and password resets
+
+## External Services
+
+ClanBeacon is intended to be used with:
+
+- Discord
+- Old School RuneScape
+- Dink RuneLite plugin
+- Wise Old Man
+- PostgreSQL
+- Railway or another Python-compatible hosting provider
+
+Secrets and deployment-specific values should be configured through environment variables. Do not commit real Discord tokens, webhook URLs, database credentials, Flask secrets, or API keys.
+
+See `.env.example` for the expected environment variable names.
+
+## Local Development
+
+This project is a Python Flask application backed by PostgreSQL.
+
+The local development environment used for this project includes:
+
+- Python 3.11
+- PostgreSQL
+- Flask
+- discord.py
+- Waitress
+- pytest
+
+The app is normally run locally from `main.py`.
+
+## Acknowledgements
+
+ClanBeacon Webserver began as a customised continuation of the original DanBot Old School RuneScape clan Bingo tracker.
+
+Special thanks to the original DanBot project and its contributors, including Danny, Taercy, and Max uwu.
+
+Additional thanks to the Dink developers. Dink makes RuneLite-based event tracking significantly easier and is a core part of the planned automation workflow.
 
 ## Contact
 
-If you have any questions or need further information, please feel free to reach out:
+For ClanBeacon enquiries, contact:
 
-- Email: deckergame.danny@gmail.com
-- Discord: danny0897
-
-# Special Thanks
-
-A big thank you to **Taercy** and **Max uwu** for their contributions to this project and thank you to the Dink developers for making this project inifinitely easier
+- Email: clan.beacon@outlook.com
