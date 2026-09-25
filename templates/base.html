@@ -287,21 +287,7 @@
             document.removeEventListener('click', closeOverlayOnClickOutside);
         }
 
-        /* Toggle the dropdown menu */
-        function toggleDropdown() {
-            var content = document.getElementById("adminDropdownContent");
-            var icon = document.getElementById("dropdownIcon");
-
-            if (content.classList.contains("show")) {
-                content.classList.remove("show");
-                icon.className = "fa fa-caret-down";
-            } else {
-                content.classList.add("show");
-                icon.className = "fa fa-caret-up";
-            }
-        }
-
-        /* Close the overlay if clicked outside */
+        /* Toggle the dropdown menu */        /* Close the overlay if clicked outside */
         function closeOverlayOnClickOutside(event) {
             var overlay = document.getElementById("myNav");
             var hamburger = document.querySelector('.hamburger');
@@ -330,25 +316,7 @@
             <a href="{{ url_for('user_routes.submit_evidence') }}">Submit Evidence</a>
             {% endif %}
             {% if current_user.is_authenticated and current_user.is_admin %}
-            <div class="dropdown">
-                <span onclick="toggleDropdown()">
-                    <h1>Admin Menu <i id="dropdownIcon" class="fa fa-caret-down" style="padding-left: 10px"></i></h1>
-                </span>
-                <div class="dropdown-content" id="adminDropdownContent">
-                    <a href="/admin/">Admin Dashboard</a>
-                    {% if current_user.is_organiser %}
-                        <a href="/admin/user_accounts">Manage User Accounts</a>
-                    {% endif %}
-                    <a href="/team/teams">Manage Teams</a>
-                    <a href="/player/players">Manage Players</a>
-                    <a href="/tile/tiles">Manage Tiles</a>
-                    <a href="/admin/bingo_setup">Bingo Setup</a>
-                    <a href="/admin/dink_audit">Blocked Connection Attempts</a>
-                    <a href="/admin/dink_identities">Check Player Accounts</a>
-                    <a href="/admin/dink_events">Review Submissions</a>
-                    <a href="/admin/reset_database">Reset Databases</a>
-                </div>
-            </div>
+            <a href="/admin/">Admin Dashboard</a>
             {% endif %}
         </div>
 
