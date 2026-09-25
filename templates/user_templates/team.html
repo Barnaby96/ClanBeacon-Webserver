@@ -8,10 +8,105 @@
     href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
 >
 
+<style>
+
+
+    .osrs-team-data .osrs-team-page-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+        gap: 16px 32px;
+        align-items: start;
+    }
+
+    .osrs-team-data .osrs-team-page-header > div:first-child {
+        grid-column: 1;
+    }
+
+    .osrs-team-data .osrs-team-page-header .osrs-team-actions {
+        grid-column: 1;
+        justify-content: flex-start;
+    }
+
+    .osrs-team-data .osrs-team-search {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        align-self: start;
+        width: 100%;
+        max-width: 420px;
+        margin: 0;
+    }
+
+    .osrs-team-data .osrs-team-search-controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .osrs-team-data .osrs-team-search-controls select {
+        min-width: 0;
+        flex: 1;
+    }
+
+    @media (max-width: 900px) {
+        .osrs-team-data .osrs-team-page-header {
+            grid-template-columns: 1fr;
+        }
+
+        .osrs-team-data .osrs-team-search {
+            grid-column: 1;
+            grid-row: auto;
+            max-width: none;
+        }
+    }
+
+    .osrs-team-data .osrs-team-mvp-panel {
+        background: transparent;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .osrs-team-data .osrs-team-mvp-entry {
+        min-width: 220px;
+        max-width: 320px;
+        padding: 18px 24px;
+        border-radius: 6px;
+        background: linear-gradient(135deg, rgba(73, 56, 36, 0.96), rgba(48, 37, 24, 0.96));
+        border: 1px solid rgba(143, 115, 58, 0.7);
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22), inset 0 1px rgba(255, 255, 255, 0.08);
+        color: #f4d36a;
+        text-align: center;
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+    }
+
+    .osrs-team-data .osrs-team-mvp-name,
+    .osrs-team-data .osrs-team-mvp-points,
+    .osrs-team-data .osrs-team-mvp-entry .osrs-data-link {
+        color: #f4d36a;
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+    }
+
+    .osrs-team-data .osrs-team-mvp-name {
+        display: block;
+        margin-bottom: 8px;
+        font-family: "RuneScape Bold", Arial, sans-serif;
+        font-size: 20px;
+    }
+
+    .osrs-team-data .osrs-team-mvp-points {
+        display: block;
+        font-family: "RuneScape Bold", Arial, sans-serif;
+        font-size: 15px;
+    }
+</style>
+
 <div class="osrs-dashboard osrs-team-data">
     <main class="osrs-page">
-        <header class="osrs-player-header osrs-team-header">
-            <div class="osrs-player-identity">
+        <header class="osrs-page-header osrs-team-page-header">
+            <div>
                 <p class="osrs-page-subtitle">
                     Team Data
                 </p>
@@ -19,54 +114,56 @@
                 <h1 class="osrs-page-title">
                     {{ team.team_name }}
                 </h1>
+            </div>
 
-                <div class="osrs-team-actions">
+            <div class="osrs-form-actions osrs-team-actions">
+                <a
+                    class="osrs-button"
+                    href="/board/{{ team.team_name }}"
+                >
+                    View Board
+                </a>
+
+                {% if can_view_all_data %}
                     <a
-                        class="osrs-action-link osrs-wom-link"
-                        href="/board/{{ team.team_name }}"
+                        class="osrs-button"
+                        href="{{ url_for(
+                            'team_routes.edit_team',
+                            team_id=team.team_id
+                        ) }}"
                     >
-                        View Board
+                        Edit Team
                     </a>
+                {% endif %}
 
-                    {% if can_view_all_data %}
-                        <a
-                            class="osrs-action-link osrs-wom-link"
-                            href="{{ url_for(
-                                'team_routes.edit_team',
-                                team_id=team.team_id
-                            ) }}"
-                        >
-                            Edit Team
-                        </a>
-                    {% endif %}
-                    <form
-                        action="{{ url_for(
-                            'user_routes.update_team_wom_players',
-                            team_name=team.team_name
-                        ) }}"
-                        method="post"
+                <form
+                    action="{{ url_for(
+                        'user_routes.update_team_wom_players',
+                        team_name=team.team_name
+                    ) }}"
+                    method="post"
+                >
+                    <button
+                        class="osrs-button"
+                        type="submit"
                     >
-                        <button
-                            class="osrs-action-link osrs-wom-link"
-                            type="submit"
-                        >
-                            Update Team WOM
-                        </button>
-                    </form>
-                    <form
-                        action="{{ url_for(
-                            'user_routes.refresh_wom_competition'
-                        ) }}"
-                        method="post"
+                        Update Team WOM
+                    </button>
+                </form>
+
+                <form
+                    action="{{ url_for(
+                        'user_routes.refresh_wom_competition'
+                    ) }}"
+                    method="post"
+                >
+                    <button
+                        class="osrs-button"
+                        type="submit"
                     >
-                        <button
-                            class="osrs-action-link osrs-wom-link"
-                            type="submit"
-                        >
-                            Refresh WOM Progress
-                        </button>
-                    </form>
-                </div>
+                        Refresh WOM Progress
+                    </button>
+                </form>
             </div>
 
             {% if can_view_all_data %}
@@ -98,7 +195,10 @@
                             {% endfor %}
                         </select>
 
-                        <button type="submit">
+                        <button
+                            class="osrs-button"
+                            type="submit"
+                        >
                             View
                         </button>
                     </div>
@@ -214,10 +314,14 @@
             </div>
         </section>
 
-        <section class="osrs-player-section">
-            <h2 class="osrs-player-section-heading">
-                Team Roster
-            </h2>
+        <section class="osrs-panel osrs-team-data-section">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">
+                    Team Roster
+                </h2>
+            </header>
+
+            <div class="osrs-panel-body">
 
             {% if team_summary.roster %}
                 <div class="osrs-scroll-table">
@@ -271,12 +375,17 @@
                     No players are currently assigned to this team.
                 </p>
             {% endif %}
+            </div>
         </section>
 
-        <section class="osrs-player-section">
-            <h2 class="osrs-player-section-heading">
-                Team MVP
-            </h2>
+        <section class="osrs-panel osrs-team-data-section">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">
+                    Team MVP
+                </h2>
+            </header>
+
+            <div class="osrs-panel-body">
 
             <div class="osrs-team-mvp-panel">
                 {% if team_summary.team_mvp.players %}
@@ -313,12 +422,17 @@
                     </p>
                 {% endif %}
             </div>
+            </div>
         </section>
 
-        <section class="osrs-player-section">
-            <h2 class="osrs-player-section-heading">
-                Relevant Drops
-            </h2>
+        <section class="osrs-panel osrs-team-data-section">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">
+                    Relevant Drops
+                </h2>
+            </header>
+
+            <div class="osrs-panel-body">
 
             {% if team_summary.relevant_drops.drops %}
                 <div class="osrs-scroll-table">
@@ -349,12 +463,17 @@
                     No relevant drops recorded yet.
                 </p>
             {% endif %}
+            </div>
         </section>
 
-        <section class="osrs-player-section">
-            <h2 class="osrs-player-section-heading">
-                Relevant Boss KC
-            </h2>
+        <section class="osrs-panel osrs-team-data-section">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">
+                    Relevant Boss KC
+                </h2>
+            </header>
+
+            <div class="osrs-panel-body">
 
             {% if team_summary.relevant_boss_kc.bosses %}
                 <div class="osrs-scroll-table">
@@ -402,12 +521,17 @@
                     No relevant boss KC recorded yet.
                 </p>
             {% endif %}
+            </div>
         </section>
 
-        <section class="osrs-player-section">
-            <h2 class="osrs-player-section-heading">
-                Relevant XP Gained
-            </h2>
+        <section class="osrs-panel osrs-team-data-section">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">
+                    Relevant XP Gained
+                </h2>
+            </header>
+
+            <div class="osrs-panel-body">
 
             {% if team_summary.relevant_xp.skills %}
                 <div class="osrs-scroll-table">
@@ -455,12 +579,17 @@
                     No relevant XP recorded yet.
                 </p>
             {% endif %}
+            </div>
         </section>
 
-        <section class="osrs-player-section">
-            <h2 class="osrs-player-section-heading">
-                Tiles in Progress
-            </h2>
+        <section class="osrs-panel osrs-team-data-section">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">
+                    Tiles in Progress
+                </h2>
+            </header>
+
+            <div class="osrs-panel-body">
 
             {% if team_summary.tiles_in_progress %}
                 <div class="osrs-scroll-table osrs-team-progress-table">
@@ -516,12 +645,17 @@
                     No incomplete tiles currently have recorded progress.
                 </p>
             {% endif %}
+            </div>
         </section>
 
-        <section class="osrs-player-section">
-            <h2 class="osrs-player-section-heading">
-                Completed Tiles
-            </h2>
+        <section class="osrs-panel osrs-team-data-section">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">
+                    Completed Tiles
+                </h2>
+            </header>
+
+            <div class="osrs-panel-body">
 
             {% if team_summary.completed_tiles %}
                 <div class="osrs-scroll-table osrs-completed-tiles-table">
@@ -566,6 +700,7 @@
                     This team has not completed any tiles yet.
                 </p>
             {% endif %}
+            </div>
         </section>
     </main>
 </div>
