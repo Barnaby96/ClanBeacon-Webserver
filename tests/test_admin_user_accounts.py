@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -221,3 +222,103 @@ def test_organiser_cannot_demote_self(
     assert "You cannot remove your own organiser access." in html
     assert organiser_user.account_role == "ORGANISER"
     assert organiser_user.is_organiser
+
+
+def test_organiser_can_reset_player_password(
+    client
+):
+    create_test_user(
+        "Organiser User",
+        "test-password",
+        account_role="ORGANISER"
+    )
+    player_user_id = create_test_user(
+        "Player User",
+        "old-password",
+        account_role="PLAYER"
+    )
+
+    login_user(
+        client,
+        "Organiser User",
+        "test-password"
+    )
+
+    response = client.post(
+        "/admin/user_accounts",
+        data={
+            "action": "reset_password",
+            "user_id": str(player_user_id),
+            "confirmation_username": "Player User"
+        },
+        follow_redirects=True
+    )
+
+    html = response.get_data(
+        as_text=True
+    )
+
+    temporary_password_match = re.search(
+        r"Temporary password: ([A-Za-z0-9_-]+)",
+        html
+    )
+    updated_user = database.get_user_by_username(
+        "Player User"
+    )
+
+    assert response.status_code == 200
+    assert "Reset password for Player User." in html
+    assert temporary_password_match
+    assert not database.check_password(
+        updated_user.password,
+        "old-password"
+    )
+    assert database.check_password(
+        updated_user.password,
+        temporary_password_match.group(1)
+    )
+
+
+def test_organiser_password_reset_requires_exact_username(
+    client
+):
+    create_test_user(
+        "Organiser User",
+        "test-password",
+        account_role="ORGANISER"
+    )
+    player_user_id = create_test_user(
+        "Player User",
+        "old-password",
+        account_role="PLAYER"
+    )
+
+    login_user(
+        client,
+        "Organiser User",
+        "test-password"
+    )
+
+    response = client.post(
+        "/admin/user_accounts",
+        data={
+            "action": "reset_password",
+            "user_id": str(player_user_id),
+            "confirmation_username": "player user"
+        },
+        follow_redirects=True
+    )
+
+    html = response.get_data(
+        as_text=True
+    )
+    updated_user = database.get_user_by_username(
+        "Player User"
+    )
+
+    assert response.status_code == 200
+    assert "Type Player User exactly to reset this password." in html
+    assert database.check_password(
+        updated_user.password,
+        "old-password"
+    )

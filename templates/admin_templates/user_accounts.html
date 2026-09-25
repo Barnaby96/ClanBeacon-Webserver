@@ -10,6 +10,8 @@
 
 <style>
     .osrs-user-accounts .osrs-user-role-form { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .osrs-user-accounts .osrs-user-reset-form { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .osrs-user-accounts .osrs-danger-button { background: linear-gradient(#8f3028, #5b1712); border-color: #2c0b08; color: #f8e8c5; }
     .osrs-user-accounts .osrs-user-role-form label { color: #1a1208; text-shadow: none; font-family: "RuneScape Bold", Arial, sans-serif; }
     .osrs-user-accounts .osrs-role-select { background: #f2dfb4; color: #1a1208; border: 2px solid #3f2f1d; border-radius: 4px; padding: 8px 10px; min-width: 150px; }
     .osrs-user-accounts .osrs-table td { vertical-align: middle; }
@@ -56,6 +58,7 @@
                             <th>Linked Player</th>
                             <th>Current Role</th>
                             <th>Change Role</th>
+                            <th>Reset Password</th>
                         </tr>
                     </thead>
 
@@ -92,6 +95,12 @@
                                     >
                                         <input
                                             type="hidden"
+                                            name="action"
+                                            value="update_role"
+                                        >
+
+                                        <input
+                                            type="hidden"
                                             name="user_id"
                                             value="{{ user[0] }}"
                                         >
@@ -125,6 +134,40 @@
                                         </button>
                                     </form>
                                 </td>
+
+                                <td>
+                                    <form
+                                        class="osrs-user-reset-form"
+                                        action="{{ url_for('admin_routes.user_accounts') }}"
+                                        method="post"
+                                        data-username="{{ user[1] }}"
+                                    >
+                                        <input
+                                            type="hidden"
+                                            name="action"
+                                            value="reset_password"
+                                        >
+
+                                        <input
+                                            type="hidden"
+                                            name="user_id"
+                                            value="{{ user[0] }}"
+                                        >
+
+                                        <input
+                                            type="hidden"
+                                            name="confirmation_username"
+                                            value=""
+                                        >
+
+                                        <button
+                                            class="osrs-button osrs-danger-button"
+                                            type="submit"
+                                        >
+                                            Reset Password
+                                        </button>
+                                    </form>
+                                </td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -134,4 +177,35 @@
         </section>
     </main>
 </div>
+
+<script>
+    document.querySelectorAll('.osrs-user-reset-form').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+            const username = form.dataset.username;
+            const resetPasswordWarning = [
+                `This will reset the password for ${username}.`,
+                'The user will not be able to use their old password.',
+                `Type ${username} to confirm.`
+            ].join('\n\n');
+
+            const confirmation = window.prompt(resetPasswordWarning);
+
+            if (confirmation !== username) {
+                event.preventDefault();
+
+                if (confirmation !== null) {
+                    window.alert(
+                        'Password reset cancelled. The username did not match exactly.'
+                    );
+                }
+
+                return;
+            }
+
+            form.querySelector(
+                'input[name="confirmation_username"]'
+            ).value = confirmation;
+        });
+    });
+</script>
 {% endblock %}

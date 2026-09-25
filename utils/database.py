@@ -4193,6 +4193,51 @@ def change_user_password(
             )
         )
 
+
+def reset_user_password(
+    user_id,
+    new_password
+):
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT username
+            FROM users
+            WHERE user_id = %s
+            FOR UPDATE
+            """,
+            (user_id,)
+        )
+
+        user = cursor.fetchone()
+
+        if user is None:
+            raise ValueError(
+                "Dashboard user not found."
+            )
+
+        hashed_password = bcrypt.generate_password_hash(
+            new_password
+        ).decode('utf-8')
+
+        cursor.execute(
+            """
+            UPDATE users
+            SET password = %s
+            WHERE user_id = %s
+            """,
+            (
+                hashed_password,
+                user_id
+            )
+        )
+
+        conn.commit()
+
+        return user[0]
+
 # Add these functions to your existing database functions
 
 # Functions for 'teams' table

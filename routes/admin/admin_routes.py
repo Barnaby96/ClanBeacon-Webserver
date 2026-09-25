@@ -1,3 +1,5 @@
+import secrets
+
 from flask import request, render_template, Blueprint, flash, redirect, url_for, abort, send_file
 from flask_login import current_user
 from werkzeug.utils import secure_filename
@@ -28,26 +30,95 @@ def user_accounts():
         abort(403)
 
     if request.method == 'POST':
+        action = request.form.get(
+            'action',
+            'update_role'
+        ).strip()
+
         target_user_id_raw = request.form.get(
             'user_id',
             ''
         ).strip()
-        account_role = request.form.get(
-            'account_role',
-            ''
-        ).strip().upper()
 
         try:
             target_user_id = int(
                 target_user_id_raw
             )
-
-            if target_user_id <= 0:
-                raise ValueError
-
         except ValueError:
             flash(
-                'Please choose a valid dashboard user.',
+                'Invalid dashboard user selected.',
+                'danger'
+            )
+            return redirect(
+                url_for('admin_routes.user_accounts')
+            )
+
+        if action == 'reset_password':
+            target_user = database.get_user_by_id(
+                target_user_id
+            )
+            confirmation_username = request.form.get(
+                'confirmation_username',
+                ''
+            ).strip()
+
+            if target_user is None:
+                flash(
+                    'Dashboard user not found.',
+                    'danger'
+                )
+            elif confirmation_username != target_user.username:
+                flash(
+                    f'Type {target_user.username} exactly to reset this password.',
+                    'danger'
+                )
+            else:
+                temporary_password = secrets.token_urlsafe(
+                    12
+                )
+
+                try:
+                    database.reset_user_password(
+                        target_user_id,
+                        temporary_password
+                    )
+                except ValueError as error:
+                    flash(
+                        str(error),
+                        'danger'
+                    )
+                else:
+                    flash(
+                        f'Reset password for {target_user.username}. '
+                        f'Temporary password: {temporary_password}',
+                        'success'
+                    )
+
+            return redirect(
+                url_for('admin_routes.user_accounts')
+            )
+
+        if action != 'update_role':
+            flash(
+                'Unknown user account action.',
+                'danger'
+            )
+            return redirect(
+                url_for('admin_routes.user_accounts')
+            )
+
+        account_role = request.form.get(
+            'account_role',
+            ''
+        ).strip().upper()
+
+        if account_role not in {
+            'PLAYER',
+            'ADMIN',
+            'ORGANISER'
+        }:
+            flash(
+                'Invalid dashboard role selected.',
                 'danger'
             )
             return redirect(
@@ -71,7 +142,6 @@ def user_accounts():
                 target_user_id,
                 account_role
             )
-
         except ValueError as error:
             flash(
                 str(error),
@@ -87,8 +157,10 @@ def user_accounts():
                 'danger'
             )
         else:
+            updated_username = updated_user[1]
+
             flash(
-                f'Updated {updated_user[1]} to {updated_user[2]}.',
+                f'Updated {updated_username} to {account_role}.',
                 'success'
             )
 
