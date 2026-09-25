@@ -1,25 +1,100 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1 style="text-align: center; color: #fff;">
-    Review Submissions
-</h1>
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
 
-<div style="width: 95%; margin: 0 auto; background-color: #1e1e1e;
-            padding: 20px; border-radius: 10px;
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
-            overflow-x: auto;">
+<style>
+    .osrs-dink-events label { color: #1a1208 !important; text-shadow: none !important; font-family: "RuneScape Bold", Arial, sans-serif; }
+    .osrs-dink-events select, .osrs-dink-events textarea { width: 100% !important; box-sizing: border-box !important; background: #f2dfb4 !important; color: #1a1208 !important; border: 2px solid #3f2f1d !important; border-radius: 4px !important; padding: 8px !important; resize: vertical; min-height: 38px; }
+    .osrs-dink-events details, .osrs-dink-events details div, .osrs-dink-events details strong, .osrs-dink-events pre { color: #1a1208 !important; text-shadow: none !important; }
+    .osrs-dink-events pre { background: rgba(255, 255, 255, 0.35); border: 1px solid rgba(63, 47, 29, 0.35); border-radius: 4px; padding: 8px; }
+    .osrs-dink-events .osrs-button { margin: 3px 0; }
+    .osrs-dink-events { max-width: min(96vw, 1500px); }
+    .osrs-dink-events .osrs-panel-body { overflow: visible; }
+    .osrs-dink-events .osrs-table-wrap { overflow-x: visible; padding-bottom: 0; }
+    .osrs-dink-events .osrs-table { width: 100%; min-width: 0; table-layout: fixed; }
+    .osrs-dink-events .osrs-table th, .osrs-dink-events .osrs-table td { vertical-align: top; padding: 10px 12px; overflow-wrap: anywhere; word-break: normal; }
+    .osrs-dink-events .osrs-table td { line-height: 1.25; }
+    .osrs-dink-events .osrs-table th:first-child, .osrs-dink-events .osrs-table td:first-child { width: 72px; }
+    .osrs-dink-events .osrs-table th:nth-child(2), .osrs-dink-events .osrs-table td:nth-child(2) { width: 190px; white-space: normal !important; overflow-wrap: anywhere; }
+    .osrs-dink-events .osrs-table th:nth-child(3), .osrs-dink-events .osrs-table td:nth-child(3) { width: 95px; white-space: normal !important; overflow-wrap: anywhere; }`n    .osrs-dink-events .osrs-table th:nth-child(4), .osrs-dink-events .osrs-table td:nth-child(4) { width: 105px; white-space: normal !important; overflow-wrap: anywhere; }`n    .osrs-dink-events .osrs-table th:nth-child(5), .osrs-dink-events .osrs-table td:nth-child(5) { width: 90px; white-space: normal !important; overflow-wrap: anywhere; }
+    .osrs-dink-events .osrs-table th:nth-child(6), .osrs-dink-events .osrs-table td:nth-child(6) { width: 125px; white-space: normal; overflow-wrap: anywhere; }
+    .osrs-dink-events .osrs-table th:nth-child(7), .osrs-dink-events .osrs-table td:nth-child(7) { width: 130px; white-space: normal; overflow-wrap: anywhere; }
+    .osrs-dink-events .osrs-table th:nth-child(8), .osrs-dink-events .osrs-table td:nth-child(8) { width: 70px; white-space: normal; overflow-wrap: anywhere; }
+    .osrs-dink-events .osrs-table th:nth-child(9), .osrs-dink-events .osrs-table td:nth-child(9) { width: 125px; white-space: normal; overflow-wrap: anywhere; }
+    .osrs-dink-events .osrs-table th:nth-child(10), .osrs-dink-events .osrs-table td:nth-child(10) { width: 160px; white-space: normal; overflow-wrap: anywhere; }
+    .osrs-dink-events .osrs-table td:last-child { width: 220px; min-width: 0; }
+    .osrs-dink-events .evidence-preview-button { }
 
-    <p style="color: #ccc; margin-top: 0;">
-        Review bingo submissions that need a staff decision.
-        Check the player, team and evidence, then accept submissions
-        that should count or reject submissions that should not.
-    </p>
+    .osrs-dink-events .osrs-table { table-layout: fixed !important; }
+    .osrs-dink-events .osrs-table th:first-child, .osrs-dink-events .osrs-table td:first-child { width: 90px !important; }
+    .osrs-dink-events .osrs-table th:nth-child(2), .osrs-dink-events .osrs-table td:nth-child(2) { width: 165px !important; }
+    .osrs-dink-events .osrs-table th:nth-child(3), .osrs-dink-events .osrs-table td:nth-child(3) { width: 85px !important; }
+    .osrs-dink-events .osrs-table th:nth-child(4), .osrs-dink-events .osrs-table td:nth-child(4) { width: 95px !important; }
+    .osrs-dink-events .osrs-table th:nth-child(5), .osrs-dink-events .osrs-table td:nth-child(5) { width: 80px !important; }
+    .osrs-dink-events .osrs-table th:nth-child(6), .osrs-dink-events .osrs-table td:nth-child(6) { width: 135px !important; }
+    .osrs-dink-events .osrs-table th:nth-child(7), .osrs-dink-events .osrs-table td:nth-child(7) { width: 130px !important; }
+    .osrs-dink-events .osrs-table th:nth-child(8), .osrs-dink-events .osrs-table td:nth-child(8) { width: 58px !important; }
+    .osrs-dink-events .osrs-table th:nth-child(9), .osrs-dink-events .osrs-table td:nth-child(9) { width: 125px !important; }
+    .osrs-dink-events .osrs-table th:nth-child(10), .osrs-dink-events .osrs-table td:nth-child(10) { width: 150px !important; }
+    .osrs-dink-events .osrs-table th:last-child, .osrs-dink-events .osrs-table td:last-child { width: 360px !important; min-width: 360px !important; max-width: none !important; }
+    .osrs-dink-events .osrs-table th, .osrs-dink-events .osrs-table td { white-space: normal !important; overflow-wrap: anywhere !important; }
+    .osrs-dink-events .osrs-table td:first-child { white-space: nowrap !important; }
+    .osrs-dink-events .osrs-table td:last-child textarea { min-height: 70px; }
 
+    /* Final fit rules for review tables */
+    .osrs-dink-events { max-width: min(99vw, 1800px) !important; }
+    .osrs-dink-events .osrs-panel-body { overflow: visible !important; }
+    .osrs-dink-events .osrs-table-wrap { overflow-x: visible !important; overflow-y: visible !important; padding-bottom: 0 !important; }
+    .osrs-dink-events .osrs-table { width: 100% !important; min-width: 0 !important; table-layout: fixed !important; }
+    .osrs-dink-events .osrs-table th, .osrs-dink-events .osrs-table td { white-space: normal !important; overflow-wrap: anywhere !important; word-break: normal !important; box-sizing: border-box !important; }
+    .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table { font-size: 0.82em !important; }
+    .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table th:nth-child(1), .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table td:nth-child(1) { width: 7% !important; }
+    .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table th:nth-child(2), .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table td:nth-child(2) { width: 12% !important; }
+    .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table th:nth-child(3), .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table td:nth-child(3) { width: 6% !important; }
+    .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table th:nth-child(4), .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table td:nth-child(4) { width: 7% !important; }
+    .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table th:nth-child(5), .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table td:nth-child(5) { width: 6% !important; }
+    .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table th:nth-child(6), .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table td:nth-child(6) { width: 9% !important; }
+    .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table th:nth-child(7), .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table td:nth-child(7) { width: 10% !important; }
+    .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table th:nth-child(8), .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table td:nth-child(8) { width: 4% !important; }
+    .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table th:nth-child(9), .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table td:nth-child(9) { width: 9% !important; }
+    .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table th:nth-child(10), .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table td:nth-child(10) { width: 10% !important; }
+    .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table th:nth-child(11), .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table td:nth-child(11) { width: 20% !important; min-width: 0 !important; max-width: none !important; }
+    .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table td:nth-child(11) form:first-child { display: flex !important; gap: 6px !important; flex-wrap: wrap !important; }
+    .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table td:nth-child(11) form:first-child .osrs-button { flex: 1 1 95px !important; }
+    .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table td:nth-child(11) select, .osrs-dink-events .osrs-panel:nth-of-type(2) .osrs-table td:nth-child(11) textarea { width: 100% !important; max-width: 100% !important; }
+</style>
+
+<div class="osrs-dashboard">
+    <main class="osrs-page osrs-dink-events">
+        <header class="osrs-page-header">
+            <h1 class="osrs-page-title">Review Submissions</h1>
+
+            <p class="osrs-page-subtitle">
+                Review automatic Dink events and manual bingo evidence that
+                need a staff decision.
+            </p>
+        </header>
+
+        <section class="osrs-panel">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Automatic Submissions</h2>
+
+                <p class="osrs-panel-description">
+                    Review linked Dink events and decide whether they should
+                    update bingo progress.
+                </p>
+            </header>
+
+            <div class="osrs-panel-body">
     {% if event_entries %}
-        <table style="width: 100%; border-collapse: collapse; color: #ccc;">
+        <div class="osrs-table-wrap">
+                    <table class="osrs-table">
             <thead>
-                <tr style="background-color: #2b2b2b;">
+                <tr>
                     <th style="padding: 10px; text-align: left;">Submission</th>
                     <th style="padding: 10px; text-align: left;">Received</th>
                     <th style="padding: 10px; text-align: left;">Submission Type</th>
@@ -34,16 +109,16 @@
 
             <tbody>
                 {% for entry in event_entries %}
-                    <tr style="border-top: 1px solid #444;">
-                        <td style="padding: 10px; white-space: nowrap;">
+                    <tr>
+                        <td style="padding: 10px;">
                             #{{ entry.event_id }}
                         </td>
 
-                        <td style="padding: 10px; white-space: nowrap;">
+                        <td style="padding: 10px;">
                             {{ entry.received_at }}
                         </td>
 
-                        <td style="padding: 10px; white-space: nowrap;">
+                        <td style="padding: 10px;">
                             {% if entry.event_type == 'LOOT' %}
                                 Drop
                             {% elif entry.event_type == 'PET' %}
@@ -53,22 +128,22 @@
                             {% endif %}
                         </td>
 
-                        <td style="padding: 10px; white-space: nowrap;">
+                        <td style="padding: 10px;">
                             {{ entry.claimed_rsn or '—' }}
                         </td>
 
-                        <td style="padding: 10px; white-space: nowrap;">
+                        <td style="padding: 10px;">
                             {{ entry.linked_player_name or '—' }}
                         </td>
 
-                        <td style="padding: 10px; white-space: nowrap;">
+                        <td style="padding: 10px;">
                             {{ entry.linked_team_name or '—' }}
                         </td>
 
-                        <td style="padding: 10px; white-space: nowrap;">
+                        <td style="padding: 10px;">
                             {% if entry.screenshot_path %}
                                 <button type="button"
-                                        class="evidence-preview-button"
+                                        class="evidence-preview-button osrs-button"
                                         data-evidence-url="{{ url_for(
                                             'admin_routes.dink_event_screenshot',
                                             event_id=entry.event_id
@@ -117,6 +192,7 @@
                                     value="{{ entry.event_id }}">
 
                                 <button type="submit"
+                                        class="osrs-button"
                                         name="action"
                                         value="accept_event"
                                         onclick="return confirm(
@@ -196,6 +272,7 @@
                                                 resize: vertical;"></textarea>
 
                                 <button type="submit"
+                                        class="osrs-button"
                                         name="action"
                                         value="reject_event"
                                         onclick="return confirm(
@@ -209,31 +286,31 @@
                 {% endfor %}
             </tbody>
         </table>
+                    </div>
     {% else %}
-        <p style="color: #ccc;">
+        <p class="osrs-empty-state">
             There are no automatic submissions waiting for review.
         </p>
     {% endif %}
-    <hr style="border: 0;
-               border-top: 1px solid #444;
-               margin: 30px 0;">
+            </div>
+        </section>
 
-    <h2 style="color: #fff;">
-        Pending Manual Evidence
-    </h2>
+        <section class="osrs-panel">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Pending Manual Evidence</h2>
 
-    <p style="color: #ccc;">
-        These are manually submitted bingo evidence items waiting for
-        staff review. Submissions from Discord and the web dashboard
-        appear here together.
-    </p>
+                <p class="osrs-panel-description">
+                    Review manual submissions from Discord and the web
+                    dashboard before they count towards bingo progress.
+                </p>
+            </header>
 
+            <div class="osrs-panel-body">
     {% if pending_manual_evidence_entries %}
-        <table style="width: 100%;
-                      border-collapse: collapse;
-                      color: #ccc;">
+        <div class="osrs-table-wrap">
+                    <table class="osrs-table">
             <thead>
-                <tr style="background-color: #2b2b2b;">
+                <tr>
                     <th style="padding: 10px; text-align: left;">
                         Submission
                     </th>
@@ -272,16 +349,16 @@
 
             <tbody>
                 {% for entry in pending_manual_evidence_entries %}
-                    <tr style="border-top: 1px solid #444;">
-                        <td style="padding: 10px; white-space: nowrap;">
+                    <tr>
+                        <td style="padding: 10px;">
                             #{{ entry.evidence_id }}
                         </td>
 
-                        <td style="padding: 10px; white-space: nowrap;">
+                        <td style="padding: 10px;">
                             {{ entry.submitted_at }}
                         </td>
 
-                        <td style="padding: 10px; white-space: nowrap;">
+                        <td style="padding: 10px;">
                             {% if entry.submission_source == 'DISCORD' %}
                                 Discord
                             {% elif entry.submission_source == 'WEB' %}
@@ -335,10 +412,10 @@
                             {{ entry.amount }}
                         </td>
 
-                        <td style="padding: 10px; white-space: nowrap;">
+                        <td style="padding: 10px;">
                             {% if entry.evidence_path %}
                                 <button type="button"
-                                        class="evidence-preview-button"
+                                        class="evidence-preview-button osrs-button"
                                         data-evidence-url="{{ url_for(
                                             'user_routes.player_evidence',
                                             evidence_type='manual',
@@ -394,6 +471,7 @@
                                        value="{{ entry.evidence_id }}">
 
                                 <button type="submit"
+                                        class="osrs-button"
                                         name="action"
                                         value="accept_manual_evidence"
                                         onclick="return confirm(
@@ -403,6 +481,7 @@
                                 </button>
 
                                 <button type="submit"
+                                        class="osrs-button"
                                         name="action"
                                         value="accept_manual_evidence_with_mvp"
                                         style="margin-top: 6px;"
@@ -483,6 +562,7 @@
                                                  resize: vertical;"></textarea>
 
                                 <button type="submit"
+                                        class="osrs-button"
                                         name="action"
                                         value="reject_manual_evidence"
                                         onclick="return confirm(
@@ -496,31 +576,31 @@
                 {% endfor %}
             </tbody>
         </table>
+                    </div>
     {% else %}
-        <p style="color: #ccc;">
+        <p class="osrs-empty-state">
             There is no pending manual evidence waiting for review.
         </p>
     {% endif %}
+            </div>
+        </section>
 
-    <hr style="border: 0;
-               border-top: 1px solid #444;
-               margin: 30px 0;">
+        <section class="osrs-panel">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Accepted Manual Evidence</h2>
 
-    <h2 style="color: #fff;">
-        Accepted Manual Evidence
-    </h2>
+                <p class="osrs-panel-description">
+                    Invalidate accepted manual submissions when a staff
+                    decision needs to be corrected.
+                </p>
+            </header>
 
-    <p style="color: #ccc;">
-        Accepted manual submissions can be invalidated here if a
-        staff decision needs to be corrected.
-    </p>
-
+            <div class="osrs-panel-body">
     {% if manual_evidence_entries %}
-        <table style="width: 100%;
-                      border-collapse: collapse;
-                      color: #ccc;">
+        <div class="osrs-table-wrap">
+                    <table class="osrs-table">
             <thead>
-                <tr style="background-color: #2b2b2b;">
+                <tr>
                     <th style="padding: 10px; text-align: left;">
                         Submission
                     </th>
@@ -550,7 +630,7 @@
 
             <tbody>
                 {% for entry in manual_evidence_entries %}
-                    <tr style="border-top: 1px solid #444;">
+                    <tr>
                         <td style="padding: 10px;">
                             #{{ entry.evidence_id }}
                         </td>
@@ -650,6 +730,7 @@
                                                  resize: vertical;"></textarea>
 
                                 <button type="submit"
+                                        class="osrs-button"
                                         name="action"
                                         value="invalidate_manual_evidence"
                                         onclick="return confirm(
@@ -663,12 +744,17 @@
                 {% endfor %}
             </tbody>
         </table>
+                    </div>
     {% else %}
-        <p style="color: #ccc;">
+        <p class="osrs-empty-state">
             There is no accepted manual evidence available to invalidate.
         </p>
     {% endif %}
+            </div>
+        </section>
+    </main>
 </div>
+
 <div id="evidence-preview-modal"
      style="display: none;
             position: fixed;
