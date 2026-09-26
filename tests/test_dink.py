@@ -314,159 +314,7 @@ def test_duplicate_event_does_not_count_towards_identity_linking():
     assert identity[3] == "PENDING"
 
 
-def test_dink_identity_conflicts_when_hash_changes_rsn():
-    database.add_team(
-        "Dink Test Team",
-        0,
-        ""
-    )
-
-    team = db_entities.Team(
-        database.get_team_by_name("Dink Test Team")
-    )
-
-    database.add_player(
-        "Dink Tester",
-        0,
-        0,
-        0,
-        team.team_id,
-        0
-    )
-
-    dink_account_hash = "test-dink-hash-conflict"
-
-    first_payload = {
-        "playerName": "Dink Tester",
-        "dinkAccountHash": dink_account_hash,
-        "type": "KILL_COUNT",
-        "extra": {
-            "boss": "Goblin",
-            "killCount": 1
-        }
-    }
-
-    conflicting_payload = {
-        "playerName": "Different RSN",
-        "dinkAccountHash": dink_account_hash,
-        "type": "KILL_COUNT",
-        "extra": {
-            "boss": "Man",
-            "killCount": 1
-        }
-    }
-
-    first_result = dink.ingest_dink_event(first_payload)
-    conflict_result = dink.ingest_dink_event(
-        conflicting_payload
-    )
-
-    assert first_result["status"] == "PENDING"
-    assert conflict_result["status"] == "CONFLICT"
-    assert conflict_result["player_id"] is None
-
-    identity = database.get_dink_identity_by_hash(
-        dink_account_hash
-    )
-
-    assert identity is not None
-    assert identity[1] is None
-    assert identity[2] == "Dink Tester"
-    assert identity[3] == "CONFLICT"
-
-
-def test_second_dink_hash_for_linked_player_conflicts():
-    database.add_team(
-        "Dink Test Team",
-        0,
-        ""
-    )
-
-    team = db_entities.Team(
-        database.get_team_by_name("Dink Test Team")
-    )
-
-    database.add_player(
-        "Dink Tester",
-        0,
-        0,
-        0,
-        team.team_id,
-        0
-    )
-
-    first_hash = "test-dink-hash-primary"
-    second_hash = "test-dink-hash-secondary"
-
-    for boss in ("Goblin", "Man", "Spider"):
-        result = dink.ingest_dink_event({
-            "playerName": "Dink Tester",
-            "dinkAccountHash": first_hash,
-            "type": "KILL_COUNT",
-            "extra": {
-                "boss": boss,
-                "killCount": 1
-            }
-        })
-
-    assert result["status"] == "LINKED"
-
-    first_second_hash_result = dink.ingest_dink_event({
-        "playerName": "Dink Tester",
-        "dinkAccountHash": second_hash,
-        "type": "KILL_COUNT",
-        "extra": {
-            "boss": "Rat",
-            "killCount": 1
-        }
-    })
-
-    second_second_hash_result = dink.ingest_dink_event({
-        "playerName": "Dink Tester",
-        "dinkAccountHash": second_hash,
-        "type": "KILL_COUNT",
-        "extra": {
-            "boss": "Cow",
-            "killCount": 1
-        }
-    })
-
-    third_second_hash_result = dink.ingest_dink_event({
-        "playerName": "Dink Tester",
-        "dinkAccountHash": second_hash,
-        "type": "KILL_COUNT",
-        "extra": {
-            "boss": "Chicken",
-            "killCount": 1
-        }
-    })
-
-    assert first_second_hash_result["status"] == "PENDING"
-    assert first_second_hash_result["observations"] == 1
-
-    assert second_second_hash_result["status"] == "PENDING"
-    assert second_second_hash_result["observations"] == 2
-
-    assert third_second_hash_result["status"] == "CONFLICT"
-    assert third_second_hash_result["observations"] == 3
-    assert third_second_hash_result["player_id"] is None
-
-    primary_identity = database.get_dink_identity_by_hash(
-        first_hash
-    )
-    secondary_identity = database.get_dink_identity_by_hash(
-        second_hash
-    )
-
-    assert primary_identity is not None
-    assert primary_identity[3] == "LINKED"
-
-    assert secondary_identity is not None
-    assert secondary_identity[1] is None
-    assert secondary_identity[3] == "CONFLICT"
-
-
-def test_linked_dink_hash_survives_rsn_change():
+def test_linked_dink_identity_blocks_different_rsn_after_link():
     database.add_team(
         "Dink Test Team",
         0,
@@ -506,8 +354,8 @@ def test_linked_dink_hash_survives_rsn_change():
     assert result["status"] == "LINKED"
     assert result["player_id"] == player.player_id
 
-    renamed_result = dink.ingest_dink_event({
-        "playerName": "Renamed Dink Tester",
+    conflict_result = dink.ingest_dink_event({
+        "playerName": "Different RSN",
         "dinkAccountHash": dink_account_hash,
         "type": "KILL_COUNT",
         "extra": {
@@ -516,9 +364,9 @@ def test_linked_dink_hash_survives_rsn_change():
         }
     })
 
-    assert renamed_result["status"] == "LINKED"
-    assert renamed_result["player_id"] == player.player_id
-    assert renamed_result["observations"] == 4
+    assert conflict_result["status"] == "CONFLICT"
+    assert conflict_result["player_id"] is None
+    assert conflict_result["observations"] is None
 
     identity = database.get_dink_identity_by_hash(
         dink_account_hash

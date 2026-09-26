@@ -529,10 +529,43 @@ def ingest_dink_event(data, img_file=None):
         dink_account_hash
     )
 
-    # Once a Dink hash is linked, the hash becomes the stable
-    # identity rather than relying on the player's current RSN.
     if identity is not None and identity[3] == 'LINKED':
         player_id = identity[1]
+        linked_player = database.get_player_by_id(
+            player_id
+        )
+
+        if linked_player is None:
+            database.update_dink_event_identity(
+                event_id,
+                None,
+                'PENDING_IDENTITY'
+            )
+
+            return {
+                'event_id': event_id,
+                'status': 'CONFLICT',
+                'player_id': None,
+                'observations': None
+            }
+
+        linked_player_name = db_entities.Player(
+            linked_player
+        ).player_name
+
+        if linked_player_name.lower() != player_name.lower():
+            database.update_dink_event_identity(
+                event_id,
+                None,
+                'PENDING_IDENTITY'
+            )
+
+            return {
+                'event_id': event_id,
+                'status': 'CONFLICT',
+                'player_id': None,
+                'observations': None
+            }
 
         database.update_dink_event_identity(
             event_id,
