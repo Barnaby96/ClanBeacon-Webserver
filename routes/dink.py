@@ -1,7 +1,8 @@
-import os
+﻿import os
 import hashlib
 import hmac
 from collections import defaultdict
+from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 import json
@@ -15,6 +16,43 @@ from utils.db_entities import Player, Team, Tile, Drop
 from utils.send_webhook import send_webhook
 
 drop_submission_route = Blueprint("dink", __name__)
+
+
+def is_dink_tracking_active():
+    if os.getenv('TRACKING') == "FALSE":
+        return False
+
+    timing = database.get_wom_competition_timing()
+
+    if timing is None:
+        return False
+
+    starts_at = timing["starts_at"]
+    ends_at = timing["ends_at"]
+
+    if starts_at.tzinfo is None:
+        starts_at = starts_at.replace(
+            tzinfo=timezone.utc
+        )
+    else:
+        starts_at = starts_at.astimezone(
+            timezone.utc
+        )
+
+    if ends_at.tzinfo is None:
+        ends_at = ends_at.replace(
+            tzinfo=timezone.utc
+        )
+    else:
+        ends_at = ends_at.astimezone(
+            timezone.utc
+        )
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    return starts_at <= now < ends_at
 
 
 def create_dink_event_fingerprint(
@@ -1186,7 +1224,7 @@ def handle_request(provided_secret):
             "message": "Not found"
         }), 404
 
-    if os.getenv('TRACKING') == "FALSE":
+    if not is_dink_tracking_active():
         return jsonify({
             "message": "Not currently tracking"
         })

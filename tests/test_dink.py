@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 import hashlib
@@ -43,12 +44,128 @@ def client(monkeypatch):
         "DINK_INGEST_SECRET",
         TEST_DINK_INGEST_SECRET
     )
+    monkeypatch.setattr(
+        dink,
+        "is_dink_tracking_active",
+        lambda: True
+    )
 
     app = create_app()
     app.config["TESTING"] = True
 
     with app.test_client() as test_client:
         yield test_client
+
+
+def set_wom_competition_window(
+    starts_at,
+    ends_at
+):
+    database.import_wom_competition(
+        123456,
+        {
+            "Dink Test Team": [
+                "Dink Tester"
+            ]
+        },
+        "Blackout Sky",
+        {
+            "dink tester": 987654
+        },
+        competition_starts_at=starts_at.isoformat(),
+        competition_ends_at=ends_at.isoformat()
+    )
+
+
+def test_dink_tracking_inactive_without_wom_timing(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "TRACKING",
+        "TRUE"
+    )
+
+    assert dink.is_dink_tracking_active() is False
+
+
+def test_dink_tracking_inactive_before_competition_start(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "TRACKING",
+        "TRUE"
+    )
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    set_wom_competition_window(
+        now + timedelta(hours=1),
+        now + timedelta(hours=2)
+    )
+
+    assert dink.is_dink_tracking_active() is False
+
+
+def test_dink_tracking_active_during_competition_window(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "TRACKING",
+        "TRUE"
+    )
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    set_wom_competition_window(
+        now - timedelta(hours=1),
+        now + timedelta(hours=1)
+    )
+
+    assert dink.is_dink_tracking_active() is True
+
+
+def test_dink_tracking_inactive_after_competition_end(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "TRACKING",
+        "TRUE"
+    )
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    set_wom_competition_window(
+        now - timedelta(hours=2),
+        now - timedelta(hours=1)
+    )
+
+    assert dink.is_dink_tracking_active() is False
+
+
+def test_dink_tracking_manual_false_overrides_active_competition(
+    monkeypatch
+):
+    monkeypatch.setenv(
+        "TRACKING",
+        "FALSE"
+    )
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    set_wom_competition_window(
+        now - timedelta(hours=1),
+        now + timedelta(hours=1)
+    )
+
+    assert dink.is_dink_tracking_active() is False
 
 
 def test_dink_identity_links_after_three_distinct_events():
