@@ -78,15 +78,6 @@ class Tile:
         )
 
 
-class Request:
-    def __init__(self, request_tuple):
-        self.request_id = request_tuple[0],
-        self.team_name = request_tuple[1],
-        self.player_name = request_tuple[2],
-        self.tile_name = request_tuple[3],
-        self.item_name = request_tuple[4]
-        self.evidence = request_tuple[5]
-
 
 class PartialCompletion:
     def __init__(self, partial_completion_tuple):

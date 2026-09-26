@@ -13846,24 +13846,6 @@ def get_manual_progress_by_tile_id_and_team_id(tile_id, team_id):
             return 0
 
 
-def add_request(team_name, player_name, tile_name, item_description, image):
-    with connect() as conn:
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO requests (team_name, player_name, tile_name, item_name, evidence) VALUES (%s, %s, %s, %s, %s)", (team_name, player_name, tile_name, item_description, image,))
-
-
-def get_request():
-    with connect() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM requests")
-        return cursor.fetchone()
-
-
-def delete_request(request_id):
-    with connect() as conn:
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM requests WHERE request_id = %s", (request_id,))
-
 
 def add_chats(player_id, team_id, tile_id, chat):
     with connect() as conn:
