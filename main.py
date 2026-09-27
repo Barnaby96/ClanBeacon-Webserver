@@ -1,5 +1,6 @@
 import os
 import threading
+import time
 
 from dotenv import load_dotenv
 
@@ -32,6 +33,8 @@ from utils.database import (
 
 from utils.branding import BOT_NAME
 
+
+from utils import bingo_lifecycle
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'development secret')
