@@ -87,6 +87,16 @@ def test_build_bingo_history_title_uses_clan_and_dates():
     assert title == "Indoor Sky Bingo 01/09/2026 - 07/09/2026"
 
 
+def test_build_bingo_history_title_accepts_string_dates():
+    title = final_results.build_bingo_history_title(
+        "Indoor Sky",
+        "2026-09-01T08:00:00+00:00",
+        "2026-09-07T08:00:00+00:00"
+    )
+
+    assert title == "Indoor Sky Bingo 01/09/2026 - 07/09/2026"
+
+
 def test_publish_final_results_posts_to_each_team_webhook_with_own_role(
     monkeypatch
 ):

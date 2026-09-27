@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 from utils import bingo, board_renderer, database, db_entities
 from utils.send_webhook import send_completion_webhook
@@ -149,7 +150,36 @@ def _history_date_label(value):
     if value is None:
         return "Unknown Date"
 
-    return value.strftime("%d/%m/%Y")
+    if hasattr(value, "strftime"):
+        return value.strftime("%d/%m/%Y")
+
+    value_text = str(value).strip()
+    if not value_text:
+        return "Unknown Date"
+
+    iso_candidates = [
+        value_text,
+        value_text.replace("Z", "+00:00")
+    ]
+
+    for candidate in iso_candidates:
+        try:
+            parsed_value = datetime.fromisoformat(candidate)
+        except ValueError:
+            continue
+
+        return parsed_value.strftime("%d/%m/%Y")
+
+    date_part = value_text.split("T", 1)[0].split(" ", 1)[0]
+    if (
+        len(date_part) == 10
+        and date_part[4] == "-"
+        and date_part[7] == "-"
+    ):
+        year, month, day = date_part.split("-")
+        return f"{day}/{month}/{year}"
+
+    return value_text
 
 
 def build_bingo_history_title(clan_name, starts_at, ends_at):
