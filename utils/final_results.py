@@ -1,3 +1,5 @@
+import os
+
 from utils import bingo, board_renderer, database, db_entities
 from utils.send_webhook import send_completion_webhook
 
@@ -136,7 +138,39 @@ def build_final_results_message(leaderboard_summary):
     )
 
 
-def _render_winning_team_board(leaderboard_summary):
+def _history_clan_name():
+    return (
+        os.getenv("DISCORD_SERVER_NAME", "Clan").strip()
+        or "Clan"
+    )
+
+
+def _history_date_label(value):
+    if value is None:
+        return "Unknown Date"
+
+    return value.strftime("%d/%m/%Y")
+
+
+def build_bingo_history_title(clan_name, starts_at, ends_at):
+    return (
+        f"{clan_name} Bingo "
+        f"{_history_date_label(starts_at)} - "
+        f"{_history_date_label(ends_at)}"
+    )
+
+
+def _publisher_details(published_by_user):
+    if published_by_user is None:
+        return None, None
+
+    return (
+        getattr(published_by_user, "id", None),
+        getattr(published_by_user, "username", None)
+    )
+
+
+def _winning_team_board_snapshot(leaderboard_summary):
     teams = leaderboard_summary.get("teams") or []
 
     if not teams:
@@ -148,15 +182,35 @@ def _render_winning_team_board(leaderboard_summary):
     winning_team_id = teams[0]["team_id"]
     board_state = bingo.get_board_render_state(winning_team_id)
 
+    return {
+        "winning_team_id": winning_team_id,
+        "tile_names_by_coordinate": dict(
+            board_state["tile_names_by_coordinate"]
+        ),
+        "completed_coordinates": list(
+            board_state["completed_coordinates"]
+        ),
+        "partial_coordinates": list(
+            board_state["partial_coordinates"]
+        )
+    }
+
+
+def _render_board_from_snapshot(board_snapshot):
     board_image = board_renderer.render_bingo_board(
-        board_state["tile_names_by_coordinate"],
-        completed_coordinates=board_state["completed_coordinates"],
-        partial_coordinates=board_state["partial_coordinates"]
+        board_snapshot["tile_names_by_coordinate"],
+        completed_coordinates=board_snapshot["completed_coordinates"],
+        partial_coordinates=board_snapshot["partial_coordinates"]
     )
 
     board_image.seek(0)
 
     return board_image
+
+
+def _render_winning_team_board(leaderboard_summary):
+    board_snapshot = _winning_team_board_snapshot(leaderboard_summary)
+    return _render_board_from_snapshot(board_snapshot)
 
 
 def _all_teams():
@@ -175,7 +229,7 @@ def _teams_with_webhooks(teams):
     ]
 
 
-def publish_final_results_to_team_webhooks():
+def publish_final_results_to_team_webhooks(published_by_user=None):
     leaderboard_summary = database.get_leaderboard_summary()
     message = build_final_results_message(leaderboard_summary)
 
@@ -187,13 +241,43 @@ def publish_final_results_to_team_webhooks():
             "webhooks are configured."
         )
 
+    board_snapshot = _winning_team_board_snapshot(leaderboard_summary)
+    competition_id = database.get_wom_competition_id()
+    timing = database.get_wom_competition_timing()
+
+    if timing is None:
+        starts_at = None
+        ends_at = None
+    else:
+        starts_at, ends_at = timing
+
+    clan_name = _history_clan_name()
+    published_by_user_id, published_by_username = _publisher_details(
+        published_by_user
+    )
+
+    history_id = database.create_bingo_history_record(
+        title=build_bingo_history_title(
+            clan_name,
+            starts_at,
+            ends_at
+        ),
+        clan_name=clan_name,
+        competition_id=competition_id,
+        competition_starts_at=starts_at,
+        competition_ends_at=ends_at,
+        published_by_user_id=published_by_user_id,
+        published_by_username=published_by_username,
+        final_message=message,
+        leaderboard_snapshot=leaderboard_summary,
+        board_snapshot=board_snapshot
+    )
+
     sent_count = 0
     failed = []
 
     for team in teams_with_webhooks:
-        board_image = _render_winning_team_board(
-            leaderboard_summary
-        )
+        board_image = _render_board_from_snapshot(board_snapshot)
 
         try:
             send_completion_webhook(
@@ -212,5 +296,6 @@ def publish_final_results_to_team_webhooks():
 
     return {
         "sent_count": sent_count,
-        "failed": failed
+        "failed": failed,
+        "history_id": history_id
     }

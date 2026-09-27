@@ -1,6 +1,8 @@
 import os
 import csv
 import json
+from decimal import Decimal
+from datetime import date, datetime
 import hashlib
 import secrets
 import psycopg2
@@ -248,6 +250,52 @@ def ensure_schema():
             CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_ci
             ON users (LOWER(BTRIM(username)))
         ''')
+
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS bingo_history (
+                history_id BIGSERIAL PRIMARY KEY,
+                title TEXT NOT NULL,
+                clan_name TEXT NOT NULL,
+                competition_id BIGINT,
+                competition_starts_at TIMESTAMPTZ,
+                competition_ends_at TIMESTAMPTZ,
+                published_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP,
+                published_by_user_id INTEGER,
+                published_by_username TEXT,
+                final_message TEXT NOT NULL,
+                leaderboard_snapshot JSONB NOT NULL,
+                board_snapshot JSONB NOT NULL,
+                deleted_at TIMESTAMPTZ,
+                deleted_by_user_id INTEGER,
+                deleted_by_username TEXT,
+                FOREIGN KEY (published_by_user_id)
+                    REFERENCES users(user_id)
+                    ON DELETE SET NULL,
+                FOREIGN KEY (deleted_by_user_id)
+                    REFERENCES users(user_id)
+                    ON DELETE SET NULL,
+                CHECK (
+                    (
+                        deleted_at IS NULL
+                        AND deleted_by_user_id IS NULL
+                        AND deleted_by_username IS NULL
+                    )
+                    OR deleted_at IS NOT NULL
+                )
+            )
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS
+                idx_bingo_history_visible
+            ON bingo_history (
+                published_at DESC,
+                history_id DESC
+            )
+            WHERE deleted_at IS NULL
+        """)
 
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS dashboard_link_codes (
@@ -1539,6 +1587,212 @@ def get_recent_wom_refresh_audit_rows(limit=10):
         for row in rows
     ]
 
+
+
+
+def _bingo_history_json_default(value):
+    if isinstance(value, Decimal):
+        return float(value)
+
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+
+    raise TypeError(
+        f"Object of type {type(value).__name__} is not JSON serialisable"
+    )
+
+
+
+def create_bingo_history_record(
+    title,
+    clan_name,
+    competition_id,
+    competition_starts_at,
+    competition_ends_at,
+    published_by_user_id,
+    published_by_username,
+    final_message,
+    leaderboard_snapshot,
+    board_snapshot
+):
+    with connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO bingo_history (
+                title,
+                clan_name,
+                competition_id,
+                competition_starts_at,
+                competition_ends_at,
+                published_by_user_id,
+                published_by_username,
+                final_message,
+                leaderboard_snapshot,
+                board_snapshot
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s::jsonb,
+                %s::jsonb
+            )
+            RETURNING history_id
+            """,
+            (
+                title,
+                clan_name,
+                competition_id,
+                competition_starts_at,
+                competition_ends_at,
+                published_by_user_id,
+                published_by_username,
+                final_message,
+                json.dumps(leaderboard_snapshot, default=_bingo_history_json_default),
+                json.dumps(board_snapshot, default=_bingo_history_json_default)
+            )
+        )
+        history_id = cursor.fetchone()[0]
+        conn.commit()
+
+    return history_id
+
+
+def _bingo_history_row_to_dict(row):
+    return {
+        "history_id": row[0],
+        "title": row[1],
+        "clan_name": row[2],
+        "competition_id": row[3],
+        "competition_starts_at": row[4],
+        "competition_ends_at": row[5],
+        "published_at": row[6],
+        "published_by_user_id": row[7],
+        "published_by_username": row[8],
+        "final_message": row[9],
+        "leaderboard_snapshot": row[10],
+        "board_snapshot": row[11],
+        "deleted_at": row[12],
+        "deleted_by_user_id": row[13],
+        "deleted_by_username": row[14]
+    }
+
+
+def get_bingo_history_records(include_deleted=False):
+    where_clause = ""
+
+    if not include_deleted:
+        where_clause = "WHERE deleted_at IS NULL"
+
+    with connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            f"""
+            SELECT
+                history_id,
+                title,
+                clan_name,
+                competition_id,
+                competition_starts_at,
+                competition_ends_at,
+                published_at,
+                published_by_user_id,
+                published_by_username,
+                final_message,
+                leaderboard_snapshot,
+                board_snapshot,
+                deleted_at,
+                deleted_by_user_id,
+                deleted_by_username
+            FROM bingo_history
+            {where_clause}
+            ORDER BY
+                published_at DESC,
+                history_id DESC
+            """
+        )
+        rows = cursor.fetchall()
+
+    return [
+        _bingo_history_row_to_dict(row)
+        for row in rows
+    ]
+
+
+def get_bingo_history_record(history_id, include_deleted=False):
+    deleted_filter = ""
+
+    if not include_deleted:
+        deleted_filter = "AND deleted_at IS NULL"
+
+    with connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            f"""
+            SELECT
+                history_id,
+                title,
+                clan_name,
+                competition_id,
+                competition_starts_at,
+                competition_ends_at,
+                published_at,
+                published_by_user_id,
+                published_by_username,
+                final_message,
+                leaderboard_snapshot,
+                board_snapshot,
+                deleted_at,
+                deleted_by_user_id,
+                deleted_by_username
+            FROM bingo_history
+            WHERE history_id = %s
+            {deleted_filter}
+            """,
+            (history_id,)
+        )
+        row = cursor.fetchone()
+
+    if row is None:
+        return None
+
+    return _bingo_history_row_to_dict(row)
+
+
+def soft_delete_bingo_history_record(
+    history_id,
+    deleted_by_user_id,
+    deleted_by_username
+):
+    with connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE bingo_history
+            SET
+                deleted_at = CURRENT_TIMESTAMP,
+                deleted_by_user_id = %s,
+                deleted_by_username = %s
+            WHERE history_id = %s
+              AND deleted_at IS NULL
+            RETURNING history_id
+            """,
+            (
+                deleted_by_user_id,
+                deleted_by_username,
+                history_id
+            )
+        )
+        row = cursor.fetchone()
+        conn.commit()
+
+    return row is not None
 
 def reset_bingo_event_data():
     tables_to_clear = [
@@ -14430,6 +14684,51 @@ def reset_tables():
         ON users (player_id)
         WHERE player_id IS NOT NULL
     ''')
+
+
+    cursor.execute("""
+        CREATE TABLE bingo_history (
+            history_id BIGSERIAL PRIMARY KEY,
+            title TEXT NOT NULL,
+            clan_name TEXT NOT NULL,
+            competition_id BIGINT,
+            competition_starts_at TIMESTAMPTZ,
+            competition_ends_at TIMESTAMPTZ,
+            published_at TIMESTAMPTZ NOT NULL
+                DEFAULT CURRENT_TIMESTAMP,
+            published_by_user_id INTEGER,
+            published_by_username TEXT,
+            final_message TEXT NOT NULL,
+            leaderboard_snapshot JSONB NOT NULL,
+            board_snapshot JSONB NOT NULL,
+            deleted_at TIMESTAMPTZ,
+            deleted_by_user_id INTEGER,
+            deleted_by_username TEXT,
+            FOREIGN KEY (published_by_user_id)
+                REFERENCES users(user_id)
+                ON DELETE SET NULL,
+            FOREIGN KEY (deleted_by_user_id)
+                REFERENCES users(user_id)
+                ON DELETE SET NULL,
+            CHECK (
+                (
+                    deleted_at IS NULL
+                    AND deleted_by_user_id IS NULL
+                    AND deleted_by_username IS NULL
+                )
+                OR deleted_at IS NOT NULL
+            )
+        )
+    """)
+
+    cursor.execute("""
+        CREATE INDEX idx_bingo_history_visible
+        ON bingo_history (
+            published_at DESC,
+            history_id DESC
+        )
+        WHERE deleted_at IS NULL
+    """)
 
     cursor.execute('''
         CREATE TABLE bingo_config (

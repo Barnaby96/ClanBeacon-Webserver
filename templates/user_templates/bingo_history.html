@@ -1,0 +1,388 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<title>Bingo History</title>
+
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
+
+<style>
+    .osrs-bingo-history {
+        max-width: min(98vw, 1600px);
+    }
+
+    .osrs-bingo-history .osrs-panel-body {
+        overflow: visible;
+    }
+
+    .osrs-bingo-history .osrs-panel-body,
+    .osrs-bingo-history .osrs-panel-body p,
+    .osrs-bingo-history .osrs-panel-body td,
+    .osrs-bingo-history .osrs-panel-body th,
+    .osrs-bingo-history .osrs-panel-body details,
+    .osrs-bingo-history .osrs-panel-body summary,
+    .osrs-bingo-history .osrs-history-message {
+        color: #1a1208 !important;
+        text-shadow: none !important;
+        font-family: "RuneScape Plain", "RuneScape", Arial, sans-serif !important;
+        letter-spacing: 0.02em;
+    }
+
+    .osrs-bingo-history .osrs-page-subtitle,
+    .osrs-bingo-history .osrs-panel-description {
+        font-family: "RuneScape Plain", "RuneScape", Arial, sans-serif !important;
+        letter-spacing: 0.02em;
+    }
+
+    .osrs-bingo-history .osrs-history-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        justify-content: flex-end;
+    }
+
+    .osrs-bingo-history .osrs-history-empty-panel {
+        max-width: 900px;
+    }
+
+    .osrs-bingo-history .osrs-history-empty-body {
+        min-height: 180px;
+        display: flex;
+        align-items: center;
+    }
+
+    .osrs-bingo-history .osrs-history-empty-copy {
+        max-width: 620px;
+    }
+
+    .osrs-bingo-history .osrs-history-empty-copy p {
+        margin-top: 10px;
+        line-height: 1.6;
+    }
+
+    .osrs-bingo-history details {
+        width: 100%;
+    }
+
+    .osrs-bingo-history summary {
+        cursor: pointer;
+        list-style: none;
+        width: fit-content;
+    }
+
+    .osrs-bingo-history summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .osrs-bingo-history .osrs-table-wrap {
+        overflow-x: auto;
+    }
+
+    .osrs-bingo-history .osrs-table {
+        width: 100%;
+        min-width: 0;
+        table-layout: fixed;
+    }
+
+    .osrs-bingo-history .osrs-table th,
+    .osrs-bingo-history .osrs-table td {
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        vertical-align: top;
+        box-sizing: border-box;
+    }
+
+    .osrs-history-board-image {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin-top: 16px;
+        border-radius: 6px;
+    }
+
+    .osrs-history-message {
+        white-space: pre-wrap;
+        margin: 0;
+        overflow-x: auto;
+    }
+
+    .osrs-history-delete-dialog {
+        max-width: 520px;
+        width: calc(100% - 32px);
+    }
+
+    .osrs-history-delete-dialog::backdrop {
+        background: rgba(0, 0, 0, 0.7);
+    }
+</style>
+
+<div class="osrs-dashboard">
+    <main class="osrs-page osrs-bingo-history">
+    <header class="osrs-page-header">
+        <div>
+            <h1 class="osrs-page-title">Bingo History</h1>
+            <p class="osrs-page-subtitle">
+                Published Bingo results and final boards
+            </p>
+        </div>
+    </header>
+
+    {% if records %}
+        {% for record in records %}
+            {% set leaderboard = record.leaderboard_snapshot %}
+            {% set teams = leaderboard.teams or [] %}
+            {% set clan = leaderboard.clan or {} %}
+
+            <section class="osrs-panel">
+                <header class="osrs-panel-header">
+                    <div>
+                        <h2 class="osrs-panel-title">
+                            {{ record.title }}
+                        </h2>
+                        <p class="osrs-panel-description">
+                            Published
+                            {% if record.published_at %}
+                                <time
+                                    class="osrs-local-datetime"
+                                    datetime="{{ record.published_at.isoformat() }}"
+                                >
+                                    {{ record.published_at }}
+                                </time>
+                            {% else %}
+                                at an unknown time
+                            {% endif %}
+                            {% if record.published_by_username %}
+                                by {{ record.published_by_username }}
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <div class="osrs-history-actions">
+                        {% if current_user.is_organiser %}
+                            <button
+                                type="button"
+                                class="osrs-button"
+                                onclick="document.getElementById('delete-history-{{ record.history_id }}').showModal();"
+                            >
+                                Delete Record
+                            </button>
+                        {% endif %}
+                    </div>
+                </header>
+
+                <div class="osrs-panel-body">
+                    <details>
+                        <summary class="osrs-button">
+                            Show Bingo Details
+                        </summary>
+
+                        <section class="osrs-panel">
+                            <header class="osrs-panel-header">
+                                <h3 class="osrs-panel-title">
+                                    Final Board
+                                </h3>
+                            </header>
+
+                            <div class="osrs-panel-body">
+                                <img
+                                    class="osrs-history-board-image"
+                                    src="{{ url_for(
+                                        'user_routes.bingo_history_board',
+                                        history_id=record.history_id
+                                    ) }}"
+                                    alt="Final board for {{ record.title }}"
+                                >
+                            </div>
+                        </section>
+
+                        <section class="osrs-panel">
+                            <header class="osrs-panel-header">
+                                <h3 class="osrs-panel-title">
+                                    Team Rankings
+                                </h3>
+                            </header>
+
+                            <div class="osrs-panel-body">
+                                {% if teams %}
+                                    <div class="osrs-table-wrap">
+                                    <table class="osrs-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Place</th>
+                                                <th>Team</th>
+                                                <th>Bingo Points</th>
+                                                <th>Tiles Completed</th>
+                                                <th>Team MVP</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for team in teams %}
+                                                <tr>
+                                                    <td>{{ team.rank }}</td>
+                                                    <td>{{ team.team_name }}</td>
+                                                    <td>{{ team.bingo_points }}</td>
+                                                    <td>{{ team.tiles_completed }}</td>
+                                                    <td>
+                                                        {% if team.mvp_players %}
+                                                            {% for player in team.mvp_players %}
+                                                                {{ player.player_name }}{% if not loop.last %}, {% endif %}
+                                                            {% endfor %}
+                                                            {% if team.mvp_points is not none %}
+                                                                ({{ team.mvp_points }} MVP Points)
+                                                            {% endif %}
+                                                        {% else %}
+                                                            No MVP Points awarded
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                    </div>
+                                {% else %}
+                                    <p>No ranking details were stored for this Bingo.</p>
+                                {% endif %}
+                            </div>
+                        </section>
+
+                        <section class="osrs-panel">
+                            <header class="osrs-panel-header">
+                                <h3 class="osrs-panel-title">
+                                    Clan Totals
+                                </h3>
+                            </header>
+
+                            <div class="osrs-panel-body">
+                                <div class="osrs-table-wrap">
+                                    <table class="osrs-table">
+                                    <tbody>
+                                        <tr>
+                                            <th>Boss KC</th>
+                                            <td>{{ clan.relevant_boss_kc or 0 }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Drops</th>
+                                            <td>{{ clan.relevant_drop_quantity or 0 }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>XP</th>
+                                            <td>{{ clan.relevant_xp or 0 }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                    </div>
+                            </div>
+                        </section>
+
+                        <section class="osrs-panel">
+                            <header class="osrs-panel-header">
+                                <h3 class="osrs-panel-title">
+                                    Published Message
+                                </h3>
+                            </header>
+
+                            <div class="osrs-panel-body">
+                                <pre class="osrs-history-message">{{ record.final_message }}</pre>
+                            </div>
+                        </section>
+                    </details>
+                </div>
+            </section>
+
+            {% if current_user.is_organiser %}
+                <dialog
+                    id="delete-history-{{ record.history_id }}"
+                    class="osrs-panel osrs-history-delete-dialog"
+                >
+                    <header class="osrs-panel-header">
+                        <h2 class="osrs-panel-title">
+                            Delete History Record
+                        </h2>
+                        <p class="osrs-panel-description">
+                            This hides {{ record.title }} from Bingo History.
+                        </p>
+                    </header>
+
+                    <div class="osrs-panel-body">
+                        <form
+                            action="{{ url_for(
+                                'user_routes.delete_bingo_history',
+                                history_id=record.history_id
+                            ) }}"
+                            method="post"
+                            class="osrs-form-grid"
+                        >
+                            <div class="osrs-form-field">
+                                <label
+                                    for="delete_password_{{ record.history_id }}"
+                                    class="osrs-form-label"
+                                >
+                                    Your Dashboard Password
+                                </label>
+
+                                <input
+                                    type="password"
+                                    id="delete_password_{{ record.history_id }}"
+                                    name="delete_password"
+                                    required
+                                    autocomplete="current-password"
+                                    class="osrs-form-input"
+                                >
+                            </div>
+
+                            <div class="osrs-form-actions">
+                                <button
+                                    type="submit"
+                                    class="osrs-button"
+                                >
+                                    Delete Record
+                                </button>
+
+                                <button
+                                    type="button"
+                                    class="osrs-button"
+                                    onclick="document.getElementById('delete-history-{{ record.history_id }}').close();"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </dialog>
+            {% endif %}
+        {% endfor %}
+    {% else %}
+        <section class="osrs-panel osrs-history-empty-panel">
+            <header class="osrs-panel-header">
+                <div>
+                    <h2 class="osrs-panel-title">No Bingo History Yet</h2>
+                    <p class="osrs-panel-description">
+                        No final results have been published yet.
+                    </p>
+                </div>
+            </header>
+
+            <div class="osrs-panel-body osrs-history-empty-body">
+                <div class="osrs-history-empty-copy">
+                    <p>
+                        Bingo History will be populated automatically when an
+                        organiser uses the Publish Final Results button on the
+                        leaderboard.
+                    </p>
+                    <p>
+                        Once published, each record will keep its final board,
+                        team rankings, clan totals and published message, even
+                        after the active Bingo event is wiped.
+                    </p>
+                </div>
+            </div>
+        </section>
+    {% endif %}
+    </main>
+</div>
+
+{% endblock %}

@@ -29,6 +29,7 @@ from utils.manual_evidence_files import (
     save_manual_evidence_file
 )
 from utils.team_photo_files import resolve_team_photo_path
+from utils import board_renderer
 
 user_routes = Blueprint("user_routes", __name__)
 
@@ -955,6 +956,88 @@ def player(player_name):
     )
 
 
+@user_routes.route('/bingo_history', methods=['GET'])
+@login_required
+def bingo_history():
+    records = database.get_bingo_history_records()
+
+    return render_template(
+        "user_templates/bingo_history.html",
+        records=records
+    )
+
+
+@user_routes.route(
+    '/bingo_history/<int:history_id>/board',
+    methods=['GET']
+)
+@login_required
+def bingo_history_board(history_id):
+    record = database.get_bingo_history_record(history_id)
+
+    if record is None:
+        abort(404)
+
+    board_snapshot = record["board_snapshot"]
+    board_image = board_renderer.render_bingo_board(
+        board_snapshot["tile_names_by_coordinate"],
+        completed_coordinates=board_snapshot["completed_coordinates"],
+        partial_coordinates=board_snapshot["partial_coordinates"]
+    )
+    board_image.seek(0)
+
+    return send_file(
+        board_image,
+        mimetype="image/png"
+    )
+
+
+@user_routes.route(
+    '/bingo_history/<int:history_id>/delete',
+    methods=['POST']
+)
+@login_required
+def delete_bingo_history(history_id):
+    if not current_user.is_organiser:
+        abort(403)
+
+    delete_password = request.form.get(
+        "delete_password",
+        ""
+    )
+
+    if not database.check_password(
+        current_user.password,
+        delete_password
+    ):
+        flash(
+            "Password confirmation was incorrect.",
+            "danger"
+        )
+        return redirect(url_for('user_routes.bingo_history'))
+
+    deleted = database.soft_delete_bingo_history_record(
+        history_id,
+        deleted_by_user_id=current_user.id,
+        deleted_by_username=current_user.username
+    )
+
+    if deleted:
+        flash(
+            "Bingo history record deleted.",
+            "success"
+        )
+    else:
+        flash(
+            "That Bingo history record could not be found.",
+            "danger"
+        )
+
+    return redirect(url_for('user_routes.bingo_history'))
+
+
+
+
 @user_routes.route('/leaderboard', methods=['GET'])
 @login_required
 def leaderboard():
@@ -1018,7 +1101,9 @@ def publish_final_results():
         )
 
     try:
-        result = final_results.publish_final_results_to_team_webhooks()
+        result = final_results.publish_final_results_to_team_webhooks(
+            published_by_user=current_user
+        )
     except ValueError as error:
         flash(
             str(error),

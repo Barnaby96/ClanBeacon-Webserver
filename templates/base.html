@@ -135,6 +135,50 @@
             transition: 0.3s; /* Transition effects on hover (color) */
         }
 
+        .overlay-menu-details {
+            width: 100%;
+            text-align: center;
+            margin: 6px 0;
+        }
+
+        .overlay-menu-details summary {
+            cursor: pointer;
+            list-style: none;
+            padding: 8px;
+            font-size: 36px;
+            color: #818181;
+            transition: 0.3s;
+        }
+
+        .overlay-menu-details summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .overlay-menu-details summary:hover,
+        .overlay-menu-details summary:focus {
+            color: #f1f1f1;
+        }
+
+        .overlay-menu-details summary::after {
+            content: " \25B8";
+            font-size: 0.75em;
+        }
+
+        .overlay-menu-details[open] summary::after {
+            content: " \25BE";
+        }
+
+        .overlay-menu-details a.overlay-menu-sublink {
+            font-size: 28px;
+            padding: 5px 8px;
+        }
+
+        .overlay a.overlay-menu-primary {
+            font-size: 36px;
+            padding: 8px;
+        }
+
+
         /* When you mouse over the navigation links, change their color */
         .overlay a:hover, .overlay a:focus {
             color: #f1f1f1;
@@ -307,16 +351,52 @@
         <!-- Overlay content -->
         <div class="overlay-content">
             <h1>Bingo Player</h1>
-            <a href="/user/leaderboard">Leaderboard</a>
-            <a href="{{ url_for('user_routes.player_landing') }}">Player Data</a>
-            <a href="{{ url_for('user_routes.team_landing') }}">Team Data</a>
-            <a href="/board">Board</a>
-            <a href="/tutorial/dink">Dink Setup</a>
-            {% if current_user.is_authenticated %}
-            <a href="{{ url_for('user_routes.submit_evidence') }}">Submit Evidence</a>
-            {% endif %}
+
+            <details class="overlay-menu-details">
+                <summary>Current Bingo</summary>
+
+                <a class="overlay-menu-sublink" href="/board">
+                    Board
+                </a>
+                <a class="overlay-menu-sublink" href="/user/leaderboard">
+                    Leaderboard
+                </a>
+                <a
+                    class="overlay-menu-sublink"
+                    href="{{ url_for('user_routes.team_landing') }}"
+                >
+                    Team Data
+                </a>
+                <a
+                    class="overlay-menu-sublink"
+                    href="{{ url_for('user_routes.player_landing') }}"
+                >
+                    Player Data
+                </a>
+                {% if current_user.is_authenticated %}
+                <a
+                    class="overlay-menu-sublink"
+                    href="{{ url_for('user_routes.submit_evidence') }}"
+                >
+                    Submit Evidence
+                </a>
+                {% endif %}
+            </details>
+
+            <a class="overlay-menu-primary" href="/tutorial/dink">
+                Dink Setup
+            </a>
+            <a
+                class="overlay-menu-primary"
+                href="{{ url_for('user_routes.bingo_history') }}"
+            >
+                Bingo History
+            </a>
+
             {% if current_user.is_authenticated and current_user.is_admin %}
-            <a href="/admin/">Admin Dashboard</a>
+            <a class="overlay-menu-primary" href="/admin/">
+                Admin Dashboard
+            </a>
             {% endif %}
         </div>
 

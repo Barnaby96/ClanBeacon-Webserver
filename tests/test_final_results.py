@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from io import BytesIO
 
 from utils import final_results
@@ -76,6 +77,16 @@ def test_build_final_results_message_contains_rankings_and_totals():
     assert "we gained a huge 7,890,000 XP" in message
 
 
+def test_build_bingo_history_title_uses_clan_and_dates():
+    title = final_results.build_bingo_history_title(
+        "Indoor Sky",
+        datetime(2026, 9, 1, tzinfo=timezone.utc),
+        datetime(2026, 9, 7, tzinfo=timezone.utc)
+    )
+
+    assert title == "Indoor Sky Bingo 01/09/2026 - 07/09/2026"
+
+
 def test_publish_final_results_posts_to_each_team_webhook_with_own_role(
     monkeypatch
 ):
@@ -83,6 +94,29 @@ def test_publish_final_results_posts_to_each_team_webhook_with_own_role(
         final_results.database,
         "get_leaderboard_summary",
         _leaderboard_summary
+    )
+
+    monkeypatch.setattr(
+        final_results.database,
+        "get_wom_competition_id",
+        lambda: 123456
+    )
+
+    starts_at = datetime(2026, 9, 1, tzinfo=timezone.utc)
+    ends_at = datetime(2026, 9, 7, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(
+        final_results.database,
+        "get_wom_competition_timing",
+        lambda: (
+            starts_at,
+            ends_at
+        )
+    )
+
+    monkeypatch.setenv(
+        "DISCORD_SERVER_NAME",
+        "Indoor Sky"
     )
 
     monkeypatch.setattr(
@@ -122,8 +156,12 @@ def test_publish_final_results_posts_to_each_team_webhook_with_own_role(
         final_results.bingo,
         "get_board_render_state",
         lambda team_id: board_team_ids.append(team_id) or {
-            "tile_names_by_coordinate": {},
-            "completed_coordinates": [],
+            "tile_names_by_coordinate": {
+                "A1": "First Tile"
+            },
+            "completed_coordinates": [
+                "A1"
+            ],
             "partial_coordinates": []
         }
     )
@@ -133,6 +171,22 @@ def test_publish_final_results_posts_to_each_team_webhook_with_own_role(
         "render_bingo_board",
         lambda *args, **kwargs: BytesIO(b"board image")
     )
+
+    history_calls = []
+
+    def fake_create_bingo_history_record(**kwargs):
+        history_calls.append(kwargs)
+        return 456
+
+    monkeypatch.setattr(
+        final_results.database,
+        "create_bingo_history_record",
+        fake_create_bingo_history_record
+    )
+
+    class Publisher:
+        id = 99
+        username = "Organiser"
 
     calls = []
 
@@ -156,17 +210,42 @@ def test_publish_final_results_posts_to_each_team_webhook_with_own_role(
         fake_send_completion_webhook
     )
 
-    result = final_results.publish_final_results_to_team_webhooks()
+    result = final_results.publish_final_results_to_team_webhooks(
+        published_by_user=Publisher()
+    )
 
     assert result == {
         "sent_count": 2,
-        "failed": []
+        "failed": [],
+        "history_id": 456
     }
 
     assert board_team_ids == [
-        1,
         1
     ]
+
+    assert len(history_calls) == 1
+    history_call = history_calls[0]
+    assert history_call["title"] == (
+        "Indoor Sky Bingo 01/09/2026 - 07/09/2026"
+    )
+    assert history_call["clan_name"] == "Indoor Sky"
+    assert history_call["competition_id"] == 123456
+    assert history_call["competition_starts_at"] == starts_at
+    assert history_call["competition_ends_at"] == ends_at
+    assert history_call["published_by_user_id"] == 99
+    assert history_call["published_by_username"] == "Organiser"
+    assert history_call["leaderboard_snapshot"] == _leaderboard_summary()
+    assert history_call["board_snapshot"] == {
+        "winning_team_id": 1,
+        "tile_names_by_coordinate": {
+            "A1": "First Tile"
+        },
+        "completed_coordinates": [
+            "A1"
+        ],
+        "partial_coordinates": []
+    }
 
     assert [
         call["url"]
