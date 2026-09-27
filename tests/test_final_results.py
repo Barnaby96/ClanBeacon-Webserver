@@ -118,10 +118,10 @@ def test_publish_final_results_posts_to_each_team_webhook_with_own_role(
     monkeypatch.setattr(
         final_results.database,
         "get_wom_competition_timing",
-        lambda: (
-            starts_at,
-            ends_at
-        )
+        lambda: {
+            "starts_at": starts_at,
+            "ends_at": ends_at
+        }
     )
 
     monkeypatch.setenv(

@@ -182,6 +182,19 @@ def _history_date_label(value):
     return value_text
 
 
+def _competition_timing_values(timing):
+    if timing is None:
+        return None, None
+
+    if isinstance(timing, dict):
+        return (
+            timing.get("starts_at"),
+            timing.get("ends_at")
+        )
+
+    return timing
+
+
 def build_bingo_history_title(clan_name, starts_at, ends_at):
     return (
         f"{clan_name} Bingo "
@@ -274,12 +287,7 @@ def publish_final_results_to_team_webhooks(published_by_user=None):
     board_snapshot = _winning_team_board_snapshot(leaderboard_summary)
     competition_id = database.get_wom_competition_id()
     timing = database.get_wom_competition_timing()
-
-    if timing is None:
-        starts_at = None
-        ends_at = None
-    else:
-        starts_at, ends_at = timing
+    starts_at, ends_at = _competition_timing_values(timing)
 
     clan_name = _history_clan_name()
     published_by_user_id, published_by_username = _publisher_details(
