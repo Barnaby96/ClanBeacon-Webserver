@@ -1,4 +1,4 @@
-﻿import secrets
+import secrets
 
 from flask import request, render_template, Blueprint, flash, redirect, url_for, abort, send_file
 from flask_login import current_user
@@ -1103,6 +1103,7 @@ def dink_events():
 def bingo_setup():
     competition_id = database.get_wom_competition_id()
     evidence_codeword = database.get_evidence_codeword() or ''
+    stored_competition_id = competition_id
     competition = None
     teams = {}
     wom_player_ids = {}
@@ -1110,6 +1111,7 @@ def bingo_setup():
     conflicts = []
     import_plan = None
     recent_wom_refreshes = database.get_recent_wom_refresh_audit_rows()
+    lifecycle_status = database.get_bingo_lifecycle_status() or {}
 
     if request.method == 'POST':
         competition_id = request.form.get(
@@ -1123,6 +1125,41 @@ def bingo_setup():
             evidence_codeword
         ).strip()
 
+        if action == 'set_lifecycle_ready':
+            if not current_user.is_organiser:
+                abort(403)
+
+            ready_value = (
+                request.form.get(
+                    'lifecycle_ready',
+                    ''
+                ).strip().lower() == 'true'
+            )
+
+            if ready_value and not database.get_wom_competition_id():
+                flash(
+                    'Import a WOM competition before marking Bingo as ready.',
+                    'danger'
+                )
+            else:
+                database.set_bingo_lifecycle_ready(ready_value)
+
+                if ready_value:
+                    flash(
+                        'Bingo lifecycle announcements are now armed. '
+                        'Start and end messages can be sent automatically '
+                        'when the WOM times are reached.',
+                        'success'
+                    )
+                else:
+                    flash(
+                        'Bingo lifecycle announcements are no longer armed.',
+                        'warning'
+                    )
+
+            return redirect(
+                url_for('admin_routes.bingo_setup')
+            )
         if action == 'reset_bingo_data':
             reset_password = request.form.get(
                 'reset_password',
@@ -1183,7 +1220,8 @@ def bingo_setup():
                 conflicts=[],
                 import_plan=None,
                 evidence_codeword=evidence_codeword,
-                recent_wom_refreshes=recent_wom_refreshes
+                recent_wom_refreshes=recent_wom_refreshes,
+                lifecycle_status=lifecycle_status
             )
 
         if competition.get('type') != 'team':
@@ -1201,7 +1239,8 @@ def bingo_setup():
                 conflicts=[],
                 import_plan=None,
                 evidence_codeword=evidence_codeword,
-                recent_wom_refreshes=recent_wom_refreshes
+                recent_wom_refreshes=recent_wom_refreshes,
+                lifecycle_status=lifecycle_status
             )
 
         participations = competition.get(
@@ -1288,6 +1327,12 @@ def bingo_setup():
                         )
                     )
 
+                    if (
+                        result['imported']
+                        and str(stored_competition_id or '') != str(competition_id or '')
+                    ):
+                        database.reset_bingo_lifecycle_readiness()
+
                     if not result['imported']:
                         conflicts = result['conflicts']
 
@@ -1309,6 +1354,10 @@ def bingo_setup():
                             'success'
                         )
 
+
+    # Refresh lifecycle status immediately before rendering, so an import
+    # or readiness change made in this request is reflected on the page.
+    lifecycle_status = database.get_bingo_lifecycle_status() or {}
     return render_template(
         'admin_templates/bingo_setup.html',
         competition_id=competition_id,
@@ -1318,7 +1367,8 @@ def bingo_setup():
         conflicts=conflicts,
         import_plan=import_plan,
         evidence_codeword=evidence_codeword,
-        recent_wom_refreshes=recent_wom_refreshes
+        recent_wom_refreshes=recent_wom_refreshes,
+                lifecycle_status=lifecycle_status
     )
 
 

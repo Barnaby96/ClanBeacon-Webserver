@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block content %}
 <link
@@ -312,6 +312,99 @@
             </section>
         {% endif %}
 
+        <section class="osrs-panel">
+            <div class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Lifecycle Announcements</h2>
+                <p class="osrs-panel-description">
+                    Organiser sign-off for automated Bingo start and end
+                    webhook messages.
+                </p>
+            </div>
+
+            <div class="osrs-panel-body">
+                <p class="osrs-empty-state">
+                    Status:
+                    {% if lifecycle_status.lifecycle_ready %}
+                        <strong>Ready and armed</strong>
+                    {% else %}
+                        <strong>Not ready</strong>
+                    {% endif %}
+                </p>
+
+                <p class="osrs-form-help">
+                    When armed, {{ bot_name }} can automatically send the
+                    Bingo start message with a clean board, and the Bingo end
+                    message with each team's final board, once the imported WOM
+                    start/end times are reached.
+                </p>
+
+                {% if lifecycle_status.start_webhook_sent_at %}
+                    <p class="osrs-form-help">
+                        Start announcement sent:
+                        {{ lifecycle_status.start_webhook_sent_at }}
+                    </p>
+                {% endif %}
+
+                {% if lifecycle_status.end_webhook_sent_at %}
+                    <p class="osrs-form-help">
+                        End announcement sent:
+                        {{ lifecycle_status.end_webhook_sent_at }}
+                    </p>
+                {% endif %}
+
+                {% if current_user.is_organiser %}
+                    <form
+                        action="{{ url_for('admin_routes.bingo_setup') }}"
+                        method="POST"
+                        class="osrs-form-grid"
+                    >
+                        <input
+                            type="hidden"
+                            name="action"
+                            value="set_lifecycle_ready"
+                        >
+
+                        <input
+                            type="hidden"
+                            name="competition_id"
+                            value="{{ competition_id or '' }}"
+                        >
+
+                        {% if lifecycle_status.lifecycle_ready %}
+                            <input
+                                type="hidden"
+                                name="lifecycle_ready"
+                                value="false"
+                            >
+
+                            <div class="osrs-form-actions">
+                                <button
+                                    type="submit"
+                                    class="osrs-button osrs-button-secondary"
+                                >
+                                    Mark Bingo as Not Ready
+                                </button>
+                            </div>
+                        {% else %}
+                            <input
+                                type="hidden"
+                                name="lifecycle_ready"
+                                value="true"
+                            >
+
+                            <div class="osrs-form-actions">
+                                <button
+                                    type="submit"
+                                    class="osrs-button"
+                                >
+                                    Mark Bingo as Ready
+                                </button>
+                            </div>
+                        {% endif %}
+                    </form>
+                {% endif %}
+            </div>
+        </section>
         <section class="osrs-panel">
             <div class="osrs-panel-header">
                 <h2 class="osrs-panel-title">Recent WOM Refreshes</h2>

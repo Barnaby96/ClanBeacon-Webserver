@@ -1,4 +1,4 @@
-﻿import os
+import os
 import csv
 import json
 import hashlib
@@ -570,6 +570,10 @@ def ensure_schema():
                 wom_competition_id BIGINT,
                 wom_competition_starts_at TIMESTAMPTZ,
                 wom_competition_ends_at TIMESTAMPTZ,
+                bingo_start_webhook_sent_at TIMESTAMPTZ,
+                bingo_end_webhook_sent_at TIMESTAMPTZ,
+                bingo_lifecycle_ready BOOLEAN NOT NULL DEFAULT FALSE,
+                bingo_lifecycle_ready_at TIMESTAMPTZ,
                 evidence_codeword TEXT
             )
         ''')
@@ -619,6 +623,28 @@ def ensure_schema():
             ALTER TABLE bingo_config
             ADD COLUMN IF NOT EXISTS
                 wom_competition_ends_at TIMESTAMPTZ
+        ''')
+        cursor.execute('''
+            ALTER TABLE bingo_config
+            ADD COLUMN IF NOT EXISTS
+                bingo_start_webhook_sent_at TIMESTAMPTZ
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE bingo_config
+            ADD COLUMN IF NOT EXISTS
+                bingo_end_webhook_sent_at TIMESTAMPTZ
+        ''')
+        cursor.execute('''
+            ALTER TABLE bingo_config
+            ADD COLUMN IF NOT EXISTS
+                bingo_lifecycle_ready BOOLEAN NOT NULL DEFAULT FALSE
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE bingo_config
+            ADD COLUMN IF NOT EXISTS
+                bingo_lifecycle_ready_at TIMESTAMPTZ
         ''')
 
         cursor.execute('''
@@ -1605,6 +1631,98 @@ def reset_bingo_event_data():
 
         conn.commit()
 
+
+def get_bingo_lifecycle_status():
+    with connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT
+                wom_competition_starts_at,
+                wom_competition_ends_at,
+                bingo_start_webhook_sent_at,
+                bingo_end_webhook_sent_at,
+                bingo_lifecycle_ready,
+                bingo_lifecycle_ready_at
+            FROM bingo_config
+            WHERE config_id = 1
+            '''
+        )
+        row = cursor.fetchone()
+
+        if row is None:
+            return None
+
+        return {
+            "starts_at": row[0],
+            "ends_at": row[1],
+            "start_webhook_sent_at": row[2],
+            "end_webhook_sent_at": row[3],
+            "lifecycle_ready": row[4],
+            "lifecycle_ready_at": row[5],
+        }
+
+
+
+
+def reset_bingo_lifecycle_readiness():
+    with connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            UPDATE bingo_config
+            SET
+                bingo_lifecycle_ready = FALSE,
+                bingo_lifecycle_ready_at = NULL,
+                bingo_start_webhook_sent_at = NULL,
+                bingo_end_webhook_sent_at = NULL
+            WHERE config_id = 1
+            '''
+        )
+        conn.commit()
+
+def set_bingo_lifecycle_ready(is_ready):
+    with connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            INSERT INTO bingo_config (
+                config_id,
+                bingo_lifecycle_ready,
+                bingo_lifecycle_ready_at
+            )
+            VALUES (
+                1,
+                %s,
+                CASE WHEN %s THEN CURRENT_TIMESTAMP ELSE NULL END
+            )
+            ON CONFLICT (config_id)
+            DO UPDATE SET
+                bingo_lifecycle_ready = EXCLUDED.bingo_lifecycle_ready,
+                bingo_lifecycle_ready_at = EXCLUDED.bingo_lifecycle_ready_at
+            ''',
+            (is_ready, is_ready)
+        )
+        conn.commit()
+
+def mark_bingo_lifecycle_webhook_sent(event_type):
+    if event_type == "start":
+        column_name = "bingo_start_webhook_sent_at"
+    elif event_type == "end":
+        column_name = "bingo_end_webhook_sent_at"
+    else:
+        raise ValueError("event_type must be 'start' or 'end'")
+
+    with connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            f'''
+            UPDATE bingo_config
+            SET {column_name} = CURRENT_TIMESTAMP
+            WHERE config_id = 1
+            '''
+        )
+        conn.commit()
 def set_wom_competition_id(competition_id):
     with connect() as conn:
         cursor = conn.cursor()
@@ -14289,6 +14407,10 @@ def reset_tables():
             wom_competition_id BIGINT,
             wom_competition_starts_at TIMESTAMPTZ,
             wom_competition_ends_at TIMESTAMPTZ,
+                bingo_start_webhook_sent_at TIMESTAMPTZ,
+                bingo_end_webhook_sent_at TIMESTAMPTZ,
+                bingo_lifecycle_ready BOOLEAN NOT NULL DEFAULT FALSE,
+                bingo_lifecycle_ready_at TIMESTAMPTZ,
             evidence_codeword TEXT
         )
         ''')
