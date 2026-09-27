@@ -1,5 +1,6 @@
 import os
 import threading
+import time
 
 from dotenv import load_dotenv
 
@@ -32,6 +33,8 @@ from utils.database import (
 
 from utils.branding import BOT_NAME
 
+
+from utils import bingo_lifecycle
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'development secret')
@@ -137,6 +140,46 @@ app.register_blueprint(relevant_drop_routes, url_prefix="/relevant_drop")
 def start_bot():
     bot.run()
 
+
+def start_bingo_lifecycle_checker():
+    enabled = (
+        os.environ.get("BINGO_LIFECYCLE_CHECKER", "FALSE")
+        .strip()
+        .upper()
+    )
+
+    if enabled == "FALSE":
+        print("Bingo lifecycle checker disabled.")
+        return
+
+    interval_seconds = int(
+        os.environ.get("BINGO_LIFECYCLE_CHECK_INTERVAL_SECONDS", "60")
+    )
+
+    print(
+        "Starting bingo lifecycle checker "
+        f"(every {interval_seconds} seconds)."
+    )
+
+    while True:
+        try:
+            result = (
+                bingo_lifecycle
+                .process_due_lifecycle_announcements()
+            )
+
+            if result.get("processed"):
+                print(
+                    "Bingo lifecycle announcements processed: "
+                    f"{result}"
+                )
+        except Exception as error:
+            print(
+                "Bingo lifecycle checker error: "
+                f"{error}"
+            )
+
+        time.sleep(interval_seconds)
 def create_app():
     return app
 
@@ -147,6 +190,11 @@ if __name__ == "__main__":
     print("Starting bot....")
     bot_thread = threading.Thread(target=start_bot)
     bot_thread.start()
+    lifecycle_thread = threading.Thread(
+        target=start_bingo_lifecycle_checker,
+        daemon=True
+    )
+    lifecycle_thread.start()
     print("Bot started!")
 
     print("Starting server...")
