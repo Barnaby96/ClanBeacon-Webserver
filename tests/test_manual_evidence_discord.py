@@ -6269,7 +6269,8 @@ def test_details_modal_success_submits_evidence(
         "discord_channel_id": 222,
         "discord_message_id": None,
         "evidence_author_id": 12345,
-        "evidence_author_name": "Discord Tester"
+        "evidence_author_name": "Discord Tester",
+        "allow_after_competition_end": False
     }
 
     assert state.submitted is True
