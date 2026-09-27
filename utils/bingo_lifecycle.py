@@ -5,10 +5,6 @@ from utils.branding import BOT_NAME
 from utils.send_webhook import send_completion_webhook
 
 
-START_COLOUR = 0x2ECC71
-END_COLOUR = 0xF1C40F
-
-
 def _as_utc(value):
     if value is None:
         return None
@@ -19,9 +15,36 @@ def _as_utc(value):
     return value.astimezone(timezone.utc)
 
 
-def _render_board_image(team_id=None):
-    board_state = bingo.get_board_render_state(team_id)
+def _format_number(value):
+    if value is None:
+        return "0"
 
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+
+    return str(value)
+
+
+def _pluralise(count, singular, plural=None):
+    if count == 1:
+        return singular
+
+    if plural is not None:
+        return plural
+
+    return f"{singular}s"
+
+
+def _completed_tile_count(board_state):
+    completed_coordinates = board_state.get(
+        "completed_coordinates",
+        []
+    ) or []
+
+    return len(completed_coordinates)
+
+
+def _render_board_image_from_state(board_state):
     board_image = board_renderer.render_bingo_board(
         board_state["tile_names_by_coordinate"],
         completed_coordinates=board_state["completed_coordinates"],
@@ -30,6 +53,13 @@ def _render_board_image(team_id=None):
 
     board_image.seek(0)
     return board_image
+
+
+def _render_board_image_and_state(team_id=None):
+    board_state = bingo.get_board_render_state(team_id)
+    board_image = _render_board_image_from_state(board_state)
+
+    return board_image, board_state
 
 
 def _configured_teams():
@@ -44,22 +74,40 @@ def _configured_teams():
     return teams
 
 
+def _start_message(team):
+    return (
+        f"{BOT_NAME} bingo has begun!\n\n"
+        f"Here is the board. Good luck {team.team_name}"
+    )
+
+
+def _end_message(team, completed_tiles):
+    tile_word = _pluralise(completed_tiles, "tile")
+    points = _format_number(team.team_points)
+    point_word = _pluralise(team.team_points or 0, "point")
+
+    return (
+        f"{BOT_NAME} bingo has ended!\n\n"
+        f"You completed {completed_tiles} {tile_word} "
+        f"for a total of {points} {point_word}!\n\n"
+        "Full results will be published after a review by the admin team!\n\n"
+        "Here is your final board."
+    )
+
+
 def _send_start_announcements(teams):
     sent_count = 0
     failed = []
 
     for team in teams:
-        board_image = _render_board_image(team_id=None)
-
-        message = (
-            f"{BOT_NAME} bingo has begun!\n\n"
-            "Here is the clean board. Good luck, team!"
+        board_image, _board_state = _render_board_image_and_state(
+            team_id=None
         )
 
         try:
             send_completion_webhook(
                 team.team_webhook,
-                message,
+                _start_message(team),
                 board_image,
                 discord_role_id=team.discord_role_id
             )
@@ -84,17 +132,15 @@ def _send_end_announcements(teams):
     failed = []
 
     for team in teams:
-        board_image = _render_board_image(team_id=team.team_id)
-
-        message = (
-            f"{BOT_NAME} bingo has ended!\n\n"
-            f"Here is {team.team_name}'s final board."
+        board_image, board_state = _render_board_image_and_state(
+            team_id=team.team_id
         )
+        completed_tiles = _completed_tile_count(board_state)
 
         try:
             send_completion_webhook(
                 team.team_webhook,
-                message,
+                _end_message(team, completed_tiles),
                 board_image,
                 discord_role_id=team.discord_role_id
             )
@@ -143,8 +189,6 @@ def process_due_lifecycle_announcements(now=None):
     else:
         now = _as_utc(now)
 
-    teams = _configured_teams()
-
     results = {
         "processed": False,
         "start": None,
@@ -153,6 +197,7 @@ def process_due_lifecycle_announcements(now=None):
 
     if now >= ends_at:
         if status["end_webhook_sent_at"] is None:
+            teams = _configured_teams()
             end_result = _send_end_announcements(teams)
             database.mark_bingo_lifecycle_webhook_sent("end")
 
@@ -168,6 +213,7 @@ def process_due_lifecycle_announcements(now=None):
         status["start_webhook_sent_at"] is None
         and now >= starts_at
     ):
+        teams = _configured_teams()
         start_result = _send_start_announcements(teams)
         database.mark_bingo_lifecycle_webhook_sent("start")
 

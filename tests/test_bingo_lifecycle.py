@@ -22,20 +22,15 @@ def _status(
     }
 
 
-class FakeTeam:
-    def __init__(
-        self,
-        team_name,
-        team_points,
-        team_webhook,
-        team_id,
-        discord_role_id=None
-    ):
-        self.team_name = team_name
-        self.team_points = team_points
-        self.team_webhook = team_webhook
-        self.team_id = team_id
-        self.discord_role_id = discord_role_id
+def _fake_image_and_state(team_id=None, completed_coordinates=None):
+    return (
+        BytesIO(b"fake board"),
+        {
+            "tile_names_by_coordinate": {},
+            "completed_coordinates": completed_coordinates or [],
+            "partial_coordinates": [],
+        }
+    )
 
 
 def test_lifecycle_no_timing_does_not_send(monkeypatch):
@@ -87,14 +82,6 @@ def test_lifecycle_not_ready_does_not_send(monkeypatch):
     )
 
     monkeypatch.setattr(
-        bingo_lifecycle.database,
-        "get_teams",
-        lambda: [
-            ("Team One", 0, "https://discord.com/api/webhooks/1/token", 1)
-        ]
-    )
-
-    monkeypatch.setattr(
         bingo_lifecycle,
         "send_completion_webhook",
         lambda *args, **kwargs: sent.append(args)
@@ -126,14 +113,6 @@ def test_lifecycle_before_start_does_not_send(monkeypatch):
         bingo_lifecycle.database,
         "get_bingo_lifecycle_status",
         lambda: _status(starts_at, ends_at)
-    )
-
-    monkeypatch.setattr(
-        bingo_lifecycle.database,
-        "get_teams",
-        lambda: [
-            ("Team One", 0, "https://discord.com/api/webhooks/1/token", 1)
-        ]
     )
 
     monkeypatch.setattr(
@@ -187,10 +166,10 @@ def test_lifecycle_start_due_sends_clean_board_once(monkeypatch):
 
     monkeypatch.setattr(
         bingo_lifecycle,
-        "_render_board_image",
+        "_render_board_image_and_state",
         lambda team_id=None: (
             board_calls.append(team_id)
-            or BytesIO(b"fake board")
+            or _fake_image_and_state(team_id)
         )
     )
 
@@ -224,7 +203,8 @@ def test_lifecycle_start_due_sends_clean_board_once(monkeypatch):
     assert board_calls == [None]
     assert marked == ["start"]
     assert sent[0]["discord_role_id"] == "123456789"
-    assert "has begun" in sent[0]["message"]
+    assert "bingo has begun" in sent[0]["message"]
+    assert "Here is the board. Good luck Team One" in sent[0]["message"]
 
 
 def test_lifecycle_after_end_without_start_sent_sends_end_only(monkeypatch):
@@ -248,7 +228,7 @@ def test_lifecycle_after_end_without_start_sent_sends_end_only(monkeypatch):
         lambda: [
             (
                 "Team One",
-                0,
+                42,
                 "https://discord.com/api/webhooks/1/token",
                 7,
                 None
@@ -258,10 +238,17 @@ def test_lifecycle_after_end_without_start_sent_sends_end_only(monkeypatch):
 
     monkeypatch.setattr(
         bingo_lifecycle,
-        "_render_board_image",
+        "_render_board_image_and_state",
         lambda team_id=None: (
             board_calls.append(team_id)
-            or BytesIO(b"fake board")
+            or _fake_image_and_state(
+                team_id,
+                completed_coordinates=[
+                    (1, 1),
+                    (1, 2),
+                    (1, 3)
+                ]
+            )
         )
     )
 
@@ -294,7 +281,10 @@ def test_lifecycle_after_end_without_start_sent_sends_end_only(monkeypatch):
     assert result["end"]["sent_count"] == 1
     assert board_calls == [7]
     assert marked == ["end"]
-    assert "has ended" in sent[0]["message"]
+    assert "bingo has ended" in sent[0]["message"]
+    assert "You completed 3 tiles for a total of 42 points!" in sent[0]["message"]
+    assert "Full results will be published after a review by the admin team!" in sent[0]["message"]
+    assert "Here is your final board." in sent[0]["message"]
 
 
 def test_lifecycle_end_due_sends_team_board_once(monkeypatch):
@@ -329,7 +319,7 @@ def test_lifecycle_end_due_sends_team_board_once(monkeypatch):
         lambda: [
             (
                 "Team One",
-                0,
+                5,
                 "https://discord.com/api/webhooks/1/token",
                 7,
                 None
@@ -339,10 +329,15 @@ def test_lifecycle_end_due_sends_team_board_once(monkeypatch):
 
     monkeypatch.setattr(
         bingo_lifecycle,
-        "_render_board_image",
+        "_render_board_image_and_state",
         lambda team_id=None: (
             board_calls.append(team_id)
-            or BytesIO(b"fake board")
+            or _fake_image_and_state(
+                team_id,
+                completed_coordinates=[
+                    (2, 1)
+                ]
+            )
         )
     )
 
@@ -375,5 +370,6 @@ def test_lifecycle_end_due_sends_team_board_once(monkeypatch):
     assert result["end"]["sent_count"] == 1
     assert board_calls == [7]
     assert marked == ["end"]
-    assert "has ended" in sent[0]["message"]
-    assert "Team One's final board" in sent[0]["message"]
+    assert "bingo has ended" in sent[0]["message"]
+    assert "You completed 1 tile for a total of 5 points!" in sent[0]["message"]
+    assert "Here is your final board." in sent[0]["message"]
