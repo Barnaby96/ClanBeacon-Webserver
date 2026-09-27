@@ -7615,6 +7615,25 @@ def invalidate_bingo_evidence(
     }
 
 
+
+def is_wom_competition_ended():
+    with connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT COALESCE(
+                CURRENT_TIMESTAMP >= wom_competition_ends_at,
+                FALSE
+            )
+            FROM bingo_config
+            WHERE config_id = 1
+            """
+        )
+        row = cursor.fetchone()
+
+        return bool(row and row[0])
+
+
 def add_manual_evidence(
     player_id,
     condition_id,
@@ -7629,7 +7648,8 @@ def add_manual_evidence(
     discord_channel_id=None,
     discord_message_id=None,
     evidence_author_id=None,
-    evidence_author_name=None
+    evidence_author_name=None,
+    allow_after_competition_end=False
 ):
     amount = int(amount)
 
@@ -7663,6 +7683,17 @@ def add_manual_evidence(
     if not submitter_name:
         raise ValueError(
             "Manual evidence submitter name is required."
+        )
+
+    if (
+        not allow_after_competition_end
+        and is_wom_competition_ended()
+    ):
+        raise ValueError(
+            "Manual evidence submissions are closed because the WOM "
+            "competition has ended. Ask an organiser to submit late "
+            "evidence on behalf of a player if it needs to be included "
+            "in the final review."
         )
 
     evidence_path = str(

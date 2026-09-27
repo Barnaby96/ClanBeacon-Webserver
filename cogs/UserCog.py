@@ -42,6 +42,7 @@ class ManualEvidenceSubmissionState:
         player_name,
         screenshot,
         evidence_codeword,
+        allow_after_competition_end=False,
         guild_id=None,
         channel_id=None
     ):
@@ -66,6 +67,10 @@ class ManualEvidenceSubmissionState:
         self.evidence_codeword = str(
             evidence_codeword
         ).strip()
+
+        self.allow_after_competition_end = bool(
+            allow_after_competition_end
+        )
 
         self.guild_id = (
             int(guild_id)
@@ -372,6 +377,9 @@ class ManualEvidenceDetailsModal(
                 ),
                 evidence_author_name=(
                     self.state.submitter_name
+                ),
+                allow_after_competition_end=(
+                    self.state.allow_after_competition_end
                 )
             )
 
@@ -894,6 +902,10 @@ class UserCog(commands.Cog):
             screenshot=screenshot,
             evidence_codeword=(
                 evidence_codeword
+            ),
+            allow_after_competition_end=(
+                player is not None
+                and is_organiser
             ),
             guild_id=(
                 ctx.guild.id
