@@ -12,7 +12,15 @@ from flask import (
     abort
 )
 from flask_login import current_user, login_required
-from utils import autocomplete, scapify, database, db_entities, wom, wom_tracking
+from utils import (
+    autocomplete,
+    database,
+    db_entities,
+    final_results,
+    scapify,
+    wom,
+    wom_tracking
+)
 from utils.branding import BOT_NAME
 from utils.dink_evidence import resolve_dink_evidence_path
 from utils.manual_evidence_files import (
@@ -981,6 +989,65 @@ def leaderboard():
         leaderboard=leaderboard_summary,
         competition_url=competition_url,
         can_view_all_data=current_user.is_admin,
+        can_publish_final_results=(
+            current_user.is_organiser
+            and database.is_wom_competition_ended()
+        ),
         viewer_player_id=viewer_player_id,
         viewer_team_id=viewer_team_id
+    )
+
+
+@user_routes.route(
+    '/leaderboard/publish_final_results',
+    methods=['POST']
+)
+@login_required
+def publish_final_results():
+    if not current_user.is_organiser:
+        abort(403)
+
+    if not database.is_wom_competition_ended():
+        flash(
+            "Final results can only be published after the WOM "
+            "competition has ended.",
+            "error"
+        )
+        return redirect(
+            url_for('user_routes.leaderboard')
+        )
+
+    try:
+        result = final_results.publish_final_results_to_team_webhooks()
+    except ValueError as error:
+        flash(
+            str(error),
+            "error"
+        )
+        return redirect(
+            url_for('user_routes.leaderboard')
+        )
+
+    sent_count = result["sent_count"]
+    failed = result["failed"]
+
+    if failed:
+        failed_teams = ", ".join(
+            failure["team_name"]
+            for failure in failed
+        )
+        flash(
+            f"Published final results to {sent_count} team "
+            f"webhook(s), but failed for: {failed_teams}.",
+            "warning"
+        )
+    else:
+        flash(
+            f"Published final results to {sent_count} team "
+            "webhook(s).",
+            "success"
+        )
+
+    return redirect(
+        url_for('user_routes.leaderboard')
     )
