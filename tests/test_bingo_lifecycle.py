@@ -207,6 +207,143 @@ def test_lifecycle_start_due_sends_clean_board_once(monkeypatch):
     assert "Here is the board. Good luck Team One" in sent[0]["message"]
 
 
+def test_lifecycle_ready_after_start_does_not_send_stale_start(monkeypatch):
+    starts_at = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    ends_at = datetime(2026, 1, 1, 12, 30, tzinfo=timezone.utc)
+    ready_at = datetime(2026, 1, 1, 12, 5, tzinfo=timezone.utc)
+    now = datetime(2026, 1, 1, 12, 6, tzinfo=timezone.utc)
+
+    sent = []
+    marked = []
+
+    monkeypatch.setattr(
+        bingo_lifecycle.database,
+        "get_bingo_lifecycle_status",
+        lambda: _status(
+            starts_at,
+            ends_at,
+            lifecycle_ready=True,
+            lifecycle_ready_at=ready_at
+        )
+    )
+
+    monkeypatch.setattr(
+        bingo_lifecycle.database,
+        "get_teams",
+        lambda: [
+            (
+                "Team One",
+                0,
+                "https://discord.com/api/webhooks/1/token",
+                1,
+                "123456789"
+            )
+        ]
+    )
+
+    monkeypatch.setattr(
+        bingo_lifecycle,
+        "send_completion_webhook",
+        lambda *args, **kwargs: sent.append(args)
+    )
+
+    monkeypatch.setattr(
+        bingo_lifecycle.database,
+        "mark_bingo_lifecycle_webhook_sent",
+        lambda event_type: marked.append(event_type)
+    )
+
+    result = bingo_lifecycle.process_due_lifecycle_announcements(now=now)
+
+    assert result["processed"] is False
+    assert result["reason"] == "no_lifecycle_announcements_due"
+    assert sent == []
+    assert marked == []
+
+
+def test_lifecycle_ready_after_start_but_before_end_still_sends_end(monkeypatch):
+    starts_at = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    ends_at = datetime(2026, 1, 1, 12, 30, tzinfo=timezone.utc)
+    ready_at = datetime(2026, 1, 1, 12, 5, tzinfo=timezone.utc)
+    now = datetime(2026, 1, 1, 12, 31, tzinfo=timezone.utc)
+
+    board_calls = []
+    sent = []
+    marked = []
+
+    monkeypatch.setattr(
+        bingo_lifecycle.database,
+        "get_bingo_lifecycle_status",
+        lambda: _status(
+            starts_at,
+            ends_at,
+            lifecycle_ready=True,
+            lifecycle_ready_at=ready_at
+        )
+    )
+
+    monkeypatch.setattr(
+        bingo_lifecycle.database,
+        "get_teams",
+        lambda: [
+            (
+                "Team One",
+                7,
+                "https://discord.com/api/webhooks/1/token",
+                1,
+                "123456789"
+            )
+        ]
+    )
+
+    monkeypatch.setattr(
+        bingo_lifecycle,
+        "_render_board_image_and_state",
+        lambda team_id=None: (
+            board_calls.append(team_id)
+            or _fake_image_and_state(
+                team_id,
+                completed_coordinates=[
+                    (1, 1),
+                    (1, 2)
+                ]
+            )
+        )
+    )
+
+    def fake_send(url, message, board_image, discord_role_id=None):
+        sent.append(
+            {
+                "url": url,
+                "message": message,
+                "discord_role_id": discord_role_id,
+                "board": board_image.getvalue(),
+            }
+        )
+
+    monkeypatch.setattr(
+        bingo_lifecycle,
+        "send_completion_webhook",
+        fake_send
+    )
+
+    monkeypatch.setattr(
+        bingo_lifecycle.database,
+        "mark_bingo_lifecycle_webhook_sent",
+        lambda event_type: marked.append(event_type)
+    )
+
+    result = bingo_lifecycle.process_due_lifecycle_announcements(now=now)
+
+    assert result["processed"] is True
+    assert result["start"] is None
+    assert result["end"]["sent_count"] == 1
+    assert board_calls == [1]
+    assert marked == ["end"]
+    assert "bingo has ended" in sent[0]["message"]
+    assert "You completed 2 tiles for a total of 7 points!" in sent[0]["message"]
+
+
 def test_lifecycle_after_end_without_start_sent_sends_end_only(monkeypatch):
     starts_at = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     ends_at = datetime(2026, 1, 2, 12, 0, tzinfo=timezone.utc)

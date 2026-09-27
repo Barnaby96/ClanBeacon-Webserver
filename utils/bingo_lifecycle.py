@@ -15,6 +15,14 @@ def _as_utc(value):
     return value.astimezone(timezone.utc)
 
 
+def _ready_at_or_before(lifecycle_ready_at, event_time):
+    ready_at = _as_utc(lifecycle_ready_at)
+
+    if ready_at is None:
+        return True
+
+    return ready_at <= event_time
+
 def _format_number(value):
     if value is None:
         return "0"
@@ -196,7 +204,13 @@ def process_due_lifecycle_announcements(now=None):
     }
 
     if now >= ends_at:
-        if status["end_webhook_sent_at"] is None:
+        if (
+            status["end_webhook_sent_at"] is None
+            and _ready_at_or_before(
+                status.get("lifecycle_ready_at"),
+                ends_at
+            )
+        ):
             teams = _configured_teams()
             end_result = _send_end_announcements(teams)
             database.mark_bingo_lifecycle_webhook_sent("end")
@@ -212,6 +226,10 @@ def process_due_lifecycle_announcements(now=None):
     if (
         status["start_webhook_sent_at"] is None
         and now >= starts_at
+        and _ready_at_or_before(
+            status.get("lifecycle_ready_at"),
+            starts_at
+        )
     ):
         teams = _configured_teams()
         start_result = _send_start_announcements(teams)
