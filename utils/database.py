@@ -3269,6 +3269,9 @@ def apply_wom_metric_progress(
                 c.tile_id,
                 c.completion_path
             FROM tile_conditions c
+            JOIN tiles t
+              ON t.tile_id = c.tile_id
+             AND t.board_coordinate IS NOT NULL
             JOIN tile_completion_paths p
               ON p.tile_id = c.tile_id
              AND p.completion_path = c.completion_path
@@ -8066,7 +8069,8 @@ def add_manual_evidence(
             '''
             SELECT
                 tile_id,
-                tile_name
+                tile_name,
+                board_coordinate
             FROM tiles
             WHERE tile_id = %s
             FOR UPDATE
@@ -8079,6 +8083,11 @@ def add_manual_evidence(
         if tile_row is None:
             raise ValueError(
                 f"Tile {tile_id} does not exist."
+            )
+
+        if tile_row[2] is None:
+            raise ValueError(
+                f"Tile {tile_id} is not assigned to the bingo board."
             )
 
         tile_name_at_submission = str(
@@ -9838,7 +9847,9 @@ def accept_pending_manual_evidence(
         # progress.
         cursor.execute(
             '''
-            SELECT tile_id
+            SELECT
+                tile_id,
+                board_coordinate
             FROM tiles
             WHERE tile_id = %s
             FOR UPDATE
@@ -9846,12 +9857,24 @@ def accept_pending_manual_evidence(
             (tile_id,)
         )
 
-        if cursor.fetchone() is None:
+        tile_row = cursor.fetchone()
+
+        if tile_row is None:
             return {
                 "status": "TILE_NOT_FOUND",
                 "message": (
                     "The tile for this submission no longer "
                     "exists, so it cannot be accepted normally."
+                )
+            }
+
+        if tile_row[1] is None:
+            return {
+                "status": "TILE_UNASSIGNED",
+                "message": (
+                    "The tile for this submission is no longer "
+                    "assigned to the bingo board, so it cannot "
+                    "be accepted or scored."
                 )
             }
 
@@ -11696,6 +11719,28 @@ def get_drop_whitelist_by_item_name(item_name):
 def add_completed_tile(tile_id, team_id):
     with connect() as conn:
         cursor = conn.cursor()
+
+        cursor.execute(
+            '''
+            SELECT board_coordinate
+            FROM tiles
+            WHERE tile_id = %s
+            ''',
+            (tile_id,)
+        )
+
+        tile_row = cursor.fetchone()
+
+        if tile_row is None:
+            raise ValueError(
+                f"Tile {tile_id} does not exist."
+            )
+
+        if tile_row[0] is None:
+            raise ValueError(
+                f"Tile {tile_id} is not assigned to the bingo board."
+            )
+
         cursor.execute(
             '''
             INSERT INTO completed_tiles (
@@ -12703,6 +12748,29 @@ def _add_tile_condition_progress(
 
     cursor.execute(
         '''
+        SELECT t.board_coordinate
+        FROM tile_conditions c
+        JOIN tiles t
+          ON t.tile_id = c.tile_id
+        WHERE c.condition_id = %s
+        ''',
+        (condition_id,)
+    )
+
+    tile_row = cursor.fetchone()
+
+    if tile_row is None:
+        raise ValueError(
+            f"Condition {condition_id} does not exist."
+        )
+
+    if tile_row[0] is None:
+        raise ValueError(
+            f"Condition {condition_id} belongs to an unassigned tile."
+        )
+
+    cursor.execute(
+        '''
         INSERT INTO tile_condition_progress (
             team_id,
             condition_id,
@@ -13020,6 +13088,7 @@ def get_manual_evidence_submission_options(player_id):
               ON completed.tile_id = t.tile_id
              AND completed.team_id = %s
             WHERE completed.tile_id IS NULL
+              AND t.board_coordinate IS NOT NULL
             ORDER BY
                 t.tile_id,
                 c.completion_path,
@@ -13235,6 +13304,9 @@ def _apply_event_condition_progress(
             path.route_target,
             path.require_unique
         FROM tile_conditions AS condition
+        JOIN tiles AS tile
+          ON tile.tile_id = condition.tile_id
+         AND tile.board_coordinate IS NOT NULL
         JOIN tile_completion_paths AS path
           ON path.tile_id = condition.tile_id
          AND path.completion_path =
@@ -13793,7 +13865,9 @@ def _complete_tile_with_contributions(
 
     cursor.execute(
         '''
-        SELECT tile_points
+        SELECT
+            tile_points,
+            board_coordinate
         FROM tiles
         WHERE tile_id = %s
         ''',
@@ -13804,6 +13878,11 @@ def _complete_tile_with_contributions(
     if tile_row is None:
         raise ValueError(
             f"Tile {tile_id} does not exist."
+        )
+
+    if tile_row[1] is None:
+        raise ValueError(
+            f"Tile {tile_id} is not assigned to the bingo board."
         )
 
     tile_points = float(tile_row[0])
