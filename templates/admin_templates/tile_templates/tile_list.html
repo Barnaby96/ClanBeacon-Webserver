@@ -424,6 +424,10 @@
                                                                     'tile_management.edit_tile',
                                                                     tile_id=tile.tile_id
                                                                 ) }}"
+                                                                data-delete-url="{{ url_for(
+                                                                    'tile_management.delete_tile',
+                                                                    tile_id=tile.tile_id
+                                                                ) }}"
                                                                 onclick="openAdminTileModalFromClick(
                                                                     event,
                                                                     this
@@ -489,6 +493,10 @@
                                     data-tile-coordinate="Unassigned"
                                     data-edit-url="{{ url_for(
                                         'tile_management.edit_tile',
+                                        tile_id=tile.tile_id
+                                    ) }}"
+                                    data-delete-url="{{ url_for(
+                                        'tile_management.delete_tile',
                                         tile_id=tile.tile_id
                                     ) }}"
                                     onclick="openAdminTileModalFromClick(
@@ -582,6 +590,21 @@
                     Edit Tile
                 </a>
 
+                <form
+                    id="adminTileDeleteForm"
+                    method="post"
+                    action="#"
+                    onsubmit="return confirmAdminTileDelete();"
+                >
+                    <button
+                        id="adminTileDeleteButton"
+                        class="osrs-button osrs-button-secondary"
+                        type="submit"
+                    >
+                        Delete Tile
+                    </button>
+                </form>
+
                 <button
                     class="osrs-button osrs-button-secondary"
                     type="button"
@@ -618,10 +641,28 @@
         document.getElementById("adminTileEditLink").href =
             source.dataset.editUrl || "#";
 
+        document.getElementById("adminTileDeleteForm").action =
+            source.dataset.deleteUrl || "#";
+
+        document.getElementById("adminTileDeleteButton").dataset.tileName =
+            source.dataset.tileName || "this tile";
+
         modal.classList.add("is-open");
         modal.setAttribute("aria-hidden", "false");
         document.body.classList.add("osrs-modal-open");
         document.getElementById("adminTileModalClose").focus();
+    }
+
+
+    function confirmAdminTileDelete() {
+        const deleteButton = document.getElementById(
+            "adminTileDeleteButton"
+        );
+        const tileName = deleteButton.dataset.tileName || "this tile";
+
+        return confirm(
+            "Delete tile '" + tileName + "'? This cannot be undone."
+        );
     }
 
     function closeAdminTileModal() {
