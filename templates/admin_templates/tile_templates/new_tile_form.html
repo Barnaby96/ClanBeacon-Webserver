@@ -257,6 +257,8 @@
 <script>
     let nextRouteNumber = 1;
 
+    const OSRS_PET_OPTIONS = {{ osrs_pet_options | tojson }};
+
     const WOM_EXPERIENCE_METRICS = [
         'overall',
         'attack',
@@ -405,6 +407,18 @@
         }).join('');
     }
 
+    function buildPetOptions(selectedValue) {
+        return OSRS_PET_OPTIONS.map(pet => {
+            const selected = pet.value === selectedValue ? ' selected' : '';
+
+            return (
+                `<option value="${escapeAttribute(pet.value)}"${selected}>`
+                + `${escapeAttribute(pet.label)}`
+                + '</option>'
+            );
+        }).join('');
+    }
+
     function setConditionTriggerControl(row, conditionType, selectedValue = null) {
         const triggerContainer = row.querySelector(
             '.condition-trigger-field'
@@ -467,6 +481,23 @@
                         Select WOM metric
                     </option>
                     ${buildMetricOptions(WOM_ACTIVITY_METRICS, value)}
+                </select>
+            `;
+        } else if (conditionType === 'PET') {
+            const isValidPet = OSRS_PET_OPTIONS.some(
+                pet => pet.value === value
+            );
+
+            controlHtml = `
+                <select
+                    class="osrs-form-input"
+                    name="condition_trigger"
+                    required
+                >
+                    <option value=""${isValidPet ? '' : ' selected'}>
+                        Select pet
+                    </option>
+                    ${buildPetOptions(value)}
                 </select>
             `;
         } else {

@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, Blu
 
 from utils import db_entities
 from utils.auth import admin_required
+from utils.osrs_pets import get_osrs_pet_options
 from utils.database import (
     remove_tile,
     get_tile_by_id,
@@ -301,7 +302,8 @@ def create_tile():
         )
 
     return render_template(
-        'admin_templates/tile_templates/new_tile_form.html'
+        'admin_templates/tile_templates/new_tile_form.html',
+        osrs_pet_options=get_osrs_pet_options()
     )
 
 @tile_routes.route(
@@ -497,7 +499,8 @@ def edit_tile(tile_id):
         'admin_templates/tile_templates/edit_tile.html',
         tile=tile,
         conditions=conditions,
-        completion_paths=completion_paths
+        completion_paths=completion_paths,
+        osrs_pet_options=get_osrs_pet_options()
     )
 
 
