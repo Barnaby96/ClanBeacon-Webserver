@@ -2,11 +2,78 @@
 from utils.osrs_tile_templates import (
     make_drop_candidate,
     make_killcount_candidate,
+    make_pet_candidate,
+    make_skill_xp_candidate,
     make_skill_xp_or_pet_candidate,
 )
 
 
 CURATED_TILE_CANDIDATES = (
+    make_pet_candidate(
+        title="Obtain any skilling pet",
+        point_value=4,
+        pet_group_id="skilling_pets",
+        source_id="skilling_pets",
+        display_text="Obtain any skilling pet",
+        additional_hard_unique_tags=(
+            "source:any_pet",
+        ),
+        explanation=(
+            "Primary pet-led tile.",
+            "Consumes skilling pets and the broad any-pet source.",
+        ),
+    ),
+    make_pet_candidate(
+        title="Obtain any pet",
+        point_value=5,
+        pet_group_id="any_pet",
+        source_id="any_pet",
+        display_text="Obtain any pet",
+        explanation=(
+            "Primary pet-led chaos tile.",
+            "Consumes the broad any-pet source.",
+        ),
+    ),
+    make_skill_xp_candidate(
+        title="Gain 500,000 Cooking XP",
+        point_value=1,
+        skill_id="cooking",
+        xp_target=500_000,
+        explanation=(
+            "Simple WOM-tracked skill XP tile.",
+            "Consumes Cooking for board uniqueness.",
+        ),
+    ),
+    make_skill_xp_candidate(
+        title="Gain 500,000 Firemaking XP",
+        point_value=1,
+        skill_id="firemaking",
+        xp_target=500_000,
+        explanation=(
+            "Simple WOM-tracked skill XP tile.",
+            "Consumes Firemaking for board uniqueness.",
+        ),
+    ),
+    make_skill_xp_candidate(
+        title="Gain 750,000 Fletching XP",
+        point_value=2,
+        skill_id="fletching",
+        xp_target=750_000,
+        explanation=(
+            "Simple WOM-tracked skill XP tile.",
+            "Consumes Fletching for board uniqueness.",
+        ),
+    ),
+    make_skill_xp_candidate(
+        title="Gain 750,000 Crafting XP",
+        point_value=2,
+        skill_id="crafting",
+        xp_target=750_000,
+        explanation=(
+            "Simple WOM-tracked skill XP tile.",
+            "Consumes Crafting for board uniqueness.",
+        ),
+    ),
     make_killcount_candidate(
         title="Complete 150 Zulrah KC",
         point_value=3,

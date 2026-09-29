@@ -812,3 +812,34 @@ def test_tile_candidate_can_store_access_profile_without_quest_names():
         "herblore": 10,
     }
     assert AccessFlag.QUEST_LOCKED in candidate.access_profile.access_flags
+
+
+def test_pet_group_route_consumes_pet_group_tag():
+    candidate = TileCandidate(
+        title="Obtain any skilling pet",
+        point_value=4,
+        primary_category=TileCategory.PET,
+        pet_role=PetRole.PRIMARY,
+        route_mode=RouteMode.SINGLE,
+        routes=[
+            Route(
+                route_type=TileCategory.PET,
+                display_text="Obtain any skilling pet",
+                target=1,
+                tracking_source=TrackingSource.DINK,
+                contribution_mode=ContributionMode.ANY_PLAYER,
+                metric_id="pet_group_skilling_pets",
+                source_id="skilling_pets",
+                pet_group_id="skilling_pets",
+            )
+        ],
+        rng_level=4,
+    )
+
+    assert candidate.all_hard_unique_tags == frozenset(
+        {
+            "metric:pet_group_skilling_pets",
+            "source:skilling_pets",
+            "pet_group:skilling_pets",
+        }
+    )

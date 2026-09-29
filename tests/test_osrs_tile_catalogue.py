@@ -27,6 +27,12 @@ def test_curated_catalogue_contains_expected_initial_candidates():
     }
 
     assert titles == {
+        "Obtain any skilling pet",
+        "Obtain any pet",
+        "Gain 500,000 Cooking XP",
+        "Gain 500,000 Firemaking XP",
+        "Gain 750,000 Fletching XP",
+        "Gain 750,000 Crafting XP",
         "Complete 150 Zulrah KC",
         "Obtain any Zulrah unique",
         "Complete 150 Vorkath KC",
@@ -70,19 +76,45 @@ def test_curated_drop_candidates_are_dink_tracked():
         assert candidate.routes[0].tracking_source == TrackingSource.DINK
 
 
-def test_curated_skill_pet_candidates_use_wom_xp_and_dink_pet_routes():
+def test_curated_skill_candidates_include_plain_xp_and_secondary_pet_routes():
     candidates = get_curated_skill_led_candidates()
 
-    assert len(candidates) == 4
+    assert len(candidates) == 8
 
-    for candidate in candidates:
+    plain_skill_candidates = [
+        candidate
+        for candidate in candidates
+        if candidate.pet_role == PetRole.NONE
+    ]
+    secondary_pet_candidates = [
+        candidate
+        for candidate in candidates
+        if candidate.pet_role == PetRole.SECONDARY
+    ]
+
+    assert {
+        candidate.title
+        for candidate in plain_skill_candidates
+    } == {
+        "Gain 500,000 Cooking XP",
+        "Gain 500,000 Firemaking XP",
+        "Gain 750,000 Fletching XP",
+        "Gain 750,000 Crafting XP",
+    }
+
+    assert len(secondary_pet_candidates) == 4
+
+    for candidate in plain_skill_candidates:
+        assert candidate.primary_category == TileCategory.SKILL
+        assert candidate.routes[0].tracking_source == TrackingSource.WOM
+
+    for candidate in secondary_pet_candidates:
         assert candidate.primary_category == TileCategory.SKILL
         assert candidate.secondary_categories == frozenset(
             {
                 TileCategory.PET
             }
         )
-        assert candidate.pet_role == PetRole.SECONDARY
         assert candidate.routes[0].tracking_source == TrackingSource.WOM
         assert candidate.routes[1].tracking_source == TrackingSource.DINK
 
@@ -147,3 +179,41 @@ def test_catalogue_alternatives_can_share_source_tags_before_board_assembly():
 
     assert "source:zulrah" in zulrah_kc.all_hard_unique_tags
     assert "source:zulrah" in zulrah_drop.all_hard_unique_tags
+
+
+def test_curated_catalogue_contains_primary_pet_tiles():
+    pet_candidates = [
+        candidate
+        for candidate in get_curated_tile_candidates()
+        if candidate.primary_category == TileCategory.PET
+    ]
+
+    assert {
+        candidate.title
+        for candidate in pet_candidates
+    } == {
+        "Obtain any skilling pet",
+        "Obtain any pet",
+    }
+
+    assert all(
+        candidate.pet_role == PetRole.PRIMARY
+        for candidate in pet_candidates
+    )
+    assert all(
+        candidate.routes[0].tracking_source == TrackingSource.DINK
+        for candidate in pet_candidates
+    )
+
+    broad_pet_tile = {
+        candidate.title: candidate
+        for candidate in pet_candidates
+    }["Obtain any pet"]
+
+    assert broad_pet_tile.all_hard_unique_tags == frozenset(
+        {
+            "metric:pet_group_any_pet",
+            "source:any_pet",
+            "pet_group:any_pet",
+        }
+    )

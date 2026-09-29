@@ -158,6 +158,121 @@ def make_drop_candidate(
     )
 
 
+def make_pet_candidate(
+    title,
+    point_value,
+    pet_id=None,
+    pet_group_id=None,
+    source_id=None,
+    target=1,
+    display_text=None,
+    tracking_source=TrackingSource.DINK,
+    contribution_mode=ContributionMode.ANY_PLAYER,
+    rng_level=4,
+    additional_hard_unique_tags=(),
+    explanation=(),
+):
+    if pet_id is None and pet_group_id is None:
+        raise ValueError(
+            "Pet candidates require either pet_id or pet_group_id."
+        )
+
+    pet_id = canonical_id(
+        pet_id
+    )
+    pet_group_id = canonical_id(
+        pet_group_id
+    )
+    source_id = canonical_id(
+        source_id or pet_group_id or pet_id
+    )
+
+    if pet_id is not None:
+        metric_id = f"pet_{pet_id}"
+        pet_label = format_title_part(
+            pet_id
+        )
+    else:
+        metric_id = f"pet_group_{pet_group_id}"
+        pet_label = format_title_part(
+            pet_group_id
+        )
+
+    return TileCandidate(
+        title=title,
+        point_value=point_value,
+        primary_category=TileCategory.PET,
+        pet_role=PetRole.PRIMARY,
+        route_mode=RouteMode.SINGLE,
+        routes=[
+            Route(
+                route_type=TileCategory.PET,
+                display_text=(
+                    display_text
+                    or f"Obtain {pet_label}"
+                ),
+                target=target,
+                tracking_source=tracking_source,
+                contribution_mode=contribution_mode,
+                metric_id=metric_id,
+                source_id=source_id,
+                pet_id=pet_id,
+                pet_group_id=pet_group_id,
+                hard_unique_tags=frozenset(
+                    additional_hard_unique_tags
+                ),
+            )
+        ],
+        rng_level=rng_level,
+        explanation=tuple(
+            explanation
+        ),
+    )
+
+
+def make_skill_xp_candidate(
+    title,
+    point_value,
+    skill_id,
+    xp_target,
+    display_text=None,
+    tracking_source=TrackingSource.WOM,
+    contribution_mode=ContributionMode.TEAM_SUM,
+    rng_level=0,
+    explanation=(),
+):
+    skill_id = canonical_id(
+        skill_id
+    )
+
+    return TileCandidate(
+        title=title,
+        point_value=point_value,
+        primary_category=TileCategory.SKILL,
+        route_mode=RouteMode.SINGLE,
+        routes=[
+            Route(
+                route_type=TileCategory.SKILL,
+                display_text=(
+                    display_text
+                    or f"Gain {format_target(xp_target)} "
+                    f"{format_title_part(skill_id)} XP"
+                ),
+                target=xp_target,
+                tracking_source=tracking_source,
+                contribution_mode=contribution_mode,
+                metric_id=f"skill_{skill_id}_xp",
+                source_id=skill_id,
+                skill_id=skill_id,
+            )
+        ],
+        rng_level=rng_level,
+        explanation=tuple(
+            explanation
+        ),
+    )
+
+
 def make_skill_xp_or_pet_candidate(
     title,
     point_value,

@@ -8,6 +8,8 @@ from utils.board_generation import (
 from utils.osrs_tile_templates import (
     make_drop_candidate,
     make_killcount_candidate,
+    make_pet_candidate,
+    make_skill_xp_candidate,
     make_skill_xp_or_pet_candidate,
 )
 
@@ -124,3 +126,63 @@ def test_make_killcount_candidate_without_content_has_empty_access_profile():
     assert candidate.access_profile.effective_skill_requirements == {}
     assert candidate.access_profile.recommended_skill_requirements == {}
     assert candidate.access_profile.access_flags == frozenset()
+
+
+def test_make_skill_xp_candidate_builds_wom_tracked_skill_tile():
+    candidate = make_skill_xp_candidate(
+        title="Gain 500,000 Cooking XP",
+        point_value=1,
+        skill_id="Cooking",
+        xp_target=500_000,
+    )
+
+    assert candidate.primary_category == TileCategory.SKILL
+    assert candidate.point_value == 1
+    assert candidate.pet_role == PetRole.NONE
+    assert candidate.routes[0].display_text == "Gain 500,000 Cooking XP"
+    assert candidate.routes[0].tracking_source == TrackingSource.WOM
+
+    assert candidate.all_hard_unique_tags == frozenset(
+        {
+            "skill:cooking",
+            "metric:skill_cooking_xp",
+            "source:cooking",
+        }
+    )
+
+
+def test_make_pet_candidate_builds_primary_pet_group_tile():
+    candidate = make_pet_candidate(
+        title="Obtain any skilling pet",
+        point_value=4,
+        pet_group_id="skilling_pets",
+        source_id="skilling_pets",
+        display_text="Obtain any skilling pet",
+        additional_hard_unique_tags=(
+            "source:any_pet",
+        ),
+    )
+
+    assert candidate.primary_category == TileCategory.PET
+    assert candidate.pet_role == PetRole.PRIMARY
+    assert candidate.routes[0].tracking_source == TrackingSource.DINK
+
+    assert candidate.all_hard_unique_tags == frozenset(
+        {
+            "metric:pet_group_skilling_pets",
+            "source:skilling_pets",
+            "pet_group:skilling_pets",
+            "source:any_pet",
+        }
+    )
+
+
+def test_make_pet_candidate_requires_pet_or_pet_group():
+    with pytest.raises(
+        ValueError,
+        match="Pet candidates require either pet_id or pet_group_id"
+    ):
+        make_pet_candidate(
+            title="Bad pet tile",
+            point_value=5,
+        )

@@ -332,6 +332,7 @@ class Route:
     drop_id: Optional[str] = None
     drop_group_id: Optional[str] = None
     pet_id: Optional[str] = None
+    pet_group_id: Optional[str] = None
     hard_unique_tags: FrozenSet[str] = field(default_factory=frozenset)
 
     @property
@@ -344,6 +345,7 @@ class Route:
             build_tag("drop", self.drop_id),
             build_tag("drop_group", self.drop_group_id),
             build_tag("pet", self.pet_id),
+            build_tag("pet_group", self.pet_group_id),
         }
 
         return frozenset(
@@ -507,6 +509,7 @@ def secondary_pet_route_count(candidate):
         1
         for route in candidate.routes
         if route.pet_id is not None
+        or route.pet_group_id is not None
         or route.route_type == TileCategory.PET
     )
 
