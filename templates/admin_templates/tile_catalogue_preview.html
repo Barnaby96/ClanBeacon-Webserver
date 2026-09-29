@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block content %}
+<title>Tile Catalogue Preview</title>
+
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
+
+<div class="osrs-dashboard">
+    <main class="osrs-page">
+        <header class="osrs-page-header">
+            <h1 class="osrs-page-title">Tile Catalogue Preview</h1>
+
+            <p class="osrs-page-subtitle">
+                Preview generated tile candidates, point values, categories,
+                skill requirements, access flags and uniqueness conflicts.
+            </p>
+
+            <div class="osrs-form-actions">
+                <a
+                    class="osrs-button osrs-button-secondary"
+                    href="{{ url_for('admin_routes.bingo_setup') }}"
+                >
+                    Back to Bingo Setup
+                </a>
+            </div>
+        </header>
+
+        <section class="osrs-panel">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Catalogue Summary</h2>
+
+                <p class="osrs-panel-description">
+                    This is a development preview only. These candidates are
+                    not yet automatically generating a full board.
+                </p>
+            </header>
+
+            <div class="osrs-panel-body">
+                <p>
+                    <strong>Candidate count:</strong>
+                    {{ summary.candidate_count }}
+                </p>
+
+                <p>
+                    <strong>By point value:</strong>
+                    {% for point_value, count in summary.counts_by_point_value|dictsort %}
+                        {{ point_value }}: {{ count }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </p>
+
+                <p>
+                    <strong>By primary category:</strong>
+                    {% for category, count in summary.counts_by_primary_category|dictsort %}
+                        {{ category }}: {{ count }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </p>
+            </div>
+        </section>
+
+        <section class="osrs-panel">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Candidates</h2>
+            </header>
+
+            <div class="osrs-panel-body">
+                <div class="osrs-table-wrap">
+                    <table class="osrs-table">
+                        <thead>
+                            <tr>
+                                <th>Tile</th>
+                                <th>Points</th>
+                                <th>Category</th>
+                                <th>Effective Skills</th>
+                                <th>Access Flags</th>
+                                <th>Hard Tags</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for candidate in summary.requirement_summaries %}
+                            <tr>
+                                <td>
+                                    <span class="osrs-player-name">
+                                        {{ candidate.title }}
+                                    </span>
+                                </td>
+                                <td>{{ candidate.point_value }}</td>
+                                <td>{{ candidate.primary_category }}</td>
+                                <td>
+                                    {% if candidate.effective_skill_requirements %}
+                                        {% for skill_id, level in candidate.effective_skill_requirements|dictsort %}
+                                            {{ skill_id|replace("_", " ")|title }} {{ level }}{% if not loop.last %}, {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        None
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if candidate.access_flags %}
+                                        {{ candidate.access_flags|join(", ") }}
+                                    {% else %}
+                                        None
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {{ candidate.hard_unique_tags|join(", ") }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="osrs-panel">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Conflicts</h2>
+
+                <p class="osrs-panel-description">
+                    Conflicts are expected in the catalogue. They show
+                    alternatives that cannot both appear on the same generated
+                    board because they share a hard uniqueness tag.
+                </p>
+            </header>
+
+            <div class="osrs-panel-body">
+                {% if summary.conflicts %}
+                    <div class="osrs-table-wrap">
+                        <table class="osrs-table">
+                            <thead>
+                                <tr>
+                                    <th>Tag</th>
+                                    <th>Conflicting Candidates</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {% for conflict in summary.conflicts %}
+                                <tr>
+                                    <td>{{ conflict.tag }}</td>
+                                    <td>{{ conflict.candidate_titles|join(" | ") }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p>No conflicts found.</p>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}

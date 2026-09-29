@@ -71,6 +71,32 @@
             </div>
         </section>
 
+        <section class="osrs-panel">
+            <div class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Board Generation Tools</h2>
+                <p class="osrs-panel-description">
+                    Development previews for generated Bingo tile candidates,
+                    requirements and uniqueness conflicts.
+                </p>
+            </div>
+
+            <div class="osrs-panel-body">
+                <div class="osrs-form-actions">
+                    <a
+                        class="osrs-button osrs-button-secondary"
+                        href="{{ url_for('admin_routes.tile_catalogue_preview') }}"
+                    >
+                        Preview Tile Catalogue
+                    </a>
+                </div>
+
+                <p class="osrs-form-help">
+                    This preview is for the future automatic board generator.
+                    It does not create or update live Bingo tiles yet.
+                </p>
+            </div>
+        </section>
+
         {% if competition %}
             <section class="osrs-panel">
                 <div class="osrs-panel-header">
