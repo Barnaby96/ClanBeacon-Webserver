@@ -20,6 +20,7 @@ from utils.osrs_tile_components import (
 
 class GenerationRecipeId(str, Enum):
     SINGLE = "SINGLE"
+    N_OF = "N_OF"
 
 
 @dataclass(frozen=True)
@@ -120,6 +121,12 @@ class GenerationRecipe:
 SINGLE_RECIPE = GenerationRecipe(
     recipe_id=GenerationRecipeId.SINGLE,
     route_mode=RouteMode.SINGLE,
+)
+
+
+N_OF_RECIPE = GenerationRecipe(
+    recipe_id=GenerationRecipeId.N_OF,
+    route_mode=RouteMode.N_OF,
 )
 
 
@@ -371,4 +378,102 @@ def build_single_tile_candidate(
         rng_level=component.rng_level,
         access_profile=component.access_profile,
         explanation=explanation_entries,
+    )
+
+
+def build_n_of_tile_candidate(
+    components,
+    point_value,
+    target_model_by_component_id,
+    required_route_count,
+    title,
+    explanation=(),
+):
+    components = tuple(
+        components
+    )
+
+    if not components:
+        raise ValueError(
+            "N_OF recipes require at least one component."
+        )
+
+    if required_route_count < 1:
+        raise ValueError(
+            "N_OF required_route_count must be positive."
+        )
+
+    if required_route_count > len(
+        components
+    ):
+        raise ValueError(
+            "N_OF required_route_count cannot exceed component count."
+        )
+
+    routes = []
+
+    for component in components:
+        if not component.supports_recipe(
+            GenerationRecipeId.N_OF.value
+        ):
+            raise ValueError(
+                f"Component {component.component_id} does not support "
+                "the N_OF recipe."
+            )
+
+        if component.component_id not in target_model_by_component_id:
+            raise ValueError(
+                f"Missing target model for component {component.component_id}."
+            )
+
+        target_model = target_model_by_component_id[
+            component.component_id
+        ]
+
+        if component.target_model_id != target_model.target_model_id:
+            raise ValueError(
+                f"Target model mismatch for component {component.component_id}."
+            )
+
+        target = target_model.target_for_point_value(
+            point_value
+        )
+
+        routes.append(
+            build_single_route(
+                component,
+                target,
+            )
+        )
+
+    primary_category = components[0].primary_category
+    secondary_categories = frozenset(
+        component.primary_category
+        for component in components[1:]
+        if component.primary_category != primary_category
+    )
+
+    return TileCandidate(
+        title=title,
+        point_value=point_value,
+        primary_category=primary_category,
+        secondary_categories=secondary_categories,
+        route_mode=N_OF_RECIPE.route_mode,
+        routes=tuple(
+            routes
+        ),
+        required_route_count=required_route_count,
+        rng_level=max(
+            component.rng_level
+            for component in components
+        ),
+        explanation=(
+            *tuple(
+                explanation
+            ),
+            (
+                f"Generated {point_value}-point N_OF tile requiring "
+                f"{required_route_count} of {len(components)} routes."
+            ),
+        ),
     )

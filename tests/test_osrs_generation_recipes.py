@@ -432,3 +432,157 @@ def test_build_single_candidate_still_rejects_unimplemented_component_type():
             1,
             target_model,
         )
+
+
+def test_build_n_of_tile_candidate_combines_selected_components():
+    from utils.osrs_generation_recipes import build_n_of_tile_candidate
+
+    callisto = TileComponent(
+        component_id="Callisto KC",
+        component_type=TileComponentType.KILLCOUNT,
+        display_name="Callisto",
+        tracking_source=TrackingSource.WOM,
+        target_model_id="Static KC",
+        source_id="Callisto",
+        boss_id="Callisto",
+        groups=(
+            "Wilderness Bosses",
+        ),
+        compatible_recipe_ids=(
+            "SINGLE",
+            "N_OF",
+        ),
+    )
+    venenatis = TileComponent(
+        component_id="Venenatis KC",
+        component_type=TileComponentType.KILLCOUNT,
+        display_name="Venenatis",
+        tracking_source=TrackingSource.WOM,
+        target_model_id="Static KC",
+        source_id="Venenatis",
+        boss_id="Venenatis",
+        groups=(
+            "Wilderness Bosses",
+        ),
+        compatible_recipe_ids=(
+            "SINGLE",
+            "N_OF",
+        ),
+    )
+
+    target_model = StaticPointTargetModel(
+        target_model_id="Static KC",
+        target_by_point_value={
+            3: 25,
+        },
+    )
+
+    candidate = build_n_of_tile_candidate(
+        components=(
+            callisto,
+            venenatis,
+        ),
+        point_value=3,
+        target_model_by_component_id={
+            "callisto_kc": target_model,
+            "venenatis_kc": target_model,
+        },
+        required_route_count=1,
+        title="Wilderness boss sampler",
+        explanation=(
+            "Prototype N_OF recipe.",
+        ),
+    )
+
+    assert candidate.title == "Wilderness boss sampler"
+    assert candidate.point_value == 3
+    assert candidate.primary_category == TileCategory.KILLCOUNT
+    assert candidate.route_mode == RouteMode.N_OF
+    assert candidate.required_route_count == 1
+    assert len(candidate.routes) == 2
+    assert candidate.routes[0].display_text == "Complete 25 Callisto KC"
+    assert candidate.routes[1].display_text == "Complete 25 Venenatis KC"
+    assert candidate.explanation == (
+        "Prototype N_OF recipe.",
+        "Generated 3-point N_OF tile requiring 1 of 2 routes.",
+    )
+    assert "component:callisto_kc" in candidate.all_hard_unique_tags
+    assert "component:venenatis_kc" in candidate.all_hard_unique_tags
+    assert "boss:callisto" in candidate.all_hard_unique_tags
+    assert "boss:venenatis" in candidate.all_hard_unique_tags
+
+
+def test_build_n_of_tile_candidate_rejects_too_many_required_routes():
+    from utils.osrs_generation_recipes import build_n_of_tile_candidate
+
+    component = TileComponent(
+        component_id="Callisto KC",
+        component_type=TileComponentType.KILLCOUNT,
+        display_name="Callisto",
+        tracking_source=TrackingSource.WOM,
+        target_model_id="Static KC",
+        source_id="Callisto",
+        boss_id="Callisto",
+        compatible_recipe_ids=(
+            "N_OF",
+        ),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="cannot exceed component count",
+    ):
+        build_n_of_tile_candidate(
+            components=(
+                component,
+            ),
+            point_value=3,
+            target_model_by_component_id={
+                "callisto_kc": StaticPointTargetModel(
+                    target_model_id="Static KC",
+                    target_by_point_value={
+                        3: 25,
+                    },
+                ),
+            },
+            required_route_count=2,
+            title="Bad N_OF",
+        )
+
+
+def test_build_n_of_tile_candidate_rejects_recipe_incompatible_component():
+    from utils.osrs_generation_recipes import build_n_of_tile_candidate
+
+    component = TileComponent(
+        component_id="Callisto KC",
+        component_type=TileComponentType.KILLCOUNT,
+        display_name="Callisto",
+        tracking_source=TrackingSource.WOM,
+        target_model_id="Static KC",
+        source_id="Callisto",
+        boss_id="Callisto",
+        compatible_recipe_ids=(
+            "SINGLE",
+        ),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="does not support",
+    ):
+        build_n_of_tile_candidate(
+            components=(
+                component,
+            ),
+            point_value=3,
+            target_model_by_component_id={
+                "callisto_kc": StaticPointTargetModel(
+                    target_model_id="Static KC",
+                    target_by_point_value={
+                        3: 25,
+                    },
+                ),
+            },
+            required_route_count=1,
+            title="Bad N_OF",
+        )
