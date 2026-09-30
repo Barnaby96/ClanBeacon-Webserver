@@ -5,6 +5,7 @@ from enum import Enum
 
 from utils.board_generation import (
     ContributionMode,
+    PetRole,
     Route,
     RouteMode,
     TileCandidate,
@@ -241,6 +242,30 @@ def build_single_drop_route(component, target, display_text=None):
     )
 
 
+def build_single_pet_route(component, target, display_text=None):
+    if not component.pet_id:
+        raise ValueError(
+            "Pet components require a pet_id."
+        )
+
+    source_id = component.source_id or component.pet_id
+
+    return Route(
+        route_type=TileCategory.PET,
+        display_text=(
+            display_text
+            or f"Obtain {component.display_name}"
+        ),
+        target=target,
+        tracking_source=component.tracking_source,
+        contribution_mode=ContributionMode.ANY_PLAYER,
+        metric_id=component.metric_id,
+        source_id=source_id,
+        pet_id=component.pet_id,
+        hard_unique_tags=component.hard_unique_tags,
+    )
+
+
 def build_single_route(component, target, display_text=None):
     if component.component_type == TileComponentType.KILLCOUNT:
         return build_single_killcount_route(
@@ -270,9 +295,16 @@ def build_single_route(component, target, display_text=None):
             display_text=display_text,
         )
 
+    if component.component_type == TileComponentType.PET:
+        return build_single_pet_route(
+            component,
+            target,
+            display_text=display_text,
+        )
+
     raise ValueError(
         "SINGLE recipe currently supports KILLCOUNT, EXPERIENCE, "
-        "WOM_METRIC and DROP components only."
+        "WOM_METRIC, DROP and PET components only."
     )
 
 
@@ -330,6 +362,11 @@ def build_single_tile_candidate(
         route_mode=SINGLE_RECIPE.route_mode,
         routes=(
             route,
+        ),
+        pet_role=(
+            PetRole.PRIMARY
+            if component.component_type == TileComponentType.PET
+            else PetRole.NONE
         ),
         rng_level=component.rng_level,
         access_profile=component.access_profile,

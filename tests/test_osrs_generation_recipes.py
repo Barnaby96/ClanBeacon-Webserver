@@ -4,6 +4,7 @@ from utils.board_generation import (
     AccessFlag,
     AccessProfile,
     RouteMode,
+    PetRole,
     TileCategory,
     TrackingSource,
 )
@@ -365,13 +366,15 @@ def test_build_single_drop_candidate_from_component():
     assert "boss:zulrah" in candidate.all_hard_unique_tags
     assert "drop_group:zulrah_uniques" in candidate.all_hard_unique_tags
 
-def test_build_single_candidate_still_rejects_unimplemented_component_type():
+def test_build_single_pet_candidate_from_component():
     component = TileComponent(
         component_id="Rocky Pet",
         component_type=TileComponentType.PET,
         display_name="Rocky",
         tracking_source=TrackingSource.DINK,
         target_model_id="Pet Drop",
+        metric_id="Pet Rocky",
+        source_id="Thieving",
         pet_id="Rocky",
     )
     target_model = StaticPointTargetModel(
@@ -381,12 +384,51 @@ def test_build_single_candidate_still_rejects_unimplemented_component_type():
         },
     )
 
+    candidate = build_single_tile_candidate(
+        component,
+        5,
+        target_model,
+    )
+    route = candidate.routes[0]
+
+    assert candidate.title == "Obtain Rocky"
+    assert candidate.primary_category == TileCategory.PET
+    assert candidate.pet_role == PetRole.PRIMARY
+    assert route.route_type == TileCategory.PET
+    assert route.display_text == "Obtain Rocky"
+    assert route.target == 1
+    assert route.tracking_source == TrackingSource.DINK
+    assert route.contribution_mode.value == "ANY_PLAYER"
+    assert route.metric_id == "pet_rocky"
+    assert route.source_id == "thieving"
+    assert route.pet_id == "rocky"
+    assert "component:rocky_pet" in candidate.all_hard_unique_tags
+    assert "metric:pet_rocky" in candidate.all_hard_unique_tags
+    assert "source:thieving" in candidate.all_hard_unique_tags
+    assert "pet:rocky" in candidate.all_hard_unique_tags
+
+
+def test_build_single_candidate_still_rejects_unimplemented_component_type():
+    component = TileComponent(
+        component_id="Manual Task",
+        component_type=TileComponentType.MANUAL,
+        display_name="Manual task",
+        tracking_source=TrackingSource.MANUAL,
+        target_model_id="Manual Target",
+    )
+    target_model = StaticPointTargetModel(
+        target_model_id="Manual Target",
+        target_by_point_value={
+            1: 1,
+        },
+    )
+
     with pytest.raises(
         ValueError,
-        match="currently supports KILLCOUNT, EXPERIENCE, WOM_METRIC and DROP",
+        match="currently supports KILLCOUNT, EXPERIENCE, WOM_METRIC, DROP and PET",
     ):
         build_single_tile_candidate(
             component,
-            5,
+            1,
             target_model,
         )

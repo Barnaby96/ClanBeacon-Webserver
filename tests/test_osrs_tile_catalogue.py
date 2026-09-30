@@ -229,6 +229,7 @@ def test_specific_pet_candidates_use_pet_and_source_tags():
 
     assert vorki_tile.all_hard_unique_tags == frozenset(
         {
+            "component:vorki_pet",
             "metric:pet_vorki",
             "pet:vorki",
             "source:vorkath",
@@ -239,6 +240,7 @@ def test_specific_pet_candidates_use_pet_and_source_tags():
 
     assert snakeling_tile.all_hard_unique_tags == frozenset(
         {
+            "component:pet_snakeling_pet",
             "metric:pet_pet_snakeling",
             "pet:pet_snakeling",
             "source:zulrah",
@@ -434,3 +436,41 @@ def test_curated_tile_generation_board_limits_clue_tiles_by_hard_tag():
     ]
 
     assert len(clue_tiles) <= 1
+
+
+def test_pet_candidate_from_option_expands_via_component_single_recipe():
+    from utils.board_generation import (
+        PetRole,
+        TileCategory,
+        TrackingSource,
+    )
+    from utils.osrs_tile_catalogue import (
+        make_pet_candidate_from_option,
+    )
+
+    candidate = make_pet_candidate_from_option(
+        {
+            "label": "Vorkath - Vorki",
+            "value": "Vorki",
+        }
+    )
+    route = candidate.routes[0]
+
+    assert candidate.title == "Obtain Vorki"
+    assert candidate.point_value == 5
+    assert candidate.primary_category == TileCategory.PET
+    assert candidate.pet_role == PetRole.PRIMARY
+    assert candidate.rng_level == 4
+    assert route.display_text == "Obtain Vorki"
+    assert route.target == 1
+    assert route.tracking_source == TrackingSource.DINK
+    assert route.metric_id == "pet_vorki"
+    assert route.source_id == "vorkath"
+    assert route.pet_id == "vorki"
+    assert candidate.explanation == (
+        "Generated specific pet candidate from the OSRS pet option list.",
+    )
+    assert "component:vorki_pet" in candidate.all_hard_unique_tags
+    assert "metric:pet_vorki" in candidate.all_hard_unique_tags
+    assert "source:vorkath" in candidate.all_hard_unique_tags
+    assert "pet:vorki" in candidate.all_hard_unique_tags

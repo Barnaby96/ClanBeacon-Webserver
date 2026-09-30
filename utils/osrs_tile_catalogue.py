@@ -1,4 +1,13 @@
-﻿from utils.board_generation import TileCategory, canonical_id
+from utils.board_generation import TrackingSource
+from utils.osrs_generation_recipes import (
+    StaticPointTargetModel,
+    build_single_tile_candidate,
+)
+from utils.osrs_tile_components import (
+    TileComponent,
+    TileComponentType,
+)
+from utils.board_generation import TileCategory, canonical_id
 from utils.osrs_pets import get_osrs_pet_options
 from utils.osrs_tile_template_expansion import (
     get_static_drop_candidates,
@@ -24,24 +33,50 @@ def get_pet_source_from_option(option):
     return label.split(" - ", 1)[0]
 
 
-def make_pet_candidate_from_option(option):
+SPECIFIC_PET_TARGET_MODEL = StaticPointTargetModel(
+    target_model_id="specific_pet_drop",
+    target_by_point_value={
+        5: 1,
+    },
+)
+
+
+def build_pet_component_from_option(option):
     pet_name = option["value"]
     source_name = get_pet_source_from_option(
         option
     )
 
-    return make_pet_candidate(
-        title=f"Obtain {pet_name}",
-        point_value=5,
-        pet_id=pet_name,
+    return TileComponent(
+        component_id=f"{pet_name}_pet",
+        component_type=TileComponentType.PET,
+        display_name=pet_name,
+        tracking_source=TrackingSource.DINK,
+        target_model_id="specific_pet_drop",
+        metric_id=f"pet_{pet_name}",
         source_id=source_name,
-        display_text=f"Obtain {pet_name}",
-        explanation=(
-            "Primary specific pet-led tile.",
-            f"Consumes {pet_name} and {source_name} for board uniqueness.",
-        ),
+        pet_id=pet_name,
+        rng_level=4,
     )
 
+
+def make_pet_candidate_from_option(option):
+    pet_name = option["value"]
+    component = build_pet_component_from_option(
+        option
+    )
+
+    return build_single_tile_candidate(
+        component,
+        5,
+        SPECIFIC_PET_TARGET_MODEL,
+        title=f"Obtain {pet_name}",
+        display_text=f"Obtain {pet_name}",
+        explanation=(
+            "Generated specific pet candidate from the OSRS pet option list.",
+        ),
+        include_generation_note=False,
+    )
 
 def get_curated_pet_candidates():
     return tuple(
