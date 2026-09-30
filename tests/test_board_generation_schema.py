@@ -843,3 +843,40 @@ def test_pet_group_route_consumes_pet_group_tag():
             "pet_group:skilling_pets",
         }
     )
+
+
+def test_board_generation_rules_builds_required_slots_before_flex_slots():
+    from utils.board_generation import BoardGenerationRules, TileCategory
+
+    rules = BoardGenerationRules()
+    slots = rules.build_slots()
+
+    first_flex_index = next(
+        index
+        for index, slot in enumerate(slots)
+        if slot.is_flex
+    )
+
+    assert all(
+        not slot.is_flex
+        for slot in slots[:first_flex_index]
+    )
+    assert all(
+        slot.is_flex
+        for slot in slots[first_flex_index:]
+    )
+
+    required_slots = slots[:first_flex_index]
+    flex_slots = slots[first_flex_index:]
+
+    assert len(required_slots) == 15
+    assert len(flex_slots) == 10
+
+    assert {
+        slot.required_category
+        for slot in required_slots
+    } == {
+        TileCategory.SKILL,
+        TileCategory.KILLCOUNT,
+        TileCategory.DROP,
+    }

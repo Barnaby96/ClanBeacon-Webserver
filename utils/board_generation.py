@@ -1,4 +1,4 @@
-﻿from collections import Counter
+from collections import Counter
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import FrozenSet, Iterable, Optional, Sequence
@@ -196,19 +196,20 @@ class BoardGenerationRules:
         return errors
 
     def build_slots(self):
-        slots = []
+        required_slots = []
+        flex_slots = []
 
         for point_value in sorted(
             self.points_distribution
         ):
-            for category in self.required_categories_by_point.get(
+            for required_category in self.required_categories_by_point.get(
                 point_value,
                 ()
             ):
-                slots.append(
+                required_slots.append(
                     BoardSlot(
                         point_value=point_value,
-                        required_category=category
+                        required_category=required_category,
                     )
                 )
 
@@ -218,13 +219,19 @@ class BoardGenerationRules:
                     0
                 )
             ):
-                slots.append(
+                flex_slots.append(
                     BoardSlot(
-                        point_value=point_value
+                        point_value=point_value,
                     )
                 )
 
-        return tuple(slots)
+        return tuple(
+            [
+                *required_slots,
+                *flex_slots,
+            ]
+        )
+
 
 
 def canonical_id(value):

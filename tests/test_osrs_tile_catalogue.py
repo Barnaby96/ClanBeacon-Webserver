@@ -1,4 +1,8 @@
 ﻿from utils.osrs_pets import get_osrs_pet_options
+from utils.osrs_tile_template_expansion import (
+    STATIC_DROP_TEMPLATES,
+    STATIC_KILLCOUNT_TEMPLATES,
+)
 
 from utils.board_generation import (
     PetRole,
@@ -10,6 +14,7 @@ from utils.osrs_tile_catalogue import (
     get_curated_killcount_led_candidates,
     get_curated_skill_led_candidates,
     get_curated_tile_candidates,
+    get_curated_tile_generation_candidates,
 )
 
 
@@ -255,3 +260,126 @@ def test_specific_pet_candidates_conflict_with_matching_secondary_pet_routes():
     assert "pet:rocky" in rocky_secondary_route_tile.all_hard_unique_tags
     assert "source:thieving" in rocky_primary_tile.all_hard_unique_tags
     assert "source:thieving" in rocky_secondary_route_tile.all_hard_unique_tags
+
+
+def test_curated_tile_generation_candidates_expand_killcount_templates():
+    candidates = get_curated_tile_generation_candidates()
+
+    killcount_candidates = [
+        candidate
+        for candidate in candidates
+        if candidate.primary_category == TileCategory.KILLCOUNT
+    ]
+
+    assert len(killcount_candidates) == len(STATIC_KILLCOUNT_TEMPLATES) * 5
+
+    assert {
+        candidate.point_value
+        for candidate in killcount_candidates
+    } == {
+        1,
+        2,
+        3,
+        4,
+        5,
+    }
+
+    assert {
+        candidate.title
+        for candidate in killcount_candidates
+    } >= {
+        "Complete 50 Zulrah KC",
+        "Complete 400 Zulrah KC",
+        "Complete 25 Vorkath KC",
+        "Complete 400 Vorkath KC",
+        "Complete 25 Giant Mole KC",
+        "Complete 500 Scurrius KC",
+    }
+
+
+def test_curated_tile_generation_candidates_expand_drop_templates():
+    candidates = get_curated_tile_generation_candidates()
+
+    drop_candidates = [
+        candidate
+        for candidate in candidates
+        if candidate.primary_category == TileCategory.DROP
+    ]
+
+    assert len(drop_candidates) == len(STATIC_DROP_TEMPLATES) * 5
+
+    assert {
+        candidate.point_value
+        for candidate in drop_candidates
+    } == {
+        1,
+        2,
+        3,
+        4,
+        5,
+    }
+
+    assert {
+        candidate.title
+        for candidate in drop_candidates
+    } >= {
+        "Obtain 1 Zulrah unique",
+        "Obtain 5 Zulrah uniques",
+        "Obtain 1 Vorkath unique",
+        "Obtain 5 Vorkath uniques",
+        "Obtain 1 Giant Mole unique",
+        "Obtain 5 Scurrius uniques",
+    }
+
+
+def test_curated_tile_generation_candidates_expand_skill_xp_templates():
+    candidates = get_curated_tile_generation_candidates()
+
+    skill_candidates = [
+        candidate
+        for candidate in candidates
+        if candidate.primary_category == TileCategory.SKILL
+    ]
+
+    assert len(skill_candidates) >= 50
+
+    assert {
+        candidate.point_value
+        for candidate in skill_candidates
+    } == {
+        1,
+        2,
+        3,
+        4,
+        5,
+    }
+
+    assert {
+        candidate.title
+        for candidate in skill_candidates
+    } >= {
+        "Gain 250,000 Cooking XP",
+        "Gain 1,500,000 Cooking XP",
+        "Gain 250,000 Hunter XP",
+        "Gain 1,500,000 Hunter XP",
+    }
+
+
+def test_curated_tile_generation_candidates_can_assemble_default_board():
+    from utils.board_generation import assemble_board_candidates
+
+    board = assemble_board_candidates(
+        get_curated_tile_generation_candidates()
+    )
+
+    assert len(board.candidates) == 25
+    assert {
+        candidate.point_value
+        for candidate in board.candidates
+    } == {
+        1,
+        2,
+        3,
+        4,
+        5,
+    }
