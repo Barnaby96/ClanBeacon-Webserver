@@ -436,48 +436,63 @@ def build_metric_hard_unique_tags(template):
     )
 
 
-def expand_metric_template(template):
-    metric_id = canonical_id(
-        template.metric_id
+def build_metric_component_from_template(template):
+    groups = ()
+
+    if template.activity_group_id:
+        groups = (
+            template.activity_group_id,
+        )
+
+    return TileComponent(
+        component_id=f"{template.metric_id}_metric",
+        component_type=TileComponentType.WOM_METRIC,
+        display_name=template.display_name,
+        tracking_source=TrackingSource.WOM,
+        target_model_id=f"{template.metric_id}_static_metric",
+        metric_id=template.metric_id,
+        source_id=template.source_id,
+        groups=groups,
+        rng_level=template.rng_level,
+        notes=template.explanation,
     )
-    source_id = canonical_id(
-        template.source_id
+
+
+def build_metric_target_model_from_template(template):
+    return StaticPointTargetModel(
+        target_model_id=f"{template.metric_id}_static_metric",
+        target_by_point_value=template.target_by_point_value,
+    )
+
+
+def expand_metric_template(template):
+    component = build_metric_component_from_template(
+        template
+    )
+    target_model = build_metric_target_model_from_template(
+        template
     )
 
     return tuple(
-        TileCandidate(
+        build_single_tile_candidate(
+            component,
+            point_value,
+            target_model,
             title=format_metric_title(
                 template.display_name,
                 target
             ),
-            point_value=point_value,
-            primary_category=TileCategory.HYBRID,
-            route_mode=RouteMode.SINGLE,
-            routes=[
-                Route(
-                    route_type=TileCategory.HYBRID,
-                    display_text=format_metric_title(
-                        template.display_name,
-                        target
-                    ),
-                    target=target,
-                    tracking_source=TrackingSource.WOM,
-                    contribution_mode=ContributionMode.TEAM_SUM,
-                    metric_id=metric_id,
-                    source_id=source_id,
-                    hard_unique_tags=build_metric_hard_unique_tags(
-                        template
-                    ),
-                )
-            ],
-            rng_level=template.rng_level,
+            display_text=format_metric_title(
+                template.display_name,
+                target
+            ),
             explanation=(
-                *template.explanation,
                 (
                     f"Generated {point_value}-point WOM metric target "
                     f"from the {template.display_name} template."
                 ),
             ),
+            include_generation_note=False,
         )
         for point_value, target in template.target_by_point_value
     )

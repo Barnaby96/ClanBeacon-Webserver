@@ -285,6 +285,46 @@ def test_build_single_candidate_can_suppress_generation_note():
     )
 
 
+
+def test_build_single_wom_metric_candidate_from_component():
+    component = TileComponent(
+        component_id="Medium Clues",
+        component_type=TileComponentType.WOM_METRIC,
+        display_name="medium clue scrolls",
+        tracking_source=TrackingSource.WOM,
+        target_model_id="Static Metric",
+        metric_id="Medium Clues Completed",
+        source_id="Medium Clues",
+        groups=(
+            "Clue Scrolls",
+        ),
+    )
+    target_model = StaticPointTargetModel(
+        target_model_id="Static Metric",
+        target_by_point_value={
+            2: 25,
+        },
+    )
+
+    candidate = build_single_tile_candidate(
+        component,
+        2,
+        target_model,
+    )
+    route = candidate.routes[0]
+
+    assert candidate.title == "Complete 25 medium clue scrolls"
+    assert candidate.primary_category == TileCategory.HYBRID
+    assert route.route_type == TileCategory.HYBRID
+    assert route.display_text == "Complete 25 medium clue scrolls"
+    assert route.target == 25
+    assert route.metric_id == "medium_clues_completed"
+    assert route.source_id == "medium_clues"
+    assert "component:medium_clues" in candidate.all_hard_unique_tags
+    assert "metric:medium_clues_completed" in candidate.all_hard_unique_tags
+    assert "source:medium_clues" in candidate.all_hard_unique_tags
+    assert "activity_group:clue_scrolls" in candidate.all_hard_unique_tags
+
 def test_build_single_candidate_still_rejects_unimplemented_component_type():
     component = TileComponent(
         component_id="Rocky Pet",
@@ -303,7 +343,7 @@ def test_build_single_candidate_still_rejects_unimplemented_component_type():
 
     with pytest.raises(
         ValueError,
-        match="currently supports KILLCOUNT and EXPERIENCE",
+        match="currently supports KILLCOUNT, EXPERIENCE and WOM_METRIC",
     ):
         build_single_tile_candidate(
             component,

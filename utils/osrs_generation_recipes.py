@@ -186,6 +186,30 @@ def build_single_experience_route(component, target, display_text=None):
     )
 
 
+def build_single_wom_metric_route(component, target, display_text=None):
+    if not component.metric_id:
+        raise ValueError(
+            "WOM metric components require a metric_id."
+        )
+
+    source_id = component.source_id or component.metric_id
+
+    return Route(
+        route_type=TileCategory.HYBRID,
+        display_text=(
+            display_text
+            or f"Complete {format_target(target)} "
+            f"{component.display_name}"
+        ),
+        target=target,
+        tracking_source=component.tracking_source,
+        contribution_mode=ContributionMode.TEAM_SUM,
+        metric_id=component.metric_id,
+        source_id=source_id,
+        hard_unique_tags=component.hard_unique_tags,
+    )
+
+
 def build_single_route(component, target, display_text=None):
     if component.component_type == TileComponentType.KILLCOUNT:
         return build_single_killcount_route(
@@ -201,9 +225,16 @@ def build_single_route(component, target, display_text=None):
             display_text=display_text,
         )
 
+    if component.component_type == TileComponentType.WOM_METRIC:
+        return build_single_wom_metric_route(
+            component,
+            target,
+            display_text=display_text,
+        )
+
     raise ValueError(
-        "SINGLE recipe currently supports KILLCOUNT and EXPERIENCE "
-        "components only."
+        "SINGLE recipe currently supports KILLCOUNT, EXPERIENCE "
+        "and WOM_METRIC components only."
     )
 
 

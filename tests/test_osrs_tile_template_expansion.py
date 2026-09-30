@@ -442,3 +442,45 @@ def test_skill_xp_template_expands_via_component_single_recipe():
     )
     assert "component:magic_experience" in candidate.all_hard_unique_tags
     assert "skill:magic" in candidate.all_hard_unique_tags
+
+
+def test_metric_template_expands_via_component_single_recipe():
+    from utils.board_generation import TrackingSource
+    from utils.osrs_tile_template_expansion import (
+        MetricTileTemplate,
+        expand_metric_template,
+    )
+
+    template = MetricTileTemplate(
+        display_name="medium clue scrolls",
+        metric_id="clue_scrolls_medium_completed",
+        source_id="clue_scrolls_medium",
+        target_by_point_value={
+            2: 25,
+        },
+        activity_group_id="clue_scrolls",
+        explanation=(
+            "Prototype metric source.",
+        ),
+    )
+
+    candidate = expand_metric_template(
+        template
+    )[0]
+    route = candidate.routes[0]
+
+    assert candidate.title == "Complete 25 medium clue scrolls"
+    assert candidate.point_value == 2
+    assert route.display_text == "Complete 25 medium clue scrolls"
+    assert route.target == 25
+    assert route.tracking_source == TrackingSource.WOM
+    assert route.metric_id == "clue_scrolls_medium_completed"
+    assert route.source_id == "clue_scrolls_medium"
+    assert candidate.explanation == (
+        "Prototype metric source.",
+        "Generated 2-point WOM metric target from the medium clue scrolls template.",
+    )
+    assert "component:clue_scrolls_medium_completed_metric" in candidate.all_hard_unique_tags
+    assert "metric:clue_scrolls_medium_completed" in candidate.all_hard_unique_tags
+    assert "source:clue_scrolls_medium" in candidate.all_hard_unique_tags
+    assert "activity_group:clue_scrolls" in candidate.all_hard_unique_tags
