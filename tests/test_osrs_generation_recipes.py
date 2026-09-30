@@ -325,6 +325,46 @@ def test_build_single_wom_metric_candidate_from_component():
     assert "source:medium_clues" in candidate.all_hard_unique_tags
     assert "activity_group:clue_scrolls" in candidate.all_hard_unique_tags
 
+
+def test_build_single_drop_candidate_from_component():
+    component = TileComponent(
+        component_id="Zulrah Unique",
+        component_type=TileComponentType.DROP,
+        display_name="Zulrah unique",
+        tracking_source=TrackingSource.DINK,
+        target_model_id="Static Drop",
+        source_id="Zulrah",
+        boss_id="Zulrah",
+        drop_group_id="Zulrah Uniques",
+    )
+    target_model = StaticPointTargetModel(
+        target_model_id="Static Drop",
+        target_by_point_value={
+            3: 1,
+        },
+    )
+
+    candidate = build_single_tile_candidate(
+        component,
+        3,
+        target_model,
+    )
+    route = candidate.routes[0]
+
+    assert candidate.title == "Obtain 1 Zulrah unique"
+    assert candidate.primary_category == TileCategory.DROP
+    assert route.route_type == TileCategory.DROP
+    assert route.display_text == "Obtain 1 Zulrah unique"
+    assert route.target == 1
+    assert route.tracking_source == TrackingSource.DINK
+    assert route.source_id == "zulrah"
+    assert route.boss_id == "zulrah"
+    assert route.drop_group_id == "zulrah_uniques"
+    assert "component:zulrah_unique" in candidate.all_hard_unique_tags
+    assert "source:zulrah" in candidate.all_hard_unique_tags
+    assert "boss:zulrah" in candidate.all_hard_unique_tags
+    assert "drop_group:zulrah_uniques" in candidate.all_hard_unique_tags
+
 def test_build_single_candidate_still_rejects_unimplemented_component_type():
     component = TileComponent(
         component_id="Rocky Pet",
@@ -343,7 +383,7 @@ def test_build_single_candidate_still_rejects_unimplemented_component_type():
 
     with pytest.raises(
         ValueError,
-        match="currently supports KILLCOUNT, EXPERIENCE and WOM_METRIC",
+        match="currently supports KILLCOUNT, EXPERIENCE, WOM_METRIC and DROP",
     ):
         build_single_tile_candidate(
             component,

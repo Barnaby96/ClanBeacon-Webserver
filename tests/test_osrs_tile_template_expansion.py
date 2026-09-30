@@ -484,3 +484,46 @@ def test_metric_template_expands_via_component_single_recipe():
     assert "metric:clue_scrolls_medium_completed" in candidate.all_hard_unique_tags
     assert "source:clue_scrolls_medium" in candidate.all_hard_unique_tags
     assert "activity_group:clue_scrolls" in candidate.all_hard_unique_tags
+
+
+def test_drop_template_expands_via_component_single_recipe():
+    from utils.board_generation import TrackingSource
+    from utils.osrs_tile_template_expansion import (
+        DropTileTemplate,
+        expand_drop_template,
+    )
+
+    template = DropTileTemplate(
+        source_name="Zulrah",
+        source_id="zulrah",
+        boss_id="zulrah",
+        drop_group_id="zulrah_uniques",
+        target_by_point_value={
+            3: 1,
+        },
+        explanation=(
+            "Prototype drop source.",
+        ),
+    )
+
+    candidate = expand_drop_template(
+        template
+    )[0]
+    route = candidate.routes[0]
+
+    assert candidate.title == "Obtain 1 Zulrah unique"
+    assert candidate.point_value == 3
+    assert route.display_text == "Obtain 1 Zulrah unique"
+    assert route.target == 1
+    assert route.tracking_source == TrackingSource.DINK
+    assert route.source_id == "zulrah"
+    assert route.boss_id == "zulrah"
+    assert route.drop_group_id == "zulrah_uniques"
+    assert candidate.explanation == (
+        "Prototype drop source.",
+        "Generated 3-point drop target from the Zulrah template.",
+    )
+    assert "component:zulrah_drop" in candidate.all_hard_unique_tags
+    assert "source:zulrah" in candidate.all_hard_unique_tags
+    assert "boss:zulrah" in candidate.all_hard_unique_tags
+    assert "drop_group:zulrah_uniques" in candidate.all_hard_unique_tags

@@ -217,31 +217,59 @@ def format_drop_title(source_name, target):
     return f"Obtain {target:,} {source_name} {noun}"
 
 
+def build_drop_component_from_template(template):
+    return TileComponent(
+        component_id=f"{template.source_id}_drop",
+        component_type=TileComponentType.DROP,
+        display_name=f"{template.source_name} uniques",
+        tracking_source=TrackingSource.DINK,
+        target_model_id=f"{template.source_id}_static_drop",
+        source_id=template.source_id,
+        boss_id=template.boss_id,
+        drop_group_id=template.drop_group_id,
+        access_profile=access_profile_for_content(
+            template.content_id
+        ),
+        rng_level=template.rng_level,
+        notes=template.explanation,
+    )
+
+
+def build_drop_target_model_from_template(template):
+    return StaticPointTargetModel(
+        target_model_id=f"{template.source_id}_static_drop",
+        target_by_point_value=template.target_by_point_value,
+    )
+
+
 def expand_drop_template(template):
+    component = build_drop_component_from_template(
+        template
+    )
+    target_model = build_drop_target_model_from_template(
+        template
+    )
+
     return tuple(
-        make_drop_candidate(
+        build_single_tile_candidate(
+            component,
+            point_value,
+            target_model,
             title=format_drop_title(
                 template.source_name,
                 target
             ),
-            point_value=point_value,
-            source_id=template.source_id,
-            target=target,
-            drop_group_id=template.drop_group_id,
-            boss_id=template.boss_id,
-            content_id=template.content_id,
             display_text=format_drop_title(
                 template.source_name,
                 target
             ),
-            rng_level=template.rng_level,
             explanation=(
-                *template.explanation,
                 (
                     f"Generated {point_value}-point drop target "
                     f"from the {template.source_name} template."
                 ),
             ),
+            include_generation_note=False,
         )
         for point_value, target in template.target_by_point_value
     )
