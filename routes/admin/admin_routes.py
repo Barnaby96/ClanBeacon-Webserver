@@ -15,6 +15,7 @@ from utils.spoofed_jsons.spoof_drop import award_drop_json
 from utils.spoofed_jsons.spoof_kc import kc_spoof_json
 from utils.spoofed_jsons.spoof_pet import spoof_pet
 from utils.osrs_tile_catalogue_preview import get_curated_tile_catalogue_summary
+from utils.osrs_generated_board_preview import get_curated_generated_board_preview_summary
 
 admin_routes = Blueprint("admin_routes", __name__)
 
@@ -1097,6 +1098,15 @@ def dink_events():
             pending_manual_evidence_entries
         ),
         manual_evidence_entries=manual_evidence_entries
+    )
+
+
+@admin_routes.route('/bingo_setup/generated_board_preview', methods=['GET'])
+@admin_required
+def generated_board_preview():
+    return render_template(
+        'admin_templates/generated_board_preview.html',
+        summary=get_curated_generated_board_preview_summary(),
     )
 
 @admin_routes.route('/bingo_setup/tile_catalogue_preview', methods=['GET'])
