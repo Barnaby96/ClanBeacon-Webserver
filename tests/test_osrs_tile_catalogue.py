@@ -1,4 +1,6 @@
-﻿from utils.board_generation import (
+﻿from utils.osrs_pets import get_osrs_pet_options
+
+from utils.board_generation import (
     PetRole,
     TileCategory,
     TrackingSource,
@@ -26,9 +28,7 @@ def test_curated_catalogue_contains_expected_initial_candidates():
         for candidate in get_curated_tile_candidates()
     }
 
-    assert titles == {
-        "Obtain any skilling pet",
-        "Obtain any pet",
+    assert {
         "Gain 500,000 Cooking XP",
         "Gain 500,000 Firemaking XP",
         "Gain 750,000 Fletching XP",
@@ -41,7 +41,10 @@ def test_curated_catalogue_contains_expected_initial_candidates():
         "Gain 1,000,000 Fishing XP OR obtain Heron",
         "Gain 1,000,000 Mining XP OR obtain Rock golem",
         "Gain 1,000,000 Runecraft XP OR obtain Rift guardian",
-    }
+    }.issubset(titles)
+
+    assert "Obtain any pet" not in titles
+    assert "Obtain any skilling pet" not in titles
 
 
 def test_curated_killcount_candidates_are_wom_tracked():
@@ -181,21 +184,25 @@ def test_catalogue_alternatives_can_share_source_tags_before_board_assembly():
     assert "source:zulrah" in zulrah_drop.all_hard_unique_tags
 
 
-def test_curated_catalogue_contains_primary_pet_tiles():
+def test_curated_catalogue_contains_specific_primary_pet_tiles_for_all_pet_options():
     pet_candidates = [
         candidate
         for candidate in get_curated_tile_candidates()
         if candidate.primary_category == TileCategory.PET
     ]
 
+    pet_options = get_osrs_pet_options()
+    expected_pet_titles = {
+        f"Obtain {option['value']}"
+        for option in pet_options
+    }
+
     assert {
         candidate.title
         for candidate in pet_candidates
-    } == {
-        "Obtain any skilling pet",
-        "Obtain any pet",
-    }
+    } == expected_pet_titles
 
+    assert len(pet_candidates) == len(pet_options)
     assert all(
         candidate.pet_role == PetRole.PRIMARY
         for candidate in pet_candidates
@@ -205,15 +212,46 @@ def test_curated_catalogue_contains_primary_pet_tiles():
         for candidate in pet_candidates
     )
 
-    broad_pet_tile = {
-        candidate.title: candidate
-        for candidate in pet_candidates
-    }["Obtain any pet"]
 
-    assert broad_pet_tile.all_hard_unique_tags == frozenset(
+def test_specific_pet_candidates_use_pet_and_source_tags():
+    candidates = {
+        candidate.title: candidate
+        for candidate in get_curated_tile_candidates()
+    }
+
+    vorki_tile = candidates["Obtain Vorki"]
+
+    assert vorki_tile.all_hard_unique_tags == frozenset(
         {
-            "metric:pet_group_any_pet",
-            "source:any_pet",
-            "pet_group:any_pet",
+            "metric:pet_vorki",
+            "pet:vorki",
+            "source:vorkath",
         }
     )
+
+    snakeling_tile = candidates["Obtain Pet snakeling"]
+
+    assert snakeling_tile.all_hard_unique_tags == frozenset(
+        {
+            "metric:pet_pet_snakeling",
+            "pet:pet_snakeling",
+            "source:zulrah",
+        }
+    )
+
+
+def test_specific_pet_candidates_conflict_with_matching_secondary_pet_routes():
+    candidates = {
+        candidate.title: candidate
+        for candidate in get_curated_tile_candidates()
+    }
+
+    rocky_primary_tile = candidates["Obtain Rocky"]
+    rocky_secondary_route_tile = candidates[
+        "Gain 1,000,000 Thieving XP OR obtain Rocky"
+    ]
+
+    assert "pet:rocky" in rocky_primary_tile.all_hard_unique_tags
+    assert "pet:rocky" in rocky_secondary_route_tile.all_hard_unique_tags
+    assert "source:thieving" in rocky_primary_tile.all_hard_unique_tags
+    assert "source:thieving" in rocky_secondary_route_tile.all_hard_unique_tags

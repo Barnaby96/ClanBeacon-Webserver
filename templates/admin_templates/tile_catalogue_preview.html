@@ -8,7 +8,21 @@
     href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
 >
 
-<div class="osrs-dashboard">
+<style>
+    .tile-catalogue-preview .osrs-panel-body,
+    .tile-catalogue-preview .osrs-panel-body p,
+    .tile-catalogue-preview .osrs-panel-body td,
+    .tile-catalogue-preview .osrs-panel-body th {
+        color: #2b1a0b;
+    }
+
+    .tile-catalogue-preview .osrs-panel-body strong,
+    .tile-catalogue-preview .osrs-player-name {
+        color: #1d1006;
+    }
+</style>
+
+<div class="osrs-dashboard tile-catalogue-preview">
     <main class="osrs-page">
         <header class="osrs-page-header">
             <h1 class="osrs-page-title">Tile Catalogue Preview</h1>

@@ -1,4 +1,6 @@
-﻿from utils.board_generation import TileCategory
+﻿from utils.osrs_pets import get_osrs_pet_options
+
+from utils.board_generation import TileCategory
 from utils.osrs_tile_catalogue import get_curated_tile_candidates
 from utils.osrs_tile_catalogue_validation import (
     build_candidate_requirement_summary,
@@ -7,6 +9,29 @@ from utils.osrs_tile_catalogue_validation import (
     format_catalogue_summary,
     format_skill_requirements,
 )
+
+
+def expected_catalogue_candidate_count():
+    return 12 + len(get_osrs_pet_options())
+
+
+def expected_counts_by_point_value():
+    return {
+        1: 2,
+        2: 2,
+        3: 5,
+        4: 3,
+        5: len(get_osrs_pet_options()),
+    }
+
+
+def expected_counts_by_primary_category():
+    return {
+        "KILLCOUNT": 2,
+        "DROP": 2,
+        "PET": len(get_osrs_pet_options()),
+        "SKILL": 8,
+    }
 
 
 def test_build_candidate_requirement_summary_includes_requirements_and_tags():
@@ -50,6 +75,7 @@ def test_find_candidate_conflicts_reports_shared_hard_tags():
 
     assert conflict_lookup["source:zulrah"] == (
         "Complete 150 Zulrah KC",
+        "Obtain Pet snakeling",
         "Obtain any Zulrah unique",
     )
     assert conflict_lookup["boss:zulrah"] == (
@@ -58,6 +84,7 @@ def test_find_candidate_conflicts_reports_shared_hard_tags():
     )
     assert conflict_lookup["source:vorkath"] == (
         "Complete 150 Vorkath KC",
+        "Obtain Vorki",
         "Obtain any Vorkath unique",
     )
     assert conflict_lookup["boss:vorkath"] == (
@@ -71,31 +98,24 @@ def test_build_catalogue_summary_counts_candidates_by_point_and_category():
         get_curated_tile_candidates()
     )
 
-    assert summary.candidate_count == 14
-    assert summary.counts_by_point_value == {
-        1: 2,
-        2: 2,
-        3: 5,
-        4: 4,
-        5: 1,
-    }
-    assert summary.counts_by_primary_category == {
-        "KILLCOUNT": 2,
-        "DROP": 2,
-        "PET": 2,
-        "SKILL": 8,
-    }
-    assert len(summary.requirement_summaries) == 14
-    assert {
+    assert summary.candidate_count == expected_catalogue_candidate_count()
+    assert summary.counts_by_point_value == expected_counts_by_point_value()
+    assert summary.counts_by_primary_category == expected_counts_by_primary_category()
+    assert len(summary.requirement_summaries) == expected_catalogue_candidate_count()
+    conflict_tags = {
         conflict.tag
         for conflict in summary.conflicts
-    } == {
+    }
+
+    assert {
         "boss:vorkath",
         "boss:zulrah",
-        "source:any_pet",
         "source:vorkath",
         "source:zulrah",
-    }
+        "source:thieving",
+        "pet:rocky",
+    }.issubset(conflict_tags)
+    assert "source:any_pet" not in conflict_tags
 
 
 def test_format_skill_requirements_outputs_readable_sorted_requirements():
@@ -119,9 +139,13 @@ def test_format_catalogue_summary_includes_requirements_tags_and_conflicts():
         summary
     )
 
-    assert "Candidate count: 14" in preview
-    assert "By point value: 1: 2, 2: 2, 3: 5, 4: 4, 5: 1" in preview
-    assert "By primary category: DROP: 2, KILLCOUNT: 2, PET: 2, SKILL: 8" in preview
+    assert f"Candidate count: {expected_catalogue_candidate_count()}" in preview
+    assert "By point value: 1: 2, 2: 2, 3: 5, 4: 3" in preview
+    assert f"5: {len(get_osrs_pet_options())}" in preview
+    assert f"PET: {len(get_osrs_pet_options())}" in preview
+    assert "DROP: 2" in preview
+    assert "KILLCOUNT: 2" in preview
+    assert "SKILL: 8" in preview
 
     assert "Complete 150 Zulrah KC (3 pts, KILLCOUNT)" in preview
     assert "Tags: boss:zulrah, metric:boss_zulrah_kc, source:zulrah" in preview
@@ -130,6 +154,6 @@ def test_format_catalogue_summary_includes_requirements_tags_and_conflicts():
 
     assert "Conflicts:" in preview
     assert (
-        "source:zulrah: Complete 150 Zulrah KC | Obtain any Zulrah unique"
+        "source:zulrah: Complete 150 Zulrah KC | Obtain Pet snakeling | Obtain any Zulrah unique"
         in preview
     )

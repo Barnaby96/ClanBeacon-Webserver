@@ -1,4 +1,5 @@
-﻿from utils.board_generation import TileCategory
+﻿from utils.board_generation import TileCategory, canonical_id
+from utils.osrs_pets import get_osrs_pet_options
 from utils.osrs_tile_templates import (
     make_drop_candidate,
     make_killcount_candidate,
@@ -8,32 +9,45 @@ from utils.osrs_tile_templates import (
 )
 
 
-CURATED_TILE_CANDIDATES = (
-    make_pet_candidate(
-        title="Obtain any skilling pet",
-        point_value=4,
-        pet_group_id="skilling_pets",
-        source_id="skilling_pets",
-        display_text="Obtain any skilling pet",
-        additional_hard_unique_tags=(
-            "source:any_pet",
-        ),
-        explanation=(
-            "Primary pet-led tile.",
-            "Consumes skilling pets and the broad any-pet source.",
-        ),
-    ),
-    make_pet_candidate(
-        title="Obtain any pet",
+def get_pet_source_from_option(option):
+    label = option["label"]
+
+    if " - " not in label:
+        return option["value"]
+
+    return label.split(" - ", 1)[0]
+
+
+def make_pet_candidate_from_option(option):
+    pet_name = option["value"]
+    source_name = get_pet_source_from_option(
+        option
+    )
+
+    return make_pet_candidate(
+        title=f"Obtain {pet_name}",
         point_value=5,
-        pet_group_id="any_pet",
-        source_id="any_pet",
-        display_text="Obtain any pet",
+        pet_id=pet_name,
+        source_id=source_name,
+        display_text=f"Obtain {pet_name}",
         explanation=(
-            "Primary pet-led chaos tile.",
-            "Consumes the broad any-pet source.",
+            "Primary specific pet-led tile.",
+            f"Consumes {pet_name} and {source_name} for board uniqueness.",
         ),
-    ),
+    )
+
+
+def get_curated_pet_candidates():
+    return tuple(
+        make_pet_candidate_from_option(
+            option
+        )
+        for option in get_osrs_pet_options()
+    )
+
+
+CURATED_TILE_CANDIDATES = (
+    *get_curated_pet_candidates(),
     make_skill_xp_candidate(
         title="Gain 500,000 Cooking XP",
         point_value=1,
