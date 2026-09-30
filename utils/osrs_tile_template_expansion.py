@@ -10,6 +10,7 @@ from utils.osrs_tile_components import (
     TileComponent,
     TileComponentType,
 )
+from utils.osrs_tile_component_expansion import expand_single_component
 
 from utils.board_generation import (
     ContributionMode,
@@ -127,28 +128,24 @@ def expand_killcount_template(template):
         template
     )
 
-    return tuple(
-        build_single_tile_candidate(
-            component,
-            point_value,
-            target_model,
-            title=format_killcount_title(
-                template.source_name,
-                target
+    return expand_single_component(
+        component=component,
+        target_model=target_model,
+        title_formatter=lambda point_value, target: format_killcount_title(
+            template.source_name,
+            target
+        ),
+        display_text_formatter=lambda point_value, target: format_killcount_title(
+            template.source_name,
+            target
+        ),
+        explanation_formatter=lambda point_value, target: (
+            (
+                f"Generated {point_value}-point killcount target "
+                f"from the {template.source_name} template."
             ),
-            display_text=format_killcount_title(
-                template.source_name,
-                target
-            ),
-            explanation=(
-                (
-                    f"Generated {point_value}-point killcount target "
-                    f"from the {template.source_name} template."
-                ),
-            ),
-            include_generation_note=False,
-        )
-        for point_value, target in template.target_by_point_value
+        ),
+        include_generation_note=False,
     )
 
 
@@ -250,28 +247,24 @@ def expand_drop_template(template):
         template
     )
 
-    return tuple(
-        build_single_tile_candidate(
-            component,
-            point_value,
-            target_model,
-            title=format_drop_title(
-                template.source_name,
-                target
+    return expand_single_component(
+        component=component,
+        target_model=target_model,
+        title_formatter=lambda point_value, target: format_drop_title(
+            template.source_name,
+            target
+        ),
+        display_text_formatter=lambda point_value, target: format_drop_title(
+            template.source_name,
+            target
+        ),
+        explanation_formatter=lambda point_value, target: (
+            (
+                f"Generated {point_value}-point drop target "
+                f"from the {template.source_name} template."
             ),
-            display_text=format_drop_title(
-                template.source_name,
-                target
-            ),
-            explanation=(
-                (
-                    f"Generated {point_value}-point drop target "
-                    f"from the {template.source_name} template."
-                ),
-            ),
-            include_generation_note=False,
-        )
-        for point_value, target in template.target_by_point_value
+        ),
+        include_generation_note=False,
     )
 
 
@@ -364,28 +357,24 @@ def expand_skill_xp_template(template):
         template
     )
 
-    return tuple(
-        build_single_tile_candidate(
-            component,
-            point_value,
-            target_model,
-            title=format_skill_xp_title(
-                template.skill_name,
-                xp_target
+    return expand_single_component(
+        component=component,
+        target_model=target_model,
+        title_formatter=lambda point_value, target: format_skill_xp_title(
+            template.skill_name,
+            target
+        ),
+        display_text_formatter=lambda point_value, target: format_skill_xp_title(
+            template.skill_name,
+            target
+        ),
+        explanation_formatter=lambda point_value, target: (
+            (
+                f"Generated {point_value}-point skill XP target "
+                f"from the {template.skill_name} template."
             ),
-            display_text=format_skill_xp_title(
-                template.skill_name,
-                xp_target
-            ),
-            explanation=(
-                (
-                    f"Generated {point_value}-point skill XP target "
-                    f"from the {template.skill_name} template."
-                ),
-            ),
-            include_generation_note=False,
-        )
-        for point_value, xp_target in template.target_by_point_value
+        ),
+        include_generation_note=False,
     )
 
 
@@ -501,28 +490,24 @@ def expand_metric_template(template):
         template
     )
 
-    return tuple(
-        build_single_tile_candidate(
-            component,
-            point_value,
-            target_model,
-            title=format_metric_title(
-                template.display_name,
-                target
+    return expand_single_component(
+        component=component,
+        target_model=target_model,
+        title_formatter=lambda point_value, target: format_metric_title(
+            template.display_name,
+            target
+        ),
+        display_text_formatter=lambda point_value, target: format_metric_title(
+            template.display_name,
+            target
+        ),
+        explanation_formatter=lambda point_value, target: (
+            (
+                f"Generated {point_value}-point WOM metric target "
+                f"from the {template.display_name} template."
             ),
-            display_text=format_metric_title(
-                template.display_name,
-                target
-            ),
-            explanation=(
-                (
-                    f"Generated {point_value}-point WOM metric target "
-                    f"from the {template.display_name} template."
-                ),
-            ),
-            include_generation_note=False,
-        )
-        for point_value, target in template.target_by_point_value
+        ),
+        include_generation_note=False,
     )
 
 

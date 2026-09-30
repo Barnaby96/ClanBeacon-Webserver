@@ -527,3 +527,40 @@ def test_drop_template_expands_via_component_single_recipe():
     assert "source:zulrah" in candidate.all_hard_unique_tags
     assert "boss:zulrah" in candidate.all_hard_unique_tags
     assert "drop_group:zulrah_uniques" in candidate.all_hard_unique_tags
+
+
+def test_template_expansion_uses_shared_single_component_expansion_helper(monkeypatch):
+    import utils.osrs_tile_template_expansion as expansion
+
+    captured = {}
+
+    def fake_expand_single_component(**kwargs):
+        captured["component"] = kwargs["component"]
+        captured["target_model"] = kwargs["target_model"]
+        captured["include_generation_note"] = kwargs["include_generation_note"]
+        return (
+            "candidate",
+        )
+
+    monkeypatch.setattr(
+        expansion,
+        "expand_single_component",
+        fake_expand_single_component,
+    )
+
+    template = expansion.KillcountTileTemplate(
+        source_name="Callisto",
+        boss_id="callisto",
+        target_by_point_value={
+            3: 35,
+        },
+    )
+
+    assert expansion.expand_killcount_template(
+        template
+    ) == (
+        "candidate",
+    )
+    assert captured["component"].component_id == "callisto_killcount"
+    assert captured["target_model"].target_model_id == "callisto_static_killcount"
+    assert captured["include_generation_note"] is False
