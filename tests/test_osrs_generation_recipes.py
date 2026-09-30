@@ -210,7 +210,7 @@ def test_build_single_candidate_rejects_target_model_mismatch():
         )
 
 
-def test_build_single_candidate_currently_rejects_non_killcount_components():
+def test_build_single_experience_candidate_from_component():
     component = TileComponent(
         component_id="Magic XP",
         component_type=TileComponentType.EXPERIENCE,
@@ -226,15 +226,23 @@ def test_build_single_candidate_currently_rejects_non_killcount_components():
         },
     )
 
-    with pytest.raises(
-        ValueError,
-        match="currently supports KILLCOUNT",
-    ):
-        build_single_tile_candidate(
-            component,
-            2,
-            target_model,
-        )
+    candidate = build_single_tile_candidate(
+        component,
+        2,
+        target_model,
+    )
+    route = candidate.routes[0]
+
+    assert candidate.title == "Gain 500,000 Magic XP"
+    assert candidate.primary_category == TileCategory.SKILL
+    assert route.route_type == TileCategory.SKILL
+    assert route.display_text == "Gain 500,000 Magic XP"
+    assert route.target == 500000
+    assert route.metric_id == "skill_magic_xp"
+    assert route.source_id == "magic"
+    assert route.skill_id == "magic"
+    assert "component:magic_xp" in candidate.all_hard_unique_tags
+    assert "skill:magic" in candidate.all_hard_unique_tags
 
 
 def test_build_single_candidate_can_suppress_generation_note():
@@ -275,3 +283,30 @@ def test_build_single_candidate_can_suppress_generation_note():
         not tag.startswith("target_model:")
         for tag in candidate.all_hard_unique_tags
     )
+
+
+def test_build_single_candidate_still_rejects_unimplemented_component_type():
+    component = TileComponent(
+        component_id="Rocky Pet",
+        component_type=TileComponentType.PET,
+        display_name="Rocky",
+        tracking_source=TrackingSource.DINK,
+        target_model_id="Pet Drop",
+        pet_id="Rocky",
+    )
+    target_model = StaticPointTargetModel(
+        target_model_id="Pet Drop",
+        target_by_point_value={
+            5: 1,
+        },
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="currently supports KILLCOUNT and EXPERIENCE",
+    ):
+        build_single_tile_candidate(
+            component,
+            5,
+            target_model,
+        )

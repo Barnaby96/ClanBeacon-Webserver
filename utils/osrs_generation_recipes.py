@@ -160,6 +160,32 @@ def build_single_killcount_route(component, target, display_text=None):
     )
 
 
+def build_single_experience_route(component, target, display_text=None):
+    if not component.skill_id:
+        raise ValueError(
+            "Experience components require a skill_id."
+        )
+
+    metric_id = component.metric_id or f"skill_{component.skill_id}_xp"
+    source_id = component.source_id or component.skill_id
+
+    return Route(
+        route_type=TileCategory.SKILL,
+        display_text=(
+            display_text
+            or f"Gain {format_target(target)} "
+            f"{component.display_name} XP"
+        ),
+        target=target,
+        tracking_source=component.tracking_source,
+        contribution_mode=ContributionMode.TEAM_SUM,
+        metric_id=metric_id,
+        source_id=source_id,
+        skill_id=component.skill_id,
+        hard_unique_tags=component.hard_unique_tags,
+    )
+
+
 def build_single_route(component, target, display_text=None):
     if component.component_type == TileComponentType.KILLCOUNT:
         return build_single_killcount_route(
@@ -168,8 +194,16 @@ def build_single_route(component, target, display_text=None):
             display_text=display_text,
         )
 
+    if component.component_type == TileComponentType.EXPERIENCE:
+        return build_single_experience_route(
+            component,
+            target,
+            display_text=display_text,
+        )
+
     raise ValueError(
-        "SINGLE recipe currently supports KILLCOUNT components only."
+        "SINGLE recipe currently supports KILLCOUNT and EXPERIENCE "
+        "components only."
     )
 
 

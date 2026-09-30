@@ -307,28 +307,55 @@ def format_skill_xp_title(skill_name, xp_target):
     return f"Gain {xp_target:,} {skill_name} XP"
 
 
+def build_skill_xp_component_from_template(template):
+    return TileComponent(
+        component_id=f"{template.skill_id}_experience",
+        component_type=TileComponentType.EXPERIENCE,
+        display_name=template.skill_name,
+        tracking_source=TrackingSource.WOM,
+        target_model_id=f"{template.skill_id}_static_experience",
+        source_id=template.skill_id,
+        skill_id=template.skill_id,
+        rng_level=template.rng_level,
+        notes=template.explanation,
+    )
+
+
+def build_skill_xp_target_model_from_template(template):
+    return StaticPointTargetModel(
+        target_model_id=f"{template.skill_id}_static_experience",
+        target_by_point_value=template.target_by_point_value,
+    )
+
+
 def expand_skill_xp_template(template):
+    component = build_skill_xp_component_from_template(
+        template
+    )
+    target_model = build_skill_xp_target_model_from_template(
+        template
+    )
+
     return tuple(
-        make_skill_xp_candidate(
+        build_single_tile_candidate(
+            component,
+            point_value,
+            target_model,
             title=format_skill_xp_title(
                 template.skill_name,
                 xp_target
             ),
-            point_value=point_value,
-            skill_id=template.skill_id,
-            xp_target=xp_target,
             display_text=format_skill_xp_title(
                 template.skill_name,
                 xp_target
             ),
-            rng_level=template.rng_level,
             explanation=(
-                *template.explanation,
                 (
                     f"Generated {point_value}-point skill XP target "
                     f"from the {template.skill_name} template."
                 ),
             ),
+            include_generation_note=False,
         )
         for point_value, xp_target in template.target_by_point_value
     )

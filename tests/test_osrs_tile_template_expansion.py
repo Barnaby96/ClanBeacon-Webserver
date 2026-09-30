@@ -403,3 +403,42 @@ def test_killcount_template_expands_via_component_single_recipe():
         not tag.startswith("target_model:")
         for tag in candidate.all_hard_unique_tags
     )
+
+
+def test_skill_xp_template_expands_via_component_single_recipe():
+    from utils.board_generation import TrackingSource
+    from utils.osrs_tile_template_expansion import (
+        SkillXpTileTemplate,
+        expand_skill_xp_template,
+    )
+
+    template = SkillXpTileTemplate(
+        skill_name="Magic",
+        skill_id="magic",
+        target_by_point_value={
+            2: 500000,
+        },
+        explanation=(
+            "Prototype skill source.",
+        ),
+    )
+
+    candidate = expand_skill_xp_template(
+        template
+    )[0]
+    route = candidate.routes[0]
+
+    assert candidate.title == "Gain 500,000 Magic XP"
+    assert candidate.point_value == 2
+    assert route.display_text == "Gain 500,000 Magic XP"
+    assert route.target == 500000
+    assert route.tracking_source == TrackingSource.WOM
+    assert route.metric_id == "skill_magic_xp"
+    assert route.source_id == "magic"
+    assert route.skill_id == "magic"
+    assert candidate.explanation == (
+        "Prototype skill source.",
+        "Generated 2-point skill XP target from the Magic template.",
+    )
+    assert "component:magic_experience" in candidate.all_hard_unique_tags
+    assert "skill:magic" in candidate.all_hard_unique_tags
