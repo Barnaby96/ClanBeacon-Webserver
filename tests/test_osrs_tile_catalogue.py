@@ -474,3 +474,30 @@ def test_pet_candidate_from_option_expands_via_component_single_recipe():
     assert "metric:pet_vorki" in candidate.all_hard_unique_tags
     assert "source:vorkath" in candidate.all_hard_unique_tags
     assert "pet:vorki" in candidate.all_hard_unique_tags
+
+
+def test_curated_tile_generation_candidates_use_common_validation(monkeypatch):
+    import utils.osrs_tile_catalogue as catalogue
+
+    captured = {}
+
+    def fake_validate(candidates):
+        captured["candidate_count"] = len(
+            candidates
+        )
+        return tuple(
+            candidates
+        )
+
+    monkeypatch.setattr(
+        catalogue,
+        "assert_valid_tile_candidate_pool",
+        fake_validate,
+    )
+
+    candidates = catalogue.get_curated_tile_generation_candidates()
+
+    assert captured["candidate_count"] == len(
+        candidates
+    )
+    assert captured["candidate_count"] > 25
