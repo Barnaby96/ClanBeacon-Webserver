@@ -117,7 +117,6 @@ def test_build_single_killcount_candidate_from_component():
         "source:callisto",
         "boss:callisto",
         "activity_group:wilderness_bosses",
-        "target_model:static_kc",
     }.issubset(
         candidate.all_hard_unique_tags
     )
@@ -236,3 +235,43 @@ def test_build_single_candidate_currently_rejects_non_killcount_components():
             2,
             target_model,
         )
+
+
+def test_build_single_candidate_can_suppress_generation_note():
+    component = TileComponent(
+        component_id="Callisto KC",
+        component_type=TileComponentType.KILLCOUNT,
+        display_name="Callisto",
+        tracking_source=TrackingSource.WOM,
+        target_model_id="Static KC",
+        source_id="Callisto",
+        boss_id="Callisto",
+        notes=(
+            "Component note.",
+        ),
+    )
+    target_model = StaticPointTargetModel(
+        target_model_id="Static KC",
+        target_by_point_value={
+            3: 35,
+        },
+    )
+
+    candidate = build_single_tile_candidate(
+        component,
+        3,
+        target_model,
+        explanation=(
+            "Template note.",
+        ),
+        include_generation_note=False,
+    )
+
+    assert candidate.explanation == (
+        "Component note.",
+        "Template note.",
+    )
+    assert all(
+        not tag.startswith("target_model:")
+        for tag in candidate.all_hard_unique_tags
+    )

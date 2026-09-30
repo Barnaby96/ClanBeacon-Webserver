@@ -361,3 +361,45 @@ def test_static_metric_candidates_cover_each_point_tier_and_clue_group():
         "activity_group:clue_scrolls" in candidate.all_hard_unique_tags
         for candidate in clue_candidates
     )
+
+
+def test_killcount_template_expands_via_component_single_recipe():
+    from utils.board_generation import TrackingSource
+    from utils.osrs_tile_template_expansion import (
+        KillcountTileTemplate,
+        expand_killcount_template,
+    )
+
+    template = KillcountTileTemplate(
+        source_name="Callisto",
+        boss_id="callisto",
+        target_by_point_value={
+            3: 35,
+        },
+        explanation=(
+            "Prototype source.",
+        ),
+    )
+
+    candidate = expand_killcount_template(
+        template
+    )[0]
+    route = candidate.routes[0]
+
+    assert candidate.title == "Complete 35 Callisto KC"
+    assert candidate.point_value == 3
+    assert route.display_text == "Complete 35 Callisto KC"
+    assert route.target == 35
+    assert route.tracking_source == TrackingSource.WOM
+    assert route.metric_id == "boss_callisto_kc"
+    assert route.source_id == "callisto"
+    assert route.boss_id == "callisto"
+    assert candidate.explanation == (
+        "Prototype source.",
+        "Generated 3-point killcount target from the Callisto template.",
+    )
+    assert "component:callisto_killcount" in candidate.all_hard_unique_tags
+    assert all(
+        not tag.startswith("target_model:")
+        for tag in candidate.all_hard_unique_tags
+    )

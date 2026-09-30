@@ -9,7 +9,6 @@ from utils.board_generation import (
     RouteMode,
     TileCandidate,
     TileCategory,
-    build_tag,
     canonical_id,
 )
 from utils.osrs_tile_components import (
@@ -157,15 +156,7 @@ def build_single_killcount_route(component, target, display_text=None):
         metric_id=metric_id,
         source_id=source_id,
         boss_id=component.boss_id,
-        hard_unique_tags=frozenset(
-            {
-                *component.hard_unique_tags,
-                build_tag(
-                    "target_model",
-                    component.target_model_id,
-                ),
-            }
-        ),
+        hard_unique_tags=component.hard_unique_tags,
     )
 
 
@@ -189,6 +180,7 @@ def build_single_tile_candidate(
     title=None,
     display_text=None,
     explanation=(),
+    include_generation_note=True,
 ):
     if not component.supports_recipe(
         GenerationRecipeId.SINGLE.value
@@ -212,6 +204,22 @@ def build_single_tile_candidate(
         display_text=display_text,
     )
 
+    explanation_entries = (
+        *component.notes,
+        *tuple(
+            explanation
+        ),
+    )
+
+    if include_generation_note:
+        explanation_entries = (
+            *explanation_entries,
+            (
+                f"Generated {point_value}-point SINGLE tile "
+                f"from component {component.component_id}."
+            ),
+        )
+
     return TileCandidate(
         title=title or route.display_text,
         point_value=point_value,
@@ -222,14 +230,5 @@ def build_single_tile_candidate(
         ),
         rng_level=component.rng_level,
         access_profile=component.access_profile,
-        explanation=(
-            *component.notes,
-            *tuple(
-                explanation
-            ),
-            (
-                f"Generated {point_value}-point SINGLE tile "
-                f"from component {component.component_id}."
-            ),
-        ),
+        explanation=explanation_entries,
     )

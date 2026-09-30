@@ -2,6 +2,15 @@
 
 from dataclasses import dataclass
 
+from utils.osrs_generation_recipes import (
+    StaticPointTargetModel,
+    build_single_tile_candidate,
+)
+from utils.osrs_tile_components import (
+    TileComponent,
+    TileComponentType,
+)
+
 from utils.board_generation import (
     ContributionMode,
     Route,
@@ -12,6 +21,7 @@ from utils.board_generation import (
     canonical_id,
 )
 
+from utils.osrs_tile_templates import access_profile_for_content
 from utils.osrs_tile_templates import (
     make_drop_candidate,
     make_killcount_candidate,
@@ -85,29 +95,58 @@ def format_killcount_title(source_name, target):
     return f"Complete {target:,} {source_name} KC"
 
 
+def build_killcount_component_from_template(template):
+    return TileComponent(
+        component_id=f"{template.boss_id}_killcount",
+        component_type=TileComponentType.KILLCOUNT,
+        display_name=template.source_name,
+        tracking_source=TrackingSource.WOM,
+        target_model_id=f"{template.boss_id}_static_killcount",
+        source_id=template.content_id or template.boss_id,
+        boss_id=template.boss_id,
+        access_profile=access_profile_for_content(
+            template.content_id
+        ),
+        rng_level=template.rng_level,
+        notes=template.explanation,
+    )
+
+
+def build_killcount_target_model_from_template(template):
+    return StaticPointTargetModel(
+        target_model_id=f"{template.boss_id}_static_killcount",
+        target_by_point_value=template.target_by_point_value,
+    )
+
+
 def expand_killcount_template(template):
+    component = build_killcount_component_from_template(
+        template
+    )
+    target_model = build_killcount_target_model_from_template(
+        template
+    )
+
     return tuple(
-        make_killcount_candidate(
+        build_single_tile_candidate(
+            component,
+            point_value,
+            target_model,
             title=format_killcount_title(
                 template.source_name,
                 target
             ),
-            point_value=point_value,
-            boss_id=template.boss_id,
-            target=target,
-            content_id=template.content_id,
             display_text=format_killcount_title(
                 template.source_name,
                 target
             ),
-            rng_level=template.rng_level,
             explanation=(
-                *template.explanation,
                 (
                     f"Generated {point_value}-point killcount target "
                     f"from the {template.source_name} template."
                 ),
             ),
+            include_generation_note=False,
         )
         for point_value, target in template.target_by_point_value
     )
