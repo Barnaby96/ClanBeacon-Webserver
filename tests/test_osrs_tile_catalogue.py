@@ -2,6 +2,7 @@
 from utils.osrs_tile_template_expansion import (
     STATIC_DROP_TEMPLATES,
     STATIC_KILLCOUNT_TEMPLATES,
+    STATIC_METRIC_TEMPLATES,
 )
 
 from utils.board_generation import (
@@ -383,3 +384,53 @@ def test_curated_tile_generation_candidates_can_assemble_default_board():
         4,
         5,
     }
+
+
+def test_curated_tile_generation_candidates_expand_metric_templates():
+    candidates = get_curated_tile_generation_candidates()
+
+    metric_candidates = [
+        candidate
+        for candidate in candidates
+        if (
+            candidate.primary_category == TileCategory.HYBRID
+            and candidate.routes[0].tracking_source == TrackingSource.WOM
+        )
+    ]
+
+    assert len(metric_candidates) == len(STATIC_METRIC_TEMPLATES) * 5
+
+    assert {
+        candidate.point_value
+        for candidate in metric_candidates
+    } == {
+        1,
+        2,
+        3,
+        4,
+        5,
+    }
+
+    assert {
+        candidate.title
+        for candidate in metric_candidates
+    } >= {
+        "Complete 25 Guardians of the Rift completions",
+        "Complete 50 medium-or-harder clue scrolls",
+    }
+
+
+def test_curated_tile_generation_board_limits_clue_tiles_by_hard_tag():
+    from utils.board_generation import assemble_board_candidates
+
+    board = assemble_board_candidates(
+        get_curated_tile_generation_candidates()
+    )
+
+    clue_tiles = [
+        candidate
+        for candidate in board.candidates
+        if "activity_group:clue_scrolls" in candidate.all_hard_unique_tags
+    ]
+
+    assert len(clue_tiles) <= 1

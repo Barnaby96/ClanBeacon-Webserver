@@ -2,6 +2,16 @@
 
 from dataclasses import dataclass
 
+from utils.board_generation import (
+    ContributionMode,
+    Route,
+    RouteMode,
+    TileCandidate,
+    TileCategory,
+    TrackingSource,
+    canonical_id,
+)
+
 from utils.osrs_tile_templates import (
     make_drop_candidate,
     make_killcount_candidate,
@@ -285,6 +295,128 @@ def expand_skill_xp_template(template):
     )
 
 
+def normalise_metric_target_by_point_value(target_by_point_value):
+    if hasattr(target_by_point_value, "items"):
+        items = target_by_point_value.items()
+    else:
+        items = target_by_point_value
+
+    normalised = []
+
+    for point_value, target in items:
+        point_value = int(point_value)
+        target = int(target)
+
+        if point_value not in VALID_POINT_VALUES:
+            raise ValueError(
+                "Metric point values must be between 1 and 5."
+            )
+
+        if target <= 0:
+            raise ValueError(
+                "Metric targets must be positive."
+            )
+
+        normalised.append(
+            (point_value, target)
+        )
+
+    if not normalised:
+        raise ValueError(
+            "Metric templates require at least one target."
+        )
+
+    return tuple(
+        sorted(
+            normalised
+        )
+    )
+
+
+@dataclass(frozen=True)
+class MetricTileTemplate:
+    display_name: str
+    metric_id: str
+    source_id: str
+    target_by_point_value: tuple
+    activity_group_id: str | None = None
+    rng_level: int = 0
+    explanation: tuple = ()
+
+    def __post_init__(self):
+        object.__setattr__(
+            self,
+            "target_by_point_value",
+            normalise_metric_target_by_point_value(
+                self.target_by_point_value
+            )
+        )
+
+
+def format_metric_title(display_name, target):
+    return f"Complete {target:,} {display_name}"
+
+
+def build_metric_hard_unique_tags(template):
+    tags = []
+
+    if template.activity_group_id:
+        tags.append(
+            f"activity_group:{canonical_id(template.activity_group_id)}"
+        )
+
+    return frozenset(
+        tags
+    )
+
+
+def expand_metric_template(template):
+    metric_id = canonical_id(
+        template.metric_id
+    )
+    source_id = canonical_id(
+        template.source_id
+    )
+
+    return tuple(
+        TileCandidate(
+            title=format_metric_title(
+                template.display_name,
+                target
+            ),
+            point_value=point_value,
+            primary_category=TileCategory.HYBRID,
+            route_mode=RouteMode.SINGLE,
+            routes=[
+                Route(
+                    route_type=TileCategory.HYBRID,
+                    display_text=format_metric_title(
+                        template.display_name,
+                        target
+                    ),
+                    target=target,
+                    tracking_source=TrackingSource.WOM,
+                    contribution_mode=ContributionMode.TEAM_SUM,
+                    metric_id=metric_id,
+                    source_id=source_id,
+                    hard_unique_tags=build_metric_hard_unique_tags(
+                        template
+                    ),
+                )
+            ],
+            rng_level=template.rng_level,
+            explanation=(
+                *template.explanation,
+                (
+                    f"Generated {point_value}-point WOM metric target "
+                    f"from the {template.display_name} template."
+                ),
+            ),
+        )
+        for point_value, target in template.target_by_point_value
+    )
+
+
 STATIC_KILLCOUNT_TEMPLATES = (
     KillcountTileTemplate(
         source_name="Zulrah",
@@ -426,6 +558,106 @@ STATIC_KILLCOUNT_TEMPLATES = (
         },
         explanation=(
             "Prototype fallback source; access profile to be added later.",
+        ),
+    ),
+)
+
+
+STATIC_METRIC_TEMPLATES = (
+    MetricTileTemplate(
+        display_name="Guardians of the Rift completions",
+        metric_id="guardians_of_the_rift_completions",
+        source_id="guardians_of_the_rift",
+        target_by_point_value={
+            1: 25,
+            2: 50,
+            3: 100,
+            4: 175,
+            5: 250,
+        },
+        explanation=(
+            "Prototype WOM-backed activity metric.",
+        ),
+    ),
+    MetricTileTemplate(
+        display_name="Tempoross completions",
+        metric_id="tempoross_completions",
+        source_id="tempoross",
+        target_by_point_value={
+            1: 25,
+            2: 50,
+            3: 100,
+            4: 175,
+            5: 250,
+        },
+        explanation=(
+            "Prototype WOM-backed activity metric.",
+        ),
+    ),
+    MetricTileTemplate(
+        display_name="Wintertodt kills",
+        metric_id="wintertodt_kills",
+        source_id="wintertodt",
+        target_by_point_value={
+            1: 25,
+            2: 50,
+            3: 100,
+            4: 175,
+            5: 250,
+        },
+        explanation=(
+            "Prototype WOM-backed activity metric.",
+        ),
+    ),
+    MetricTileTemplate(
+        display_name="medium-or-harder clue scrolls",
+        metric_id="clue_scrolls_medium_plus_completed",
+        source_id="clue_scrolls_medium_plus",
+        activity_group_id="clue_scrolls",
+        target_by_point_value={
+            1: 10,
+            2: 25,
+            3: 50,
+            4: 80,
+            5: 120,
+        },
+        explanation=(
+            "Prototype WOM-backed clue metric.",
+            "Shares the clue-scroll activity group to limit clue tiles per board.",
+        ),
+    ),
+    MetricTileTemplate(
+        display_name="hard clue scrolls",
+        metric_id="clue_scrolls_hard_completed",
+        source_id="clue_scrolls_hard",
+        activity_group_id="clue_scrolls",
+        target_by_point_value={
+            1: 5,
+            2: 15,
+            3: 30,
+            4: 50,
+            5: 75,
+        },
+        explanation=(
+            "Prototype WOM-backed clue metric.",
+            "Shares the clue-scroll activity group to limit clue tiles per board.",
+        ),
+    ),
+    MetricTileTemplate(
+        display_name="elite clue scrolls",
+        metric_id="clue_scrolls_elite_completed",
+        source_id="clue_scrolls_elite",
+        activity_group_id="clue_scrolls",
+        target_by_point_value={
+            1: 2,
+            2: 5,
+            3: 10,
+            4: 15,
+            5: 25,
+        },
+        explanation=(
+            "Prototype WOM-backed clue metric.",
+            "Shares the clue-scroll activity group to limit clue tiles per board.",
         ),
     ),
 )
@@ -670,6 +902,21 @@ def get_static_skill_xp_candidates():
     for template in STATIC_SKILL_XP_TEMPLATES:
         candidates.extend(
             expand_skill_xp_template(
+                template
+            )
+        )
+
+    return tuple(
+        candidates
+    )
+
+
+def get_static_metric_candidates():
+    candidates = []
+
+    for template in STATIC_METRIC_TEMPLATES:
+        candidates.extend(
+            expand_metric_template(
                 template
             )
         )

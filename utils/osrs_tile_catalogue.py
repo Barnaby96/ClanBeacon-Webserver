@@ -3,6 +3,7 @@ from utils.osrs_pets import get_osrs_pet_options
 from utils.osrs_tile_template_expansion import (
     get_static_drop_candidates,
     get_static_killcount_candidates,
+    get_static_metric_candidates,
     get_static_skill_xp_candidates,
 )
 from utils.osrs_tile_templates import (
@@ -222,24 +223,35 @@ def get_curated_drop_led_candidates():
 def get_curated_tile_generation_candidates():
     """Return candidates for generation previews.
 
-    Killcount and drop entries are expanded from templates so the assembler
-    can choose an appropriate point tier. Other candidate types still use the
-    current curated static entries until their own template expanders exist.
+    Killcount, drop, skill and metric entries are expanded from templates so
+    the assembler can choose an appropriate point tier. Pet candidates still
+    come from the curated static pet list.
     """
 
-    static_candidate_categories = {
+    expanded_candidate_categories = {
         TileCategory.KILLCOUNT,
         TileCategory.DROP,
     }
 
-    static_candidates = tuple(
+    pet_candidates = tuple(
         candidate
         for candidate in get_curated_tile_candidates()
-        if candidate.primary_category not in static_candidate_categories
+        if candidate.primary_category == TileCategory.PET
+    )
+
+    remaining_static_candidates = tuple(
+        candidate
+        for candidate in get_curated_tile_candidates()
+        if (
+            candidate.primary_category not in expanded_candidate_categories
+            and candidate.primary_category != TileCategory.PET
+        )
     )
 
     return (
-        *static_candidates,
+        *pet_candidates,
+        *get_static_metric_candidates(),
+        *remaining_static_candidates,
         *get_static_killcount_candidates(),
         *get_static_drop_candidates(),
         *get_static_skill_xp_candidates(),
