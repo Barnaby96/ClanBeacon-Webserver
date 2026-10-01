@@ -310,7 +310,22 @@ def test_curated_tile_generation_candidates_expand_drop_templates():
         if candidate.primary_category == TileCategory.DROP
     ]
 
-    assert len(drop_candidates) == len(STATIC_DROP_TEMPLATES) * 5
+    from utils.osrs_tile_template_expansion import (
+        build_drop_target_model_from_template,
+    )
+
+    expected_drop_candidate_count = sum(
+        len(
+            dict(
+                build_drop_target_model_from_template(
+                    template
+                ).target_by_point_value
+            )
+        )
+        for template in STATIC_DROP_TEMPLATES
+    )
+
+    assert len(drop_candidates) == expected_drop_candidate_count
 
     assert {
         candidate.point_value
@@ -525,3 +540,18 @@ def test_curated_tile_generation_candidates_include_composite_candidates():
     assert "component:guardians_of_the_rift_completions_metric" in candidate.all_hard_unique_tags
     assert "component:tempoross_completions_metric" in candidate.all_hard_unique_tags
     assert "component:wintertodt_kills_metric" in candidate.all_hard_unique_tags
+
+
+def test_curated_tile_generation_candidates_do_not_include_impossible_dagannoth_rex_targets():
+    from utils.osrs_tile_catalogue import get_curated_tile_generation_candidates
+
+    titles = {
+        candidate.title
+        for candidate in get_curated_tile_generation_candidates()
+    }
+
+    assert "Obtain 1 Dagannoth Rex unique" in titles
+    assert "Obtain 2 Dagannoth Rex uniques" in titles
+    assert "Obtain 3 Dagannoth Rex uniques" not in titles
+    assert "Obtain 4 Dagannoth Rex uniques" not in titles
+    assert "Obtain 5 Dagannoth Rex uniques" not in titles

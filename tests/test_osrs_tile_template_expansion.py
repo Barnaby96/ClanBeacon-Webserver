@@ -183,9 +183,24 @@ def test_expand_drop_template_builds_point_variants():
 
 
 def test_static_drop_candidates_cover_each_point_tier():
+    from utils.osrs_tile_template_expansion import (
+        build_drop_target_model_from_template,
+    )
+
     candidates = get_static_drop_candidates()
 
-    assert len(candidates) == len(STATIC_DROP_TEMPLATES) * 5
+    expected_candidate_count = sum(
+        len(
+            dict(
+                build_drop_target_model_from_template(
+                    template
+                ).target_by_point_value
+            )
+        )
+        for template in STATIC_DROP_TEMPLATES
+    )
+
+    assert len(candidates) == expected_candidate_count
 
     assert {
         candidate.point_value
@@ -599,3 +614,27 @@ def test_skilling_minigame_metric_templates_support_n_of_recipe():
     ].supports_recipe(
         "N_OF"
     )
+
+
+def test_dagannoth_rex_drop_template_targets_do_not_exceed_defined_drop_group():
+    from utils.osrs_tile_template_expansion import (
+        STATIC_DROP_TEMPLATES,
+        build_drop_target_model_from_template,
+    )
+
+    template = next(
+        template
+        for template in STATIC_DROP_TEMPLATES
+        if template.drop_group_id == "dagannoth_rex_uniques"
+    )
+
+    target_model = build_drop_target_model_from_template(
+        template
+    )
+
+    assert dict(
+        target_model.target_by_point_value
+    ) == {
+        1: 1,
+        2: 2,
+    }

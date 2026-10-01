@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+from utils.osrs_drop_groups import filter_valid_drop_target_by_point_value
 from utils.osrs_generation_recipes import (
     StaticPointTargetModel,
     build_single_tile_candidate,
@@ -235,7 +236,10 @@ def build_drop_component_from_template(template):
 def build_drop_target_model_from_template(template):
     return StaticPointTargetModel(
         target_model_id=f"{template.source_id}_static_drop",
-        target_by_point_value=template.target_by_point_value,
+        target_by_point_value=filter_valid_drop_target_by_point_value(
+            template.drop_group_id,
+            template.target_by_point_value,
+        ),
     )
 
 
