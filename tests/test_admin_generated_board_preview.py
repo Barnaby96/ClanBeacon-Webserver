@@ -61,8 +61,8 @@ def test_generated_board_preview_template_contains_expected_sections():
 
     assert "Generated Board Preview" in template
     assert "Back to Bingo Setup" in template
-    assert "summary.rows_by_point_value.items()" in template
-    assert "summary.counts_by_point_value.items()" in template
-    assert "summary.counts_by_primary_category.items()" in template
+    assert "summary.rows_by_point_value|dictsort" in template
+    assert "summary.counts_by_point_value|dictsort" in template
+    assert "summary.counts_by_primary_category|dictsort" in template
     assert "generated-board-preview" in template
     assert "color: #2b1a0b;" in template

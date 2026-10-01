@@ -2,7 +2,9 @@
 
 {% block title %}Generated Board Preview{% endblock %}
 
-{% block extra_head %}
+{% block content %}
+<title>Generated Board Preview</title>
+
 <link
     rel="stylesheet"
     href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
@@ -20,104 +22,152 @@
     .generated-board-preview .osrs-player-name {
         color: #1d1006;
     }
-</style>
-{% endblock %}
 
-{% block content %}
+    .generated-board-preview .generated-board-summary {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .generated-board-preview .generated-board-route-list,
+    .generated-board-preview .generated-board-tag-list {
+        margin: 0;
+        padding-left: 1.1rem;
+    }
+
+    .generated-board-preview .generated-board-route-list li,
+    .generated-board-preview .generated-board-tag-list li {
+        margin-bottom: 0.25rem;
+    }
+
+    .generated-board-preview .generated-board-tag-list code {
+        white-space: nowrap;
+    }
+</style>
+
 <div class="osrs-dashboard generated-board-preview">
-    <header class="osrs-dashboard-header">
-        <div>
-            <h1>Generated Board Preview</h1>
-            <p class="osrs-dashboard-subtitle">
-                Preview of one generated 5x5 Bingo board from the current
+    <main class="osrs-page">
+        <header class="osrs-page-header">
+            <h1 class="osrs-page-title">Generated Board Preview</h1>
+
+            <p class="osrs-page-subtitle">
+                Preview one generated 5x5 Bingo board from the current
                 prototype generator.
             </p>
-        </div>
 
-        <div class="osrs-form-actions">
-            <a
-                class="osrs-button osrs-button-secondary"
-                href="{{ url_for('admin_routes.bingo_setup') }}"
-            >
-                Back to Bingo Setup
-            </a>
-        </div>
-    </header>
-
-    <section class="osrs-panel">
-        <div class="osrs-panel-header">
-            <h2 class="osrs-panel-title">Summary</h2>
-            <p class="osrs-panel-description">
-                This preview is generated in memory only. It does not create,
-                update or assign live Bingo tiles.
-            </p>
-        </div>
-
-        <div class="osrs-panel-body">
-            <p><strong>Tile count:</strong> {{ summary.candidate_count }}</p>
-
-            <p>
-                <strong>By point value:</strong>
-                {% for point_value, count in summary.counts_by_point_value.items() %}
-                    {{ point_value }}: {{ count }}{% if not loop.last %}, {% endif %}
-                {% endfor %}
-            </p>
-
-            <p>
-                <strong>By category:</strong>
-                {% for category, count in summary.counts_by_primary_category.items() %}
-                    {{ category }}: {{ count }}{% if not loop.last %}, {% endif %}
-                {% endfor %}
-            </p>
-        </div>
-    </section>
-
-    {% for point_value, rows in summary.rows_by_point_value.items() %}
-        <section class="osrs-panel">
-            <div class="osrs-panel-header">
-                <h2 class="osrs-panel-title">{{ point_value }}-point tiles</h2>
-                <p class="osrs-panel-description">
-                    {{ rows|length }} generated tiles in this point tier.
-                </p>
+            <div class="osrs-form-actions">
+                <a
+                    class="osrs-button osrs-button-secondary"
+                    href="{{ url_for('admin_routes.bingo_setup') }}"
+                >
+                    Back to Bingo Setup
+                </a>
             </div>
+        </header>
+
+        <section class="osrs-panel">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Summary</h2>
+
+                <p class="osrs-panel-description">
+                    This preview is generated in memory only. It does not create,
+                    update or assign live Bingo tiles.
+                </p>
+            </header>
 
             <div class="osrs-panel-body">
-                <div class="osrs-table-wrapper">
-                    <table class="osrs-table">
-                        <thead>
-                            <tr>
-                                <th>Category</th>
-                                <th>Tile</th>
-                                <th>Routes</th>
-                                <th>Hard tags</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in rows %}
-                                <tr>
-                                    <td>{{ row.category }}</td>
-                                    <td><strong>{{ row.title }}</strong></td>
-                                    <td>
-                                        {% for route in row.route_descriptions %}
-                                            {{ route }}{% if not loop.last %}<br>{% endif %}
-                                        {% endfor %}
-                                    </td>
-                                    <td>
-                                        {% if row.hard_unique_tags %}
-                                            {% for tag in row.hard_unique_tags %}
-                                                <code>{{ tag }}</code>{% if not loop.last %}<br>{% endif %}
-                                            {% endfor %}
-                                        {% else %}
-                                            None
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div class="generated-board-summary">
+                    <p>
+                        <strong>Tile count:</strong>
+                        <span class="osrs-number">
+                            {{ summary.candidate_count }}
+                        </span>
+                    </p>
+
+                    <p>
+                        <strong>By point value:</strong>
+                        {% for point_value, count in summary.counts_by_point_value|dictsort %}
+                            {{ point_value }}: {{ count }}{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    </p>
+
+                    <p>
+                        <strong>By category:</strong>
+                        {% for category, count in summary.counts_by_primary_category|dictsort %}
+                            {{ category }}: {{ count }}{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    </p>
                 </div>
             </div>
         </section>
-    {% endfor %}
+
+        {% for point_value, rows in summary.rows_by_point_value|dictsort %}
+            <section class="osrs-panel">
+                <header class="osrs-panel-header">
+                    <h2 class="osrs-panel-title">
+                        {{ point_value }}-point tiles
+                    </h2>
+
+                    <p class="osrs-panel-description">
+                        {{ rows|length }} generated tiles in this point tier.
+                    </p>
+                </header>
+
+                <div class="osrs-panel-body">
+                    <div class="osrs-table-wrap">
+                        <table class="osrs-table">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Tile</th>
+                                    <th>Routes</th>
+                                    <th>Hard tags</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {% for row in rows %}
+                                    <tr>
+                                        <td>{{ row.category }}</td>
+
+                                        <td>
+                                            <span class="osrs-player-name">
+                                                {{ row.title }}
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            {% if row.route_descriptions %}
+                                                <ul class="generated-board-route-list">
+                                                    {% for route in row.route_descriptions %}
+                                                        <li>{{ route }}</li>
+                                                    {% endfor %}
+                                                </ul>
+                                            {% else %}
+                                                None
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {% if row.hard_unique_tags %}
+                                                <ul class="generated-board-tag-list">
+                                                    {% for tag in row.hard_unique_tags %}
+                                                        <li>
+                                                            <code>{{ tag }}</code>
+                                                        </li>
+                                                    {% endfor %}
+                                                </ul>
+                                            {% else %}
+                                                None
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        {% endfor %}
+    </main>
 </div>
 {% endblock %}
