@@ -284,9 +284,14 @@ def get_curated_tile_generation_candidates():
         )
     )
 
+    from utils.osrs_composite_tile_catalogue import (
+        get_curated_composite_tile_candidates,
+    )
+
     return assert_valid_tile_candidate_pool(
         (
             *pet_candidates,
+            *get_curated_composite_tile_candidates(),
             *get_static_metric_candidates(),
             *remaining_static_candidates,
             *get_static_killcount_candidates(),

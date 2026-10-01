@@ -7,6 +7,7 @@ from utils.osrs_tile_template_expansion import (
 
 from utils.board_generation import (
     PetRole,
+    RouteMode,
     TileCategory,
     TrackingSource,
 )
@@ -396,6 +397,7 @@ def test_curated_tile_generation_candidates_expand_metric_templates():
         for candidate in candidates
         if (
             candidate.primary_category == TileCategory.HYBRID
+            and candidate.route_mode == RouteMode.SINGLE
             and candidate.routes[0].tracking_source == TrackingSource.WOM
         )
     ]
@@ -501,3 +503,25 @@ def test_curated_tile_generation_candidates_use_common_validation(monkeypatch):
         candidates
     )
     assert captured["candidate_count"] > 25
+
+
+def test_curated_tile_generation_candidates_include_composite_candidates():
+    from utils.board_generation import RouteMode
+    from utils.osrs_tile_catalogue import get_curated_tile_generation_candidates
+
+    candidates = {
+        candidate.title: candidate
+        for candidate in get_curated_tile_generation_candidates()
+    }
+
+    candidate = candidates["Skilling minigame sampler"]
+
+    assert candidate.route_mode == RouteMode.N_OF
+    assert candidate.required_route_count == 2
+    assert len(
+        candidate.routes
+    ) == 3
+    assert "activity_group:skilling_minigames" in candidate.all_hard_unique_tags
+    assert "component:guardians_of_the_rift_completions_metric" in candidate.all_hard_unique_tags
+    assert "component:tempoross_completions_metric" in candidate.all_hard_unique_tags
+    assert "component:wintertodt_kills_metric" in candidate.all_hard_unique_tags
