@@ -470,6 +470,11 @@ def build_metric_component_from_template(template):
         metric_id=template.metric_id,
         source_id=template.source_id,
         groups=groups,
+        compatible_recipe_ids=(
+            ("SINGLE", "N_OF")
+            if groups
+            else ("SINGLE",)
+        ),
         rng_level=template.rng_level,
         notes=template.explanation,
     )
@@ -662,6 +667,7 @@ STATIC_METRIC_TEMPLATES = (
         display_name="Guardians of the Rift completions",
         metric_id="guardians_of_the_rift_completions",
         source_id="guardians_of_the_rift",
+        activity_group_id="skilling_minigames",
         target_by_point_value={
             1: 25,
             2: 50,
@@ -677,6 +683,7 @@ STATIC_METRIC_TEMPLATES = (
         display_name="Tempoross completions",
         metric_id="tempoross_completions",
         source_id="tempoross",
+        activity_group_id="skilling_minigames",
         target_by_point_value={
             1: 25,
             2: 50,
@@ -692,6 +699,7 @@ STATIC_METRIC_TEMPLATES = (
         display_name="Wintertodt kills",
         metric_id="wintertodt_kills",
         source_id="wintertodt",
+        activity_group_id="skilling_minigames",
         target_by_point_value={
             1: 25,
             2: 50,

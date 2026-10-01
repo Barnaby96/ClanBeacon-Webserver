@@ -564,3 +564,38 @@ def test_template_expansion_uses_shared_single_component_expansion_helper(monkey
     assert captured["component"].component_id == "callisto_killcount"
     assert captured["target_model"].target_model_id == "callisto_static_killcount"
     assert captured["include_generation_note"] is False
+
+
+def test_skilling_minigame_metric_templates_support_n_of_recipe():
+    from utils.osrs_tile_template_expansion import (
+        STATIC_METRIC_TEMPLATES,
+        build_metric_component_from_template,
+    )
+
+    components_by_metric = {
+        template.metric_id: build_metric_component_from_template(
+            template
+        )
+        for template in STATIC_METRIC_TEMPLATES
+    }
+
+    assert components_by_metric[
+        "guardians_of_the_rift_completions"
+    ].groups == (
+        "skilling_minigames",
+    )
+    assert components_by_metric[
+        "guardians_of_the_rift_completions"
+    ].supports_recipe(
+        "N_OF"
+    )
+    assert components_by_metric[
+        "tempoross_completions"
+    ].supports_recipe(
+        "N_OF"
+    )
+    assert components_by_metric[
+        "wintertodt_kills"
+    ].supports_recipe(
+        "N_OF"
+    )
