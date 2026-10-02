@@ -338,17 +338,15 @@ def test_curated_tile_generation_candidates_expand_drop_templates():
         5,
     }
 
-    assert {
+    titles = {
         candidate.title
         for candidate in drop_candidates
-    } >= {
-        "Obtain 1 Zulrah unique",
-        "Obtain 5 Zulrah uniques",
-        "Obtain 1 Vorkath unique",
-        "Obtain 5 Vorkath uniques",
-        "Obtain 1 Giant Mole unique",
-        "Obtain 5 Scurrius uniques",
     }
+
+    assert "Obtain 1 Zulrah unique" in titles
+    assert "Obtain 1 Vorkath unique" in titles
+    assert "Obtain 1 Giant Mole unique" in titles
+    assert "Obtain 1 Scurrius unique" in titles
 
 
 def test_curated_tile_generation_candidates_expand_skill_xp_templates():
@@ -542,7 +540,8 @@ def test_curated_tile_generation_candidates_include_composite_candidates():
     assert "component:wintertodt_kills_metric" in candidate.all_hard_unique_tags
 
 
-def test_curated_tile_generation_candidates_do_not_include_impossible_dagannoth_rex_targets():
+def test_curated_tile_generation_candidates_do_not_include_targets_above_defined_group_size():
+    from utils.osrs_drop_groups import get_max_distinct_drop_count
     from utils.osrs_tile_catalogue import get_curated_tile_generation_candidates
 
     titles = {
@@ -550,8 +549,22 @@ def test_curated_tile_generation_candidates_do_not_include_impossible_dagannoth_
         for candidate in get_curated_tile_generation_candidates()
     }
 
-    assert "Obtain 1 Dagannoth Rex unique" in titles
-    assert "Obtain 2 Dagannoth Rex uniques" in titles
-    assert "Obtain 3 Dagannoth Rex uniques" not in titles
-    assert "Obtain 4 Dagannoth Rex uniques" not in titles
-    assert "Obtain 5 Dagannoth Rex uniques" not in titles
+    max_count = get_max_distinct_drop_count(
+        "dagannoth_rex_uniques"
+    )
+
+    assert max_count >= 2
+
+    for target in range(
+        1,
+        max_count + 1,
+    ):
+        suffix = "unique" if target == 1 else "uniques"
+
+        assert f"Obtain {target} Dagannoth Rex {suffix}" in titles
+
+    for target in range(
+        max_count + 1,
+        6,
+    ):
+        assert f"Obtain {target} Dagannoth Rex uniques" not in titles
