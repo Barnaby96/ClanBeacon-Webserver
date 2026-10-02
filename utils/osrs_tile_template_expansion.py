@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+from utils.osrs_drop_groups import get_drop_group_definition
 from utils.osrs_drop_target_models import get_valid_drop_target_profile
 from utils.osrs_generation_recipes import (
     StaticPointTargetModel,
@@ -71,6 +72,30 @@ def normalise_target_by_point_value(target_by_point_value):
         sorted(
             normalised
         )
+    )
+
+
+
+def format_drop_route_text(source_name, target, drop_group_id=None):
+    title = format_drop_title(
+        source_name,
+        target,
+        drop_group_id,
+    )
+
+    definition = get_drop_group_definition(
+        drop_group_id
+    )
+
+    if (
+        definition is None
+        or not definition.drop_names
+    ):
+        return title
+
+    return (
+        f"{title}. Eligible drops: "
+        f"{', '.join(definition.drop_names)}"
     )
 
 
@@ -277,7 +302,7 @@ def expand_drop_template(template):
             target,
             template.drop_group_id,
         ),
-        display_text_formatter=lambda point_value, target: format_drop_title(
+        display_text_formatter=lambda point_value, target: format_drop_route_text(
             template.source_name,
             target,
             template.drop_group_id,

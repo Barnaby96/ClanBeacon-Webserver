@@ -831,3 +831,58 @@ def test_wilderness_ring_drop_template_uses_ring_wording():
     assert "Obtain 2 Wilderness rings" in titles
     assert "Obtain 1 Wilderness ring unique" not in titles
     assert "Obtain 2 Wilderness ring uniques" not in titles
+
+
+def test_drop_route_text_lists_eligible_drop_names():
+    from utils.osrs_tile_template_expansion import (
+        STATIC_DROP_TEMPLATES,
+        expand_drop_template,
+    )
+
+    template = next(
+        template
+        for template in STATIC_DROP_TEMPLATES
+        if template.drop_group_id == "wilderness_ring"
+    )
+
+    candidate = next(
+        candidate
+        for candidate in expand_drop_template(
+            template
+        )
+        if candidate.point_value == 4
+    )
+
+    route_text = candidate.routes[0].display_text
+
+    assert candidate.title == "Obtain 2 Wilderness rings"
+    assert route_text.startswith(
+        "Obtain 2 Wilderness rings. Eligible drops: "
+    )
+    assert "Tyrannical ring" in route_text
+    assert "Treasonous ring" in route_text
+    assert "Ring of the gods" in route_text
+
+
+def test_drop_route_text_falls_back_for_unknown_group():
+    from utils.osrs_tile_template_expansion import (
+        DropTileTemplate,
+        expand_drop_template,
+    )
+
+    template = DropTileTemplate(
+        source_name="Test Source",
+        source_id="test_source",
+        boss_id="test_source",
+        drop_group_id="test_source_uniques",
+        target_by_point_value={
+            3: 1,
+        },
+    )
+
+    candidate = expand_drop_template(
+        template
+    )[0]
+
+    assert candidate.title == "Obtain 1 Test Source unique"
+    assert candidate.routes[0].display_text == "Obtain 1 Test Source unique"
