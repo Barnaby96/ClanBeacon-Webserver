@@ -9,3 +9,6 @@ __pycache__/
 uploads/dink_evidence/
 static/images/dink/dink.txt
 uploads/manual_evidence/
+
+# Local source workbook for generated OSRS drop group data
+Drop Database.xlsx
