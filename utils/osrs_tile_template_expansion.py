@@ -209,7 +209,25 @@ class DropTileTemplate:
         )
 
 
-def format_drop_title(source_name, target):
+DROP_GROUP_TARGET_LABELS = {
+    "wilderness_ring": (
+        "Wilderness ring",
+        "Wilderness rings",
+    ),
+}
+
+
+def format_drop_title(source_name, target, drop_group_id=None):
+    labels = DROP_GROUP_TARGET_LABELS.get(
+        drop_group_id
+    )
+
+    if labels:
+        singular, plural = labels
+        label = singular if target == 1 else plural
+
+        return f"Obtain {target:,} {label}"
+
     noun = "unique" if target == 1 else "uniques"
 
     return f"Obtain {target:,} {source_name} {noun}"
@@ -256,11 +274,13 @@ def expand_drop_template(template):
         target_model=target_model,
         title_formatter=lambda point_value, target: format_drop_title(
             template.source_name,
-            target
+            target,
+            template.drop_group_id,
         ),
         display_text_formatter=lambda point_value, target: format_drop_title(
             template.source_name,
-            target
+            target,
+            template.drop_group_id,
         ),
         explanation_formatter=lambda point_value, target: (
             (

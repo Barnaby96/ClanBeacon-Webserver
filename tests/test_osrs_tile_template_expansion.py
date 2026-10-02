@@ -806,3 +806,28 @@ def test_drop_template_targets_use_drop_target_profiles():
         4: 2,
         5: 3,
     }
+
+
+def test_wilderness_ring_drop_template_uses_ring_wording():
+    from utils.osrs_tile_template_expansion import (
+        STATIC_DROP_TEMPLATES,
+        expand_drop_template,
+    )
+
+    template = next(
+        template
+        for template in STATIC_DROP_TEMPLATES
+        if template.drop_group_id == "wilderness_ring"
+    )
+
+    titles = [
+        candidate.title
+        for candidate in expand_drop_template(
+            template
+        )
+    ]
+
+    assert "Obtain 1 Wilderness ring" in titles
+    assert "Obtain 2 Wilderness rings" in titles
+    assert "Obtain 1 Wilderness ring unique" not in titles
+    assert "Obtain 2 Wilderness ring uniques" not in titles
