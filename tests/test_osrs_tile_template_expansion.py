@@ -640,3 +640,127 @@ def test_dagannoth_rex_drop_template_targets_do_not_exceed_defined_drop_group():
     assert max_target == len(
         target_model.target_by_point_value
     )
+
+
+def test_static_drop_templates_use_known_generated_drop_groups_where_mapped():
+    from utils.osrs_drop_groups import get_drop_group_definition
+    from utils.osrs_tile_template_expansion import STATIC_DROP_TEMPLATES
+
+    templates_by_source = {
+        template.source_id: template
+        for template in STATIC_DROP_TEMPLATES
+    }
+
+    assert templates_by_source[
+        "barrows"
+    ].drop_group_id == "barrows_brothers_unique"
+    assert get_drop_group_definition(
+        templates_by_source[
+            "barrows"
+        ].drop_group_id
+    )
+
+    assert templates_by_source[
+        "sarachnis"
+    ].drop_group_id == "sarachnis_unique"
+    assert get_drop_group_definition(
+        templates_by_source[
+            "sarachnis"
+        ].drop_group_id
+    )
+
+    assert templates_by_source[
+        "kraken"
+    ].drop_group_id == "kraken_unique"
+    assert get_drop_group_definition(
+        templates_by_source[
+            "kraken"
+        ].drop_group_id
+    )
+
+
+def test_static_drop_templates_all_use_known_generated_drop_groups():
+    from utils.osrs_drop_groups import get_drop_group_definition
+    from utils.osrs_tile_template_expansion import STATIC_DROP_TEMPLATES
+
+    missing_group_ids = [
+        template.drop_group_id
+        for template in STATIC_DROP_TEMPLATES
+        if get_drop_group_definition(
+            template.drop_group_id
+        )
+        is None
+    ]
+
+    assert missing_group_ids == []
+
+
+def test_static_drop_templates_include_broader_wilderness_groups():
+    from utils.osrs_drop_groups import get_drop_group_definition
+    from utils.osrs_tile_template_expansion import STATIC_DROP_TEMPLATES
+
+    templates_by_group = {
+        template.drop_group_id: template
+        for template in STATIC_DROP_TEMPLATES
+    }
+
+    assert templates_by_group[
+        "wilderness_unique"
+    ].source_id == "wilderness"
+    assert templates_by_group[
+        "wilderness_unique"
+    ].source_name == "Wilderness"
+    assert get_drop_group_definition(
+        "wilderness_unique"
+    )
+
+    assert templates_by_group[
+        "wilderness_ring"
+    ].source_id == "wilderness_ring"
+    assert templates_by_group[
+        "wilderness_ring"
+    ].source_name == "Wilderness ring"
+    assert get_drop_group_definition(
+        "wilderness_ring"
+    )
+
+
+def test_static_drop_templates_use_singular_generated_group_ids():
+    from utils.osrs_drop_groups import get_drop_group_definition
+    from utils.osrs_tile_template_expansion import STATIC_DROP_TEMPLATES
+
+    templates_by_source = {
+        template.source_id: template
+        for template in STATIC_DROP_TEMPLATES
+    }
+
+    assert templates_by_source[
+        "giant_mole"
+    ].drop_group_id == "giant_mole_unique"
+    assert get_drop_group_definition(
+        "giant_mole_unique"
+    )
+
+    assert templates_by_source[
+        "scurrius"
+    ].drop_group_id == "scurrius_unique"
+    assert get_drop_group_definition(
+        "scurrius_unique"
+    )
+
+
+def test_broader_wilderness_drop_templates_do_not_keep_source_specific_boss_tags():
+    from utils.osrs_tile_template_expansion import STATIC_DROP_TEMPLATES
+
+    templates_by_group = {
+        template.drop_group_id: template
+        for template in STATIC_DROP_TEMPLATES
+    }
+
+    assert templates_by_group[
+        "wilderness_unique"
+    ].boss_id is None
+
+    assert templates_by_group[
+        "wilderness_ring"
+    ].boss_id is None

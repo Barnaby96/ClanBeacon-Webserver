@@ -845,7 +845,7 @@ STATIC_DROP_TEMPLATES = (
         source_name="Giant Mole",
         source_id="giant_mole",
         boss_id="giant_mole",
-        drop_group_id="giant_mole_uniques",
+        drop_group_id="giant_mole_unique",
         target_by_point_value={
             1: 1,
             2: 2,
@@ -861,7 +861,7 @@ STATIC_DROP_TEMPLATES = (
         source_name="Scurrius",
         source_id="scurrius",
         boss_id="scurrius",
-        drop_group_id="scurrius_uniques",
+        drop_group_id="scurrius_unique",
         target_by_point_value={
             1: 1,
             2: 2,
@@ -877,7 +877,7 @@ STATIC_DROP_TEMPLATES = (
         source_name="Sarachnis",
         source_id="sarachnis",
         boss_id="sarachnis",
-        drop_group_id="sarachnis_uniques",
+        drop_group_id="sarachnis_unique",
         target_by_point_value={
             1: 1,
             2: 2,
@@ -893,7 +893,7 @@ STATIC_DROP_TEMPLATES = (
         source_name="Barrows",
         source_id="barrows",
         boss_id="barrows_chests",
-        drop_group_id="barrows_uniques",
+        drop_group_id="barrows_brothers_unique",
         target_by_point_value={
             1: 1,
             2: 2,
@@ -909,7 +909,7 @@ STATIC_DROP_TEMPLATES = (
         source_name="Kraken",
         source_id="kraken",
         boss_id="kraken",
-        drop_group_id="kraken_uniques",
+        drop_group_id="kraken_unique",
         target_by_point_value={
             1: 1,
             2: 2,
@@ -938,10 +938,10 @@ STATIC_DROP_TEMPLATES = (
         ),
     ),
     DropTileTemplate(
-        source_name="Calvar'ion",
-        source_id="calvarion",
-        boss_id="calvarion",
-        drop_group_id="calvarion_uniques",
+        source_name="Wilderness",
+        source_id="wilderness",
+        boss_id=None,
+        drop_group_id="wilderness_unique",
         target_by_point_value={
             1: 1,
             2: 2,
@@ -954,10 +954,10 @@ STATIC_DROP_TEMPLATES = (
         ),
     ),
     DropTileTemplate(
-        source_name="Artio",
-        source_id="artio",
-        boss_id="artio",
-        drop_group_id="artio_uniques",
+        source_name="Wilderness ring",
+        source_id="wilderness_ring",
+        boss_id=None,
+        drop_group_id="wilderness_ring",
         target_by_point_value={
             1: 1,
             2: 2,
