@@ -3,6 +3,8 @@ from utils.osrs_drop_groups import (
     DROP_GROUP_DEFINITIONS,
     filter_valid_drop_target_by_point_value,
     get_drop_group_definition,
+    get_drop_group_overlap_family_ids,
+    get_drop_group_overlap_hard_unique_tags,
     get_max_distinct_drop_count,
 )
 
@@ -116,3 +118,34 @@ def test_filter_valid_drop_target_by_point_value_preserves_unknown_group():
         2: 2,
         3: 3,
     }
+
+
+def test_wilderness_drop_groups_share_overlap_family_tag():
+    assert get_drop_group_overlap_family_ids(
+        "wilderness_unique"
+    ) == (
+        "wilderness_unique",
+    )
+    assert get_drop_group_overlap_family_ids(
+        "wilderness_ring"
+    ) == (
+        "wilderness_unique",
+    )
+    assert get_drop_group_overlap_family_ids(
+        "zulrah_uniques"
+    ) == ()
+
+    assert get_drop_group_overlap_hard_unique_tags(
+        "wilderness_unique"
+    ) == frozenset(
+        {
+            "drop_group_family:wilderness_unique",
+        }
+    )
+    assert get_drop_group_overlap_hard_unique_tags(
+        "wilderness_ring"
+    ) == frozenset(
+        {
+            "drop_group_family:wilderness_unique",
+        }
+    )

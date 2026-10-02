@@ -1,5 +1,6 @@
 """Generation recipes for turning components into tile candidates."""
 
+from utils.osrs_drop_groups import get_drop_group_overlap_hard_unique_tags
 from dataclasses import dataclass
 from enum import Enum
 
@@ -245,7 +246,11 @@ def build_single_drop_route(component, target, display_text=None):
         boss_id=component.boss_id,
         drop_id=component.drop_id,
         drop_group_id=component.drop_group_id,
-        hard_unique_tags=component.hard_unique_tags,
+        hard_unique_tags=component.hard_unique_tags.union(
+            get_drop_group_overlap_hard_unique_tags(
+                component.drop_group_id
+            )
+        ),
     )
 
 

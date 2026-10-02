@@ -568,3 +568,28 @@ def test_curated_tile_generation_candidates_do_not_include_targets_above_defined
         6,
     ):
         assert f"Obtain {target} Dagannoth Rex uniques" not in titles
+
+
+def test_generated_board_does_not_include_overlapping_wilderness_drop_groups():
+    from utils.board_generation import assemble_board_candidates
+    from utils.osrs_tile_catalogue import get_curated_tile_generation_candidates
+
+    board = assemble_board_candidates(
+        get_curated_tile_generation_candidates()
+    )
+
+    selected_drop_group_tags = {
+        tag
+        for candidate in board.candidates
+        for tag in candidate.all_hard_unique_tags
+        if tag.startswith(
+            "drop_group:"
+        )
+    }
+
+    assert not {
+        "drop_group:wilderness_unique",
+        "drop_group:wilderness_ring",
+    }.issubset(
+        selected_drop_group_tags
+    )

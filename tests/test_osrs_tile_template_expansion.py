@@ -886,3 +886,31 @@ def test_drop_route_text_falls_back_for_unknown_group():
 
     assert candidate.title == "Obtain 1 Test Source unique"
     assert candidate.routes[0].display_text == "Obtain 1 Test Source unique"
+
+
+def test_wilderness_drop_templates_share_overlap_conflict_tag():
+    from utils.osrs_tile_template_expansion import (
+        STATIC_DROP_TEMPLATES,
+        expand_drop_template,
+    )
+
+    templates_by_group = {
+        template.drop_group_id: template
+        for template in STATIC_DROP_TEMPLATES
+    }
+
+    wilderness_unique = expand_drop_template(
+        templates_by_group[
+            "wilderness_unique"
+        ]
+    )[0]
+    wilderness_ring = expand_drop_template(
+        templates_by_group[
+            "wilderness_ring"
+        ]
+    )[0]
+
+    assert "drop_group:wilderness_unique" in wilderness_unique.all_hard_unique_tags
+    assert "drop_group:wilderness_ring" in wilderness_ring.all_hard_unique_tags
+    assert "drop_group_family:wilderness_unique" in wilderness_unique.all_hard_unique_tags
+    assert "drop_group_family:wilderness_unique" in wilderness_ring.all_hard_unique_tags

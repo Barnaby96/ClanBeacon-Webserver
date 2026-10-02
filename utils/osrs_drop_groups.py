@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from utils.board_generation import canonical_id
+from utils.board_generation import build_tag, canonical_id
 from utils.osrs_drop_group_data import DROP_GROUP_DATA
 
 
@@ -146,6 +146,37 @@ DROP_GROUP_DEFINITIONS_BY_ID = {
     definition.drop_group_id: definition
     for definition in DROP_GROUP_DEFINITIONS
 }
+
+
+DROP_GROUP_OVERLAP_FAMILY_IDS_BY_GROUP_ID = {
+    "wilderness_unique": (
+        "wilderness_unique",
+    ),
+    "wilderness_ring": (
+        "wilderness_unique",
+    ),
+}
+
+
+def get_drop_group_overlap_family_ids(drop_group_id):
+    return DROP_GROUP_OVERLAP_FAMILY_IDS_BY_GROUP_ID.get(
+        canonical_id(
+            drop_group_id
+        ),
+        (),
+    )
+
+
+def get_drop_group_overlap_hard_unique_tags(drop_group_id):
+    return frozenset(
+        build_tag(
+            "drop_group_family",
+            family_id,
+        )
+        for family_id in get_drop_group_overlap_family_ids(
+            drop_group_id
+        )
+    )
 
 
 def get_drop_group_definition(drop_group_id):
