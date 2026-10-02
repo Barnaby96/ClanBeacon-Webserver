@@ -129,11 +129,11 @@ def test_static_killcount_candidates_cover_each_point_tier():
 
 def test_expand_drop_template_builds_point_variants():
     template = DropTileTemplate(
-        source_name="Zulrah",
-        source_id="zulrah",
-        boss_id="zulrah",
-        content_id="zulrah",
-        drop_group_id="zulrah_uniques",
+        source_name="Test Source",
+        source_id="test_source",
+        boss_id="test_source",
+        content_id=None,
+        drop_group_id="test_source_uniques",
         target_by_point_value={
             1: 1,
             3: 3,
@@ -148,8 +148,8 @@ def test_expand_drop_template_builds_point_variants():
         candidate.title
         for candidate in candidates
     ] == [
-        "Obtain 1 Zulrah unique",
-        "Obtain 3 Zulrah uniques",
+        "Obtain 1 Test Source unique",
+        "Obtain 3 Test Source uniques",
     ]
 
     assert [
@@ -169,15 +169,15 @@ def test_expand_drop_template_builds_point_variants():
         for candidate in candidates
     )
     assert all(
-        "boss:zulrah" in candidate.all_hard_unique_tags
+        "boss:test_source" in candidate.all_hard_unique_tags
         for candidate in candidates
     )
     assert all(
-        "source:zulrah" in candidate.all_hard_unique_tags
+        "source:test_source" in candidate.all_hard_unique_tags
         for candidate in candidates
     )
     assert all(
-        "drop_group:zulrah_uniques" in candidate.all_hard_unique_tags
+        "drop_group:test_source_uniques" in candidate.all_hard_unique_tags
         for candidate in candidates
     )
 
@@ -507,10 +507,10 @@ def test_drop_template_expands_via_component_single_recipe():
     )
 
     template = DropTileTemplate(
-        source_name="Zulrah",
-        source_id="zulrah",
-        boss_id="zulrah",
-        drop_group_id="zulrah_uniques",
+        source_name="Test Source",
+        source_id="test_source",
+        boss_id="test_source",
+        drop_group_id="test_source_uniques",
         target_by_point_value={
             3: 1,
         },
@@ -524,22 +524,22 @@ def test_drop_template_expands_via_component_single_recipe():
     )[0]
     route = candidate.routes[0]
 
-    assert candidate.title == "Obtain 1 Zulrah unique"
+    assert candidate.title == "Obtain 1 Test Source unique"
     assert candidate.point_value == 3
-    assert route.display_text == "Obtain 1 Zulrah unique"
+    assert route.display_text == "Obtain 1 Test Source unique"
     assert route.target == 1
     assert route.tracking_source == TrackingSource.DINK
-    assert route.source_id == "zulrah"
-    assert route.boss_id == "zulrah"
-    assert route.drop_group_id == "zulrah_uniques"
+    assert route.source_id == "test_source"
+    assert route.boss_id == "test_source"
+    assert route.drop_group_id == "test_source_uniques"
     assert candidate.explanation == (
         "Prototype drop source.",
-        "Generated 3-point drop target from the Zulrah template.",
+        "Generated 3-point drop target from the Test Source template.",
     )
-    assert "component:zulrah_drop" in candidate.all_hard_unique_tags
-    assert "source:zulrah" in candidate.all_hard_unique_tags
-    assert "boss:zulrah" in candidate.all_hard_unique_tags
-    assert "drop_group:zulrah_uniques" in candidate.all_hard_unique_tags
+    assert "component:test_source_drop" in candidate.all_hard_unique_tags
+    assert "source:test_source" in candidate.all_hard_unique_tags
+    assert "boss:test_source" in candidate.all_hard_unique_tags
+    assert "drop_group:test_source_uniques" in candidate.all_hard_unique_tags
 
 
 def test_template_expansion_uses_shared_single_component_expansion_helper(monkeypatch):
@@ -764,3 +764,45 @@ def test_broader_wilderness_drop_templates_do_not_keep_source_specific_boss_tags
     assert templates_by_group[
         "wilderness_ring"
     ].boss_id is None
+
+
+def test_drop_template_targets_use_drop_target_profiles():
+    from utils.osrs_tile_template_expansion import (
+        STATIC_DROP_TEMPLATES,
+        build_drop_target_model_from_template,
+    )
+
+    templates_by_group = {
+        template.drop_group_id: template
+        for template in STATIC_DROP_TEMPLATES
+    }
+
+    barrows_model = build_drop_target_model_from_template(
+        templates_by_group[
+            "barrows_brothers_unique"
+        ]
+    )
+
+    assert dict(
+        barrows_model.target_by_point_value
+    ) == {
+        1: 2,
+        2: 4,
+        3: 6,
+        4: 8,
+        5: 10,
+    }
+
+    wilderness_ring_model = build_drop_target_model_from_template(
+        templates_by_group[
+            "wilderness_ring"
+        ]
+    )
+
+    assert dict(
+        wilderness_ring_model.target_by_point_value
+    ) == {
+        3: 1,
+        4: 2,
+        5: 3,
+    }
