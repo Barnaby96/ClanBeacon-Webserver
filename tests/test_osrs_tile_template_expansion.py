@@ -914,3 +914,32 @@ def test_wilderness_drop_templates_share_overlap_conflict_tag():
     assert "drop_group:wilderness_ring" in wilderness_ring.all_hard_unique_tags
     assert "drop_group_family:wilderness_unique" in wilderness_unique.all_hard_unique_tags
     assert "drop_group_family:wilderness_unique" in wilderness_ring.all_hard_unique_tags
+
+
+def test_giant_mole_drop_template_uses_only_distinct_drops():
+    from utils.osrs_tile_template_expansion import (
+        STATIC_DROP_TEMPLATES,
+        expand_drop_template,
+    )
+
+    template = next(
+        template
+        for template in STATIC_DROP_TEMPLATES
+        if template.drop_group_id == "giant_mole_unique"
+    )
+
+    candidates = expand_drop_template(
+        template
+    )
+
+    assert [
+        candidate.point_value
+        for candidate in candidates
+    ] == [
+        1,
+    ]
+
+    route_text = candidates[0].routes[0].display_text
+
+    assert "Immaculate mole skin" in route_text
+    assert "Mole skin" not in route_text

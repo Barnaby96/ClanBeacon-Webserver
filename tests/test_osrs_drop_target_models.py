@@ -53,3 +53,13 @@ def test_unknown_drop_target_profile_uses_fallback_then_caps():
         1: 1,
         2: 2,
     }
+
+
+def test_giant_mole_target_profile_ignores_item_quantity_rows():
+    from utils.osrs_drop_target_models import get_valid_drop_target_profile
+
+    assert get_valid_drop_target_profile(
+        "giant_mole_unique"
+    ) == {
+        1: 1,
+    }

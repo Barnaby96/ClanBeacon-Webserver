@@ -234,9 +234,52 @@ class DropGroupDefinition:
         return self.source_ids[0]
 
     @property
+    def distinct_drop_indexes(self):
+        if not self.drop_counting_modes:
+            return tuple(
+                range(
+                    len(
+                        self.drop_ids
+                    )
+                )
+            )
+
+        return tuple(
+            index
+            for index, drop_counting_mode in enumerate(
+                self.drop_counting_modes
+            )
+            if drop_counting_mode in (
+                "",
+                "distinct_drops",
+            )
+        )
+
+    @property
+    def distinct_drop_ids(self):
+        return tuple(
+            self.drop_ids[
+                index
+            ]
+            for index in self.distinct_drop_indexes
+        )
+
+    @property
+    def distinct_drop_names(self):
+        if not self.drop_names:
+            return ()
+
+        return tuple(
+            self.drop_names[
+                index
+            ]
+            for index in self.distinct_drop_indexes
+        )
+
+    @property
     def max_distinct_drop_count(self):
         return len(
-            self.drop_ids
+            self.distinct_drop_ids
         )
 
 

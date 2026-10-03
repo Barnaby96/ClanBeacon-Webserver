@@ -200,3 +200,22 @@ def test_drop_group_definition_loads_optional_drop_metadata():
     assert definition.notes == (
         "Quantity drop, not N-of-set by default.",
     )
+
+
+def test_giant_mole_distinct_drop_count_ignores_item_quantity_rows():
+    definition = get_drop_group_definition(
+        "giant_mole_unique"
+    )
+
+    assert definition.drop_names == (
+        "Immaculate mole skin",
+        "Mole skin",
+    )
+    assert definition.drop_counting_modes == (
+        "distinct_drops",
+        "item_quantity",
+    )
+    assert definition.distinct_drop_names == (
+        "Immaculate mole skin",
+    )
+    assert definition.max_distinct_drop_count == 1

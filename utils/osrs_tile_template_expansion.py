@@ -87,15 +87,20 @@ def format_drop_route_text(source_name, target, drop_group_id=None):
         drop_group_id
     )
 
-    if (
-        definition is None
-        or not definition.drop_names
-    ):
+    if definition is None:
+        return title
+
+    eligible_drop_names = (
+        definition.distinct_drop_names
+        or definition.drop_names
+    )
+
+    if not eligible_drop_names:
         return title
 
     return (
         f"{title}. Eligible drops: "
-        f"{', '.join(definition.drop_names)}"
+        f"{', '.join(eligible_drop_names)}"
     )
 
 
