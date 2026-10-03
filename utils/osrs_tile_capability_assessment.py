@@ -5,6 +5,15 @@ from utils.osrs_tile_capability_mapping import (
 )
 
 
+CAPABILITY_BALANCE_UNMAPPED = "unmapped"
+CAPABILITY_BALANCE_NO_PROFILE_DATA = "no_profile_data"
+CAPABILITY_BALANCE_NO_SIGNAL = "no_capability_signal"
+CAPABILITY_BALANCE_BALANCED = "balanced"
+CAPABILITY_BALANCE_MODERATE_GAP = "moderate_gap"
+CAPABILITY_BALANCE_HIGH_GAP = "high_gap"
+CAPABILITY_BALANCE_ZERO_SCORE_GAP = "zero_score_gap"
+
+
 @dataclass(frozen=True)
 class CandidateCapabilityAssessment:
     candidate_title: str
@@ -44,6 +53,42 @@ class CandidateCapabilityAssessment:
             and self.maximum_score is not None
             and self.maximum_score > 0
         )
+
+    @property
+    def score_ratio(self):
+        if (
+            self.minimum_score is None
+            or self.maximum_score is None
+            or self.minimum_score <= 0
+        ):
+            return None
+
+        return self.maximum_score / self.minimum_score
+
+    @property
+    def balance_band(self):
+        if self.capability_score_field is None:
+            return CAPABILITY_BALANCE_UNMAPPED
+
+        if not self.has_profile_data:
+            return CAPABILITY_BALANCE_NO_PROFILE_DATA
+
+        if self.maximum_score is None or self.maximum_score <= 0:
+            return CAPABILITY_BALANCE_NO_SIGNAL
+
+        if self.has_zero_score_gap:
+            return CAPABILITY_BALANCE_ZERO_SCORE_GAP
+
+        if self.score_ratio is None:
+            return CAPABILITY_BALANCE_NO_SIGNAL
+
+        if self.score_ratio >= 3:
+            return CAPABILITY_BALANCE_HIGH_GAP
+
+        if self.score_ratio >= 2:
+            return CAPABILITY_BALANCE_MODERATE_GAP
+
+        return CAPABILITY_BALANCE_BALANCED
 
 
 def assess_candidate_capability(candidate, capability_profiles):

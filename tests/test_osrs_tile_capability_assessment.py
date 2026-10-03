@@ -137,3 +137,87 @@ def test_assess_candidate_capability_handles_empty_profiles():
     assert assessment.zero_score_profile_count == 0
     assert assessment.score_gap is None
     assert not assessment.has_profile_data
+
+
+def test_capability_assessment_balance_band_flags_zero_score_gap():
+    assessment = assess_candidate_capability(
+        build_candidate(),
+        build_profile_set(),
+    )
+
+    assert assessment.score_ratio is None
+    assert assessment.balance_band == "zero_score_gap"
+
+
+def test_capability_assessment_balance_band_flags_high_gap():
+    profile_set = CapabilityProfileSet(
+        source="teams",
+        profiles=(
+            CapabilityProfile(
+                profile_id="1",
+                display_name="Team One",
+                player_count=5,
+                scores={
+                    "solo_boss_score": 9,
+                },
+            ),
+            CapabilityProfile(
+                profile_id="2",
+                display_name="Team Two",
+                player_count=5,
+                scores={
+                    "solo_boss_score": 3,
+                },
+            ),
+        ),
+    )
+
+    assessment = assess_candidate_capability(
+        build_candidate(),
+        profile_set,
+    )
+
+    assert assessment.score_ratio == 3
+    assert assessment.balance_band == "high_gap"
+
+
+def test_capability_assessment_balance_band_flags_balanced_scores():
+    profile_set = CapabilityProfileSet(
+        source="teams",
+        profiles=(
+            CapabilityProfile(
+                profile_id="1",
+                display_name="Team One",
+                player_count=5,
+                scores={
+                    "solo_boss_score": 9,
+                },
+            ),
+            CapabilityProfile(
+                profile_id="2",
+                display_name="Team Two",
+                player_count=5,
+                scores={
+                    "solo_boss_score": 6,
+                },
+            ),
+        ),
+    )
+
+    assessment = assess_candidate_capability(
+        build_candidate(),
+        profile_set,
+    )
+
+    assert assessment.balance_band == "balanced"
+
+
+def test_capability_assessment_balance_band_flags_unmapped_candidates():
+    assessment = assess_candidate_capability(
+        build_candidate(
+            source_id="unknown_source"
+        ),
+        build_profile_set(),
+    )
+
+    assert assessment.balance_band == "unmapped"
