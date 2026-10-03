@@ -23,6 +23,11 @@ def build_drop_group_data_records(database):
             "source_names": group.source_names,
             "drop_ids": group.drop_ids,
             "drop_names": group.drop_names,
+            "drop_rates": group.drop_rates,
+            "drop_counting_modes": group.drop_counting_modes,
+            "drop_quantities": group.drop_quantities,
+            "access_notes": group.access_notes,
+            "notes": group.notes,
             "include_pet": group.include_pet,
         }
         for group in sorted(

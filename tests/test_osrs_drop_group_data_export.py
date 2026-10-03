@@ -67,6 +67,20 @@ def test_build_drop_group_data_records_exports_in_id_order():
             "Ancestral hat",
             "Scythe of vitur",
         ),
+        "drop_rates": (
+            "",
+            "",
+        ),
+        "drop_counting_modes": (
+            "distinct_drops",
+            "distinct_drops",
+        ),
+        "drop_quantities": (
+            "",
+            "",
+        ),
+        "access_notes": (),
+        "notes": (),
         "include_pet": False,
     }
 
@@ -113,3 +127,44 @@ def test_write_drop_group_data_module(tmp_path):
     assert "DROP_GROUP_DATA" in module_text
     assert "fashionscape_item" in module_text
     assert "raids_purple" in module_text
+
+
+def test_build_drop_group_data_records_exports_drop_metadata():
+    from utils.osrs_drop_database_import import normalise_drop_database_rows
+    from utils.osrs_drop_group_data_export import build_drop_group_data_records
+
+    database = normalise_drop_database_rows(
+        (
+            {
+                "Source Name(s)": "Giant Mole",
+                "Group Name(s)": "Giant Mole Unique",
+                "Drop Name": "Mole skin",
+                "Drop Rate(s)": "Always",
+                "Drop Counting Mode": "Item Quantity",
+                "Drop Quantity": "1-3",
+                "Requirements / Access Notes": "Falador hard diary useful.",
+                "Notes": "Quantity drop, not N-of-set by default.",
+                "Include In Unique Group?": "Yes",
+            },
+        )
+    )
+
+    records = build_drop_group_data_records(
+        database
+    )
+
+    assert records[0]["drop_rates"] == (
+        "Always",
+    )
+    assert records[0]["drop_counting_modes"] == (
+        "item_quantity",
+    )
+    assert records[0]["drop_quantities"] == (
+        "1-3",
+    )
+    assert records[0]["access_notes"] == (
+        "Falador hard diary useful.",
+    )
+    assert records[0]["notes"] == (
+        "Quantity drop, not N-of-set by default.",
+    )

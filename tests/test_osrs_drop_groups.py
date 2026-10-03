@@ -149,3 +149,54 @@ def test_wilderness_drop_groups_share_overlap_family_tag():
             "drop_group_family:wilderness_unique",
         }
     )
+
+
+def test_drop_group_definition_loads_optional_drop_metadata():
+    from utils.osrs_drop_groups import DropGroupDefinition
+
+    definition = DropGroupDefinition.from_data_record(
+        {
+            "drop_group_id": "giant_mole_unique",
+            "display_name": "Giant Mole Unique",
+            "source_ids": (
+                "giant_mole",
+            ),
+            "drop_ids": (
+                "mole_skin",
+            ),
+            "drop_names": (
+                "Mole skin",
+            ),
+            "drop_rates": (
+                "Always",
+            ),
+            "drop_counting_modes": (
+                "item_quantity",
+            ),
+            "drop_quantities": (
+                "1-3",
+            ),
+            "access_notes": (
+                "Falador hard diary useful.",
+            ),
+            "notes": (
+                "Quantity drop, not N-of-set by default.",
+            ),
+        }
+    )
+
+    assert definition.drop_rates == (
+        "Always",
+    )
+    assert definition.drop_counting_modes == (
+        "item_quantity",
+    )
+    assert definition.drop_quantities == (
+        "1-3",
+    )
+    assert definition.access_notes == (
+        "Falador hard diary useful.",
+    )
+    assert definition.notes == (
+        "Quantity drop, not N-of-set by default.",
+    )

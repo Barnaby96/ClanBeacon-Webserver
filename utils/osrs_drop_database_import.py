@@ -17,6 +17,8 @@ GROUP_ID_HEADER = "Group ID(s)"
 DROP_NAME_HEADER = "Drop Name"
 DROP_ID_HEADER = "Drop ID"
 DROP_RATE_HEADER = "Drop Rate(s)"
+DROP_COUNTING_MODE_HEADER = "Drop Counting Mode"
+DROP_QUANTITY_HEADER = "Drop Quantity"
 INCLUDE_UNIQUE_HEADER = "Include In Unique Group?"
 INCLUDE_PET_HEADER = "Include Pet?"
 ACCESS_NOTES_HEADER = "Requirements / Access Notes"
@@ -32,6 +34,8 @@ class ImportedDropRow:
     drop_name: str
     drop_id: str
     drop_rates: tuple[str, ...]
+    drop_counting_mode: str
+    drop_quantity: str
     include_in_unique_group: bool
     include_pet: bool
     access_notes: str
@@ -46,6 +50,11 @@ class ImportedDropGroup:
     source_names: tuple[str, ...]
     drop_ids: tuple[str, ...]
     drop_names: tuple[str, ...]
+    drop_rates: tuple[str, ...] = ()
+    drop_counting_modes: tuple[str, ...] = ()
+    drop_quantities: tuple[str, ...] = ()
+    access_notes: tuple[str, ...] = ()
+    notes: tuple[str, ...] = ()
     include_pet: bool = False
 
     @property
@@ -117,6 +126,54 @@ def parse_yes_no(value, default=False):
         f"Expected yes/no value, got {value!r}"
     )
 
+
+
+DROP_COUNTING_MODE_DISTINCT_DROPS = "distinct_drops"
+DROP_COUNTING_MODE_ITEM_QUANTITY = "item_quantity"
+DROP_COUNTING_MODE_DROP_EVENTS = "drop_events"
+
+DROP_COUNTING_MODE_ALIASES = {
+    "": DROP_COUNTING_MODE_DISTINCT_DROPS,
+    "distinct": DROP_COUNTING_MODE_DISTINCT_DROPS,
+    "distinct_drop": DROP_COUNTING_MODE_DISTINCT_DROPS,
+    "distinct_drops": DROP_COUNTING_MODE_DISTINCT_DROPS,
+    "unique": DROP_COUNTING_MODE_DISTINCT_DROPS,
+    "uniques": DROP_COUNTING_MODE_DISTINCT_DROPS,
+    "unique_n_of_set": DROP_COUNTING_MODE_DISTINCT_DROPS,
+    "n_of_set": DROP_COUNTING_MODE_DISTINCT_DROPS,
+    "set": DROP_COUNTING_MODE_DISTINCT_DROPS,
+    "quantity": DROP_COUNTING_MODE_ITEM_QUANTITY,
+    "item_quantity": DROP_COUNTING_MODE_ITEM_QUANTITY,
+    "items": DROP_COUNTING_MODE_ITEM_QUANTITY,
+    "drop": DROP_COUNTING_MODE_DROP_EVENTS,
+    "drops": DROP_COUNTING_MODE_DROP_EVENTS,
+    "drop_event": DROP_COUNTING_MODE_DROP_EVENTS,
+    "drop_events": DROP_COUNTING_MODE_DROP_EVENTS,
+    "roll": DROP_COUNTING_MODE_DROP_EVENTS,
+    "rolls": DROP_COUNTING_MODE_DROP_EVENTS,
+}
+
+
+def parse_drop_counting_mode(value):
+    normalised = "_".join(
+        str(
+            value or ""
+        )
+        .strip()
+        .lower()
+        .replace("/", " ")
+        .replace("-", " ")
+        .split()
+    )
+
+    if normalised not in DROP_COUNTING_MODE_ALIASES:
+        raise ValueError(
+            f"Unknown drop counting mode: {value}"
+        )
+
+    return DROP_COUNTING_MODE_ALIASES[
+        normalised
+    ]
 
 def get_row_value(row, header):
     return row.get(
@@ -220,6 +277,19 @@ def normalise_drop_database_row(row):
                 DROP_RATE_HEADER,
             )
         ),
+        drop_counting_mode=parse_drop_counting_mode(
+            get_row_value(
+                row,
+                DROP_COUNTING_MODE_HEADER,
+            )
+        ),
+        drop_quantity=str(
+            get_row_value(
+                row,
+                DROP_QUANTITY_HEADER,
+            )
+            or ""
+        ).strip(),
         include_in_unique_group=parse_yes_no(
             get_row_value(
                 row,
@@ -267,8 +337,12 @@ def build_imported_drop_groups(rows):
         if not row.include_in_unique_group:
             continue
 
-        for index, group_id in enumerate(row.group_ids):
-            group_name = row.group_names[index]
+        for index, group_id in enumerate(
+            row.group_ids
+        ):
+            group_name = row.group_names[
+                index
+            ]
 
             group_data = group_data_by_id.setdefault(
                 group_id,
@@ -278,34 +352,54 @@ def build_imported_drop_groups(rows):
                     "source_names": [],
                     "drop_ids": [],
                     "drop_names": [],
+                    "drop_rates": [],
+                    "drop_counting_modes": [],
+                    "drop_quantities": [],
+                    "access_notes": [],
+                    "notes": [],
                     "include_pet": False,
                 },
             )
 
-            if group_data["group_name"] != group_name:
-                raise ValueError(
-                    f"Conflicting group names for {group_id!r}"
-                )
-
-            for source_id in row.source_ids:
+            for source_id, source_name in zip(
+                row.source_ids,
+                row.source_names,
+            ):
                 append_unique(
                     group_data["source_ids"],
                     source_id,
                 )
-
-            for source_name in row.source_names:
                 append_unique(
                     group_data["source_names"],
                     source_name,
                 )
 
+            if row.drop_id not in group_data["drop_ids"]:
+                group_data["drop_ids"].append(
+                    row.drop_id
+                )
+                group_data["drop_names"].append(
+                    row.drop_name
+                )
+                group_data["drop_rates"].append(
+                    "; ".join(
+                        row.drop_rates
+                    )
+                )
+                group_data["drop_counting_modes"].append(
+                    row.drop_counting_mode
+                )
+                group_data["drop_quantities"].append(
+                    row.drop_quantity
+                )
+
             append_unique(
-                group_data["drop_ids"],
-                row.drop_id,
+                group_data["access_notes"],
+                row.access_notes,
             )
             append_unique(
-                group_data["drop_names"],
-                row.drop_name,
+                group_data["notes"],
+                row.notes,
             )
 
             group_data["include_pet"] = (
@@ -329,11 +423,31 @@ def build_imported_drop_groups(rows):
             drop_names=tuple(
                 group_data["drop_names"]
             ),
+            drop_rates=tuple(
+                group_data["drop_rates"]
+            ),
+            drop_counting_modes=tuple(
+                group_data["drop_counting_modes"]
+            ),
+            drop_quantities=tuple(
+                group_data["drop_quantities"]
+            ),
+            access_notes=tuple(
+                value
+                for value in group_data["access_notes"]
+                if value
+            ),
+            notes=tuple(
+                value
+                for value in group_data["notes"]
+                if value
+            ),
             include_pet=group_data["include_pet"],
         )
-        for group_id, group_data in group_data_by_id.items()
+        for group_id, group_data in sorted(
+            group_data_by_id.items()
+        )
     )
-
 
 def normalise_drop_database_rows(raw_rows):
     rows = tuple(

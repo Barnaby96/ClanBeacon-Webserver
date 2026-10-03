@@ -196,3 +196,65 @@ def test_normalise_drop_database_row_rejects_mismatched_group_ids():
                 "Include In Unique Group?": "Yes",
             }
         )
+
+
+def test_normalise_drop_database_row_imports_drop_metadata():
+    from utils.osrs_drop_database_import import normalise_drop_database_row
+
+    row = normalise_drop_database_row(
+        {
+            "Source Name(s)": "Giant Mole",
+            "Group Name(s)": "Giant Mole Unique",
+            "Drop Name": "Mole skin",
+            "Drop Rate(s)": "Always",
+            "Drop Counting Mode": "Item Quantity",
+            "Drop Quantity": "1-3",
+            "Include In Unique Group?": "Yes",
+        }
+    )
+
+    assert row.drop_rates == (
+        "Always",
+    )
+    assert row.drop_counting_mode == "item_quantity"
+    assert row.drop_quantity == "1-3"
+
+
+def test_normalise_drop_database_rows_carries_group_metadata():
+    from utils.osrs_drop_database_import import normalise_drop_database_rows
+
+    database = normalise_drop_database_rows(
+        (
+            {
+                "Source Name(s)": "Giant Mole",
+                "Group Name(s)": "Giant Mole Unique",
+                "Drop Name": "Mole skin",
+                "Drop Rate(s)": "Always",
+                "Drop Counting Mode": "Item Quantity",
+                "Drop Quantity": "1-3",
+                "Requirements / Access Notes": "Falador hard diary useful.",
+                "Notes": "Quantity drop, not N-of-set by default.",
+                "Include In Unique Group?": "Yes",
+            },
+        )
+    )
+
+    group = database.groups_by_id[
+        "giant_mole_unique"
+    ]
+
+    assert group.drop_rates == (
+        "Always",
+    )
+    assert group.drop_counting_modes == (
+        "item_quantity",
+    )
+    assert group.drop_quantities == (
+        "1-3",
+    )
+    assert group.access_notes == (
+        "Falador hard diary useful.",
+    )
+    assert group.notes == (
+        "Quantity drop, not N-of-set by default.",
+    )

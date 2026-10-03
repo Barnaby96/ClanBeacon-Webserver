@@ -14,6 +14,10 @@ class DropGroupDefinition:
     drop_ids: tuple[str, ...]
     source_names: tuple[str, ...] = ()
     drop_names: tuple[str, ...] = ()
+    drop_rates: tuple[str, ...] = ()
+    drop_counting_modes: tuple[str, ...] = ()
+    drop_quantities: tuple[str, ...] = ()
+    access_notes: tuple[str, ...] = ()
     include_pet: bool = False
     notes: tuple[str, ...] = ()
 
@@ -59,8 +63,54 @@ class DropGroupDefinition:
         if len(set(drop_ids)) != len(drop_ids):
             raise ValueError("drop_ids must be unique within a drop group")
 
+        drop_rates = tuple(
+            str(
+                drop_rate
+            ).strip()
+            for drop_rate in self.drop_rates
+        )
+        drop_counting_modes = tuple(
+            str(
+                drop_counting_mode
+            ).strip()
+            for drop_counting_mode in self.drop_counting_modes
+        )
+        drop_quantities = tuple(
+            str(
+                drop_quantity
+            ).strip()
+            for drop_quantity in self.drop_quantities
+        )
+        access_notes = tuple(
+            str(
+                access_note
+            ).strip()
+            for access_note in self.access_notes
+            if str(
+                access_note
+            ).strip()
+        )
+        notes = tuple(
+            str(
+                note
+            ).strip()
+            for note in self.notes
+            if str(
+                note
+            ).strip()
+        )
+
         if drop_names and len(drop_names) != len(drop_ids):
             raise ValueError("drop_names must match drop_ids")
+
+        if drop_rates and len(drop_rates) != len(drop_ids):
+            raise ValueError("drop_rates must match drop_ids")
+
+        if drop_counting_modes and len(drop_counting_modes) != len(drop_ids):
+            raise ValueError("drop_counting_modes must match drop_ids")
+
+        if drop_quantities and len(drop_quantities) != len(drop_ids):
+            raise ValueError("drop_quantities must match drop_ids")
 
         object.__setattr__(
             self,
@@ -87,6 +137,31 @@ class DropGroupDefinition:
             "drop_names",
             drop_names,
         )
+        object.__setattr__(
+            self,
+            "drop_rates",
+            drop_rates,
+        )
+        object.__setattr__(
+            self,
+            "drop_counting_modes",
+            drop_counting_modes,
+        )
+        object.__setattr__(
+            self,
+            "drop_quantities",
+            drop_quantities,
+        )
+        object.__setattr__(
+            self,
+            "access_notes",
+            access_notes,
+        )
+        object.__setattr__(
+            self,
+            "notes",
+            notes,
+        )
 
     @classmethod
     def from_data_record(cls, record):
@@ -108,6 +183,36 @@ class DropGroupDefinition:
             drop_names=tuple(
                 record.get(
                     "drop_names",
+                    (),
+                )
+            ),
+            drop_rates=tuple(
+                record.get(
+                    "drop_rates",
+                    (),
+                )
+            ),
+            drop_counting_modes=tuple(
+                record.get(
+                    "drop_counting_modes",
+                    (),
+                )
+            ),
+            drop_quantities=tuple(
+                record.get(
+                    "drop_quantities",
+                    (),
+                )
+            ),
+            access_notes=tuple(
+                record.get(
+                    "access_notes",
+                    (),
+                )
+            ),
+            notes=tuple(
+                record.get(
+                    "notes",
                     (),
                 )
             ),
