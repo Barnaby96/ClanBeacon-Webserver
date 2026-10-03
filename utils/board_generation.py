@@ -820,6 +820,26 @@ def ordered_slot_candidates(
             ),
         )
 
+    if (
+        not slot.is_flex
+        and slot.required_category == TileCategory.DROP
+        and not has_pending_required_drop_slot(
+            pending_slots
+        )
+    ):
+        return sorted(
+            indexed_candidates,
+            key=lambda item: (
+                0
+                if item[1].expected_rolls is not None
+                else 1,
+                item[1].expected_rolls
+                if item[1].expected_rolls is not None
+                else Decimal("Infinity"),
+                item[0],
+            ),
+        )
+
     return indexed_candidates
 
 
