@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from utils.board_generation import build_tag, canonical_id
 from utils.osrs_drop_group_data import DROP_GROUP_DATA
+from utils.osrs_drop_rate_metadata import parse_drop_rate
 
 
 @dataclass(frozen=True)
@@ -274,6 +275,74 @@ class DropGroupDefinition:
                 index
             ]
             for index in self.distinct_drop_indexes
+        )
+
+    @property
+    def distinct_drop_rates(self):
+        if not self.drop_rates:
+            return ()
+
+        return tuple(
+            self.drop_rates[
+                index
+            ]
+            for index in self.distinct_drop_indexes
+        )
+
+    @property
+    def distinct_drop_rate_estimates(self):
+        return tuple(
+            parse_drop_rate(
+                drop_rate
+            )
+            for drop_rate in self.distinct_drop_rates
+            if drop_rate
+        )
+
+    @property
+    def parseable_distinct_drop_rate_estimates(self):
+        return tuple(
+            estimate
+            for estimate in self.distinct_drop_rate_estimates
+            if estimate.parseable
+        )
+
+    @property
+    def minimum_distinct_expected_rolls(self):
+        estimates = self.parseable_distinct_drop_rate_estimates
+
+        if not estimates:
+            return None
+
+        return min(
+            estimate.minimum_expected_rolls
+            for estimate in estimates
+        )
+
+    @property
+    def maximum_distinct_expected_rolls(self):
+        estimates = self.parseable_distinct_drop_rate_estimates
+
+        if not estimates:
+            return None
+
+        return max(
+            estimate.maximum_expected_rolls
+            for estimate in estimates
+        )
+
+    @property
+    def representative_distinct_expected_rolls(self):
+        estimates = self.parseable_distinct_drop_rate_estimates
+
+        if not estimates:
+            return None
+
+        return sum(
+            estimate.representative_expected_rolls
+            for estimate in estimates
+        ) / len(
+            estimates
         )
 
     @property

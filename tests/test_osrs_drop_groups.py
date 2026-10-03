@@ -219,3 +219,56 @@ def test_giant_mole_distinct_drop_count_ignores_item_quantity_rows():
         "Immaculate mole skin",
     )
     assert definition.max_distinct_drop_count == 1
+
+
+def test_giant_mole_rarity_metadata_ignores_item_quantity_rows():
+    from decimal import Decimal
+
+    definition = get_drop_group_definition(
+        "giant_mole_unique"
+    )
+
+    assert definition.distinct_drop_names == (
+        "Immaculate mole skin",
+    )
+    assert definition.distinct_drop_rates == (
+        "1/50",
+    )
+    assert [
+        estimate.raw_rate
+        for estimate in definition.distinct_drop_rate_estimates
+    ] == [
+        "1/50",
+    ]
+    assert definition.minimum_distinct_expected_rolls == Decimal(
+        "50"
+    )
+    assert definition.maximum_distinct_expected_rolls == Decimal(
+        "50"
+    )
+    assert definition.representative_distinct_expected_rolls == Decimal(
+        "50"
+    )
+
+
+def test_wilderness_ring_rarity_metadata_uses_distinct_rates():
+    from decimal import Decimal
+
+    definition = get_drop_group_definition(
+        "wilderness_ring"
+    )
+
+    assert definition.distinct_drop_rates == (
+        "1/512",
+        "1/512",
+        "1/512",
+    )
+    assert definition.minimum_distinct_expected_rolls == Decimal(
+        "512"
+    )
+    assert definition.maximum_distinct_expected_rolls == Decimal(
+        "512"
+    )
+    assert definition.representative_distinct_expected_rolls == Decimal(
+        "512"
+    )
