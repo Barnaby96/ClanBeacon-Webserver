@@ -245,14 +245,12 @@ def build_single_drop_route(component, target, display_text=None):
             component.drop_group_id
         )
 
-        if (
-            drop_group_definition is not None
-            and drop_group_definition.representative_distinct_expected_rolls
-            is not None
-        ):
+        if drop_group_definition is not None:
             expected_rolls = (
-                drop_group_definition.representative_distinct_expected_rolls
-                * target
+                drop_group_definition
+                .estimate_expected_rolls_for_distinct_drop_target(
+                    target
+                )
             )
 
     return Route(

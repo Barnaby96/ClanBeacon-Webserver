@@ -346,6 +346,63 @@ class DropGroupDefinition:
         )
 
     @property
+    def representative_distinct_drop_probabilities(self):
+        return tuple(
+            1 / estimate.representative_expected_rolls
+            for estimate in self.parseable_distinct_drop_rate_estimates
+            if estimate.representative_expected_rolls
+            and estimate.representative_expected_rolls > 0
+        )
+
+    def estimate_expected_rolls_for_distinct_drop_target(self, target):
+        probabilities = self.representative_distinct_drop_probabilities
+
+        if (
+            target < 1
+            or not probabilities
+            or target > len(
+                probabilities
+            )
+        ):
+            return None
+
+        remaining_probabilities = list(
+            probabilities
+        )
+        expected_rolls = 0
+
+        for _ in range(
+            target
+        ):
+            remaining_probability = sum(
+                remaining_probabilities
+            )
+
+            if remaining_probability <= 0:
+                return None
+
+            expected_rolls += 1 / remaining_probability
+
+            expected_collected_probability = (
+                sum(
+                    probability * probability
+                    for probability in remaining_probabilities
+                )
+                / remaining_probability
+            )
+
+            remaining_probabilities.remove(
+                min(
+                    remaining_probabilities,
+                    key=lambda probability: abs(
+                        probability - expected_collected_probability
+                    ),
+                )
+            )
+
+        return expected_rolls
+
+    @property
     def max_distinct_drop_count(self):
         return len(
             self.distinct_drop_ids

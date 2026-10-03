@@ -272,3 +272,51 @@ def test_wilderness_ring_rarity_metadata_uses_distinct_rates():
     assert definition.representative_distinct_expected_rolls == Decimal(
         "512"
     )
+
+
+def test_giant_mole_distinct_target_estimate_uses_any_distinct_drop_probability():
+    from decimal import Decimal
+
+    definition = get_drop_group_definition(
+        "giant_mole_unique"
+    )
+
+    assert (
+        definition.estimate_expected_rolls_for_distinct_drop_target(
+            1
+        )
+        == Decimal(
+            "50"
+        )
+    )
+
+
+def test_zulrah_single_distinct_target_estimate_uses_any_unique_probability():
+    from decimal import Decimal
+
+    definition = get_drop_group_definition(
+        "zulrah_uniques"
+    )
+
+    estimate = definition.estimate_expected_rolls_for_distinct_drop_target(
+        1
+    )
+
+    assert estimate < definition.representative_distinct_expected_rolls
+
+
+def test_zulrah_multi_distinct_target_estimate_is_less_than_naive_average_times_target():
+    definition = get_drop_group_definition(
+        "zulrah_uniques"
+    )
+
+    estimate = definition.estimate_expected_rolls_for_distinct_drop_target(
+        2
+    )
+
+    naive_estimate = (
+        definition.representative_distinct_expected_rolls
+        * 2
+    )
+
+    assert estimate < naive_estimate

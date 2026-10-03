@@ -966,3 +966,30 @@ def test_drop_routes_include_expected_roll_metadata():
     assert candidate.routes[0].expected_rolls == Decimal(
         "50"
     )
+
+
+def test_zulrah_single_unique_route_uses_any_unique_expected_rolls():
+    from decimal import Decimal
+
+    from utils.osrs_tile_template_expansion import (
+        STATIC_DROP_TEMPLATES,
+        expand_drop_template,
+    )
+
+    template = next(
+        template
+        for template in STATIC_DROP_TEMPLATES
+        if template.drop_group_id == "zulrah_uniques"
+    )
+
+    candidate = next(
+        candidate
+        for candidate in expand_drop_template(
+            template
+        )
+        if candidate.point_value == 1
+    )
+
+    assert candidate.routes[0].expected_rolls < Decimal(
+        "512"
+    )
