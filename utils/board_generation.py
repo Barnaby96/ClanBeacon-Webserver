@@ -419,6 +419,56 @@ class TileCandidate:
             )
 
     @property
+    def route_expected_rolls(self):
+        return tuple(
+            route.expected_rolls
+            for route in self.routes
+            if route.expected_rolls is not None
+        )
+
+    @property
+    def expected_rolls(self):
+        if not self.route_expected_rolls:
+            return None
+
+        if len(self.route_expected_rolls) != len(self.routes):
+            return None
+
+        if self.route_mode == RouteMode.SINGLE:
+            if len(self.routes) != 1:
+                return None
+
+            return self.route_expected_rolls[0]
+
+        if self.route_mode == RouteMode.AND:
+            return sum(
+                self.route_expected_rolls
+            )
+
+        if self.route_mode == RouteMode.OR:
+            return min(
+                self.route_expected_rolls
+            )
+
+        if self.route_mode == RouteMode.N_OF:
+            if self.required_route_count is None:
+                return None
+
+            if self.required_route_count < 1:
+                return None
+
+            if self.required_route_count > len(self.route_expected_rolls):
+                return None
+
+            return sum(
+                sorted(
+                    self.route_expected_rolls
+                )[:self.required_route_count]
+            )
+
+        return None
+
+    @property
     def all_hard_unique_tags(self):
         route_tags = set()
 
