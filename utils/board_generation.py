@@ -1,3 +1,8 @@
+from utils.osrs_encounter_groups import (
+    MAX_WILDERNESS_KC_TILES,
+    get_wilderness_boss_pair_id,
+    is_wilderness_drop_group_id,
+)
 from collections import Counter
 from dataclasses import dataclass, field
 from enum import Enum
@@ -632,6 +637,140 @@ def validate_generated_board_candidates(candidates, rules=None):
     return errors
 
 
+
+def candidate_has_wilderness_drop_route(candidate):
+    return any(
+        route.route_type == TileCategory.DROP
+        and is_wilderness_drop_group_id(
+            route.drop_group_id
+        )
+        for route in candidate.routes
+    )
+
+
+def candidate_has_wilderness_killcount_route(candidate):
+    return any(
+        route.route_type == TileCategory.KILLCOUNT
+        and get_wilderness_boss_pair_id(
+            route.boss_id
+        )
+        for route in candidate.routes
+    )
+
+
+def count_wilderness_killcount_candidates(candidates):
+    return sum(
+        1
+        for candidate in candidates
+        if candidate_has_wilderness_killcount_route(
+            candidate
+        )
+    )
+
+
+def has_pending_required_drop_slot(pending_slots):
+    return any(
+        not slot.is_flex
+        and slot.required_category == TileCategory.DROP
+        for slot in pending_slots
+    )
+
+
+def has_pending_required_killcount_slot(pending_slots):
+    return any(
+        not slot.is_flex
+        and slot.required_category == TileCategory.KILLCOUNT
+        for slot in pending_slots
+    )
+
+
+def candidate_fits_wilderness_pvm_limits(
+    candidate,
+    selected_candidates,
+    pending_slots=(),
+    max_wilderness_killcount_tiles=MAX_WILDERNESS_KC_TILES,
+):
+    candidate_has_drop = candidate_has_wilderness_drop_route(
+        candidate
+    )
+    candidate_has_killcount = candidate_has_wilderness_killcount_route(
+        candidate
+    )
+
+    if not candidate_has_drop and not candidate_has_killcount:
+        return True
+
+    if (
+        candidate_has_drop
+        and has_pending_required_killcount_slot(
+            pending_slots
+        )
+    ):
+        return False
+
+    selected_has_drop = any(
+        candidate_has_wilderness_drop_route(
+            selected_candidate
+        )
+        for selected_candidate in selected_candidates
+    )
+    selected_has_killcount = any(
+        candidate_has_wilderness_killcount_route(
+            selected_candidate
+        )
+        for selected_candidate in selected_candidates
+    )
+
+    if candidate_has_drop and selected_has_killcount:
+        return False
+
+    if candidate_has_killcount and selected_has_drop:
+        return False
+
+    if (
+        candidate_has_killcount
+        and count_wilderness_killcount_candidates(
+            selected_candidates
+        )
+        >= max_wilderness_killcount_tiles
+    ):
+        return False
+
+    return True
+
+def ordered_slot_candidates(
+    slot,
+    pending_slots,
+    remaining_candidates,
+):
+    indexed_candidates = list(
+        enumerate(
+            remaining_candidates
+        )
+    )
+
+    if (
+        not slot.is_flex
+        and slot.required_category == TileCategory.KILLCOUNT
+        and has_pending_required_drop_slot(
+            pending_slots
+        )
+    ):
+        return sorted(
+            indexed_candidates,
+            key=lambda item: (
+                0
+                if candidate_has_wilderness_killcount_route(
+                    item[1]
+                )
+                else 1,
+                item[0],
+            ),
+        )
+
+    return indexed_candidates
+
+
 def assemble_board_candidates(candidates, rules=None):
     if rules is None:
         rules = BoardGenerationRules()
@@ -639,11 +778,20 @@ def assemble_board_candidates(candidates, rules=None):
     remaining_candidates = list(candidates)
     selected_candidates = []
     used_tags = frozenset()
+    slots = rules.build_slots()
 
-    for slot in rules.build_slots():
+    for slot_index, slot in enumerate(slots):
         selected_candidate = None
+        selected_candidate_index = None
+        pending_slots = slots[
+            slot_index + 1:
+        ]
 
-        for candidate in remaining_candidates:
+        for candidate_index, candidate in ordered_slot_candidates(
+            slot,
+            pending_slots,
+            remaining_candidates,
+        ):
             if not slot.matches_candidate(candidate):
                 continue
 
@@ -657,7 +805,15 @@ def assemble_board_candidates(candidates, rules=None):
             ):
                 continue
 
+            if not candidate_fits_wilderness_pvm_limits(
+                candidate,
+                selected_candidates,
+                pending_slots=pending_slots,
+            ):
+                continue
+
             selected_candidate = candidate
+            selected_candidate_index = candidate_index
             break
 
         if selected_candidate is None:
@@ -681,8 +837,8 @@ def assemble_board_candidates(candidates, rules=None):
         selected_candidates.append(
             selected_candidate
         )
-        remaining_candidates.remove(
-            selected_candidate
+        remaining_candidates.pop(
+            selected_candidate_index
         )
 
     errors = validate_generated_board_candidates(
@@ -699,4 +855,3 @@ def assemble_board_candidates(candidates, rules=None):
         candidates=tuple(selected_candidates),
         used_hard_unique_tags=used_tags
     )
-

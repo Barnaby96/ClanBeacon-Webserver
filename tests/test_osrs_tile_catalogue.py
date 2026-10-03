@@ -593,3 +593,37 @@ def test_generated_board_does_not_include_overlapping_wilderness_drop_groups():
     }.issubset(
         selected_drop_group_tags
     )
+
+
+def test_generated_board_respects_wilderness_pvm_mix_rules():
+    from utils.board_generation import (
+        assemble_board_candidates,
+        candidate_has_wilderness_drop_route,
+        candidate_has_wilderness_killcount_route,
+    )
+    from utils.osrs_tile_catalogue import get_curated_tile_generation_candidates
+
+    board = assemble_board_candidates(
+        get_curated_tile_generation_candidates()
+    )
+
+    wilderness_drop_count = sum(
+        1
+        for candidate in board.candidates
+        if candidate_has_wilderness_drop_route(
+            candidate
+        )
+    )
+    wilderness_killcount_count = sum(
+        1
+        for candidate in board.candidates
+        if candidate_has_wilderness_killcount_route(
+            candidate
+        )
+    )
+
+    assert wilderness_killcount_count <= 2
+    assert not (
+        wilderness_drop_count
+        and wilderness_killcount_count
+    )

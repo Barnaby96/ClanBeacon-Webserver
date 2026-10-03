@@ -1,5 +1,6 @@
 """Generation recipes for turning components into tile candidates."""
 
+from utils.osrs_encounter_groups import get_wilderness_boss_pair_hard_unique_tags
 from utils.osrs_drop_groups import get_drop_group_overlap_hard_unique_tags
 from dataclasses import dataclass
 from enum import Enum
@@ -165,7 +166,11 @@ def build_single_killcount_route(component, target, display_text=None):
         metric_id=metric_id,
         source_id=source_id,
         boss_id=component.boss_id,
-        hard_unique_tags=component.hard_unique_tags,
+        hard_unique_tags=component.hard_unique_tags.union(
+            get_wilderness_boss_pair_hard_unique_tags(
+                component.boss_id
+            )
+        ),
     )
 
 
