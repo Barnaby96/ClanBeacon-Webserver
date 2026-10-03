@@ -5,6 +5,7 @@ from utils.osrs_encounter_groups import (
 )
 from collections import Counter
 from dataclasses import dataclass, field
+from decimal import Decimal
 from enum import Enum
 from typing import FrozenSet, Iterable, Optional, Sequence
 
@@ -346,6 +347,7 @@ class Route:
     pet_id: Optional[str] = None
     pet_group_id: Optional[str] = None
     hard_unique_tags: FrozenSet[str] = field(default_factory=frozenset)
+    expected_rolls: Optional[Decimal] = None
 
     @property
     def generated_hard_unique_tags(self):

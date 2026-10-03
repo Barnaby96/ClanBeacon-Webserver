@@ -943,3 +943,26 @@ def test_giant_mole_drop_template_uses_only_distinct_drops():
 
     assert "Immaculate mole skin" in route_text
     assert "Mole skin" not in route_text
+
+
+def test_drop_routes_include_expected_roll_metadata():
+    from decimal import Decimal
+
+    from utils.osrs_tile_template_expansion import (
+        STATIC_DROP_TEMPLATES,
+        expand_drop_template,
+    )
+
+    template = next(
+        template
+        for template in STATIC_DROP_TEMPLATES
+        if template.drop_group_id == "giant_mole_unique"
+    )
+
+    candidate = expand_drop_template(
+        template
+    )[0]
+
+    assert candidate.routes[0].expected_rolls == Decimal(
+        "50"
+    )

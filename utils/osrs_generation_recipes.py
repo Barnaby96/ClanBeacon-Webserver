@@ -1,6 +1,7 @@
 """Generation recipes for turning components into tile candidates."""
 
 from utils.osrs_encounter_groups import get_wilderness_boss_pair_hard_unique_tags
+from utils.osrs_drop_groups import get_drop_group_definition
 from utils.osrs_drop_groups import get_drop_group_overlap_hard_unique_tags
 from dataclasses import dataclass
 from enum import Enum
@@ -237,6 +238,23 @@ def build_single_drop_route(component, target, display_text=None):
         or component.drop_id
     )
 
+    expected_rolls = None
+
+    if component.drop_group_id:
+        drop_group_definition = get_drop_group_definition(
+            component.drop_group_id
+        )
+
+        if (
+            drop_group_definition is not None
+            and drop_group_definition.representative_distinct_expected_rolls
+            is not None
+        ):
+            expected_rolls = (
+                drop_group_definition.representative_distinct_expected_rolls
+                * target
+            )
+
     return Route(
         route_type=TileCategory.DROP,
         display_text=(
@@ -256,6 +274,7 @@ def build_single_drop_route(component, target, display_text=None):
                 component.drop_group_id
             )
         ),
+        expected_rolls=expected_rolls,
     )
 
 
