@@ -329,3 +329,94 @@ def test_assess_and_sort_candidates_by_capability_risk_returns_worst_first():
         "zero_score_gap",
         "unmapped",
     )
+
+
+def test_capability_assessment_display_helpers_flag_zero_score_gap():
+    assessment = assess_candidate_capability(
+        build_candidate(),
+        build_profile_set(),
+    )
+
+    assert assessment.score_field_label == "Solo boss"
+    assert assessment.warning_level == "danger"
+    assert "At least one profile" in assessment.summary_text
+    assert "Solo boss" in assessment.summary_text
+
+
+def test_capability_assessment_display_helpers_flag_high_gap():
+    profile_set = CapabilityProfileSet(
+        source="teams",
+        profiles=(
+            CapabilityProfile(
+                profile_id="1",
+                display_name="Team One",
+                player_count=5,
+                scores={
+                    "solo_boss_score": 9,
+                },
+            ),
+            CapabilityProfile(
+                profile_id="2",
+                display_name="Team Two",
+                player_count=5,
+                scores={
+                    "solo_boss_score": 3,
+                },
+            ),
+        ),
+    )
+
+    assessment = assess_candidate_capability(
+        build_candidate(),
+        profile_set,
+    )
+
+    assert assessment.warning_level == "danger"
+    assert "3.0x gap" in assessment.summary_text
+
+
+def test_capability_assessment_display_helpers_flag_balanced_scores():
+    profile_set = CapabilityProfileSet(
+        source="teams",
+        profiles=(
+            CapabilityProfile(
+                profile_id="1",
+                display_name="Team One",
+                player_count=5,
+                scores={
+                    "solo_boss_score": 9,
+                },
+            ),
+            CapabilityProfile(
+                profile_id="2",
+                display_name="Team Two",
+                player_count=5,
+                scores={
+                    "solo_boss_score": 6,
+                },
+            ),
+        ),
+    )
+
+    assessment = assess_candidate_capability(
+        build_candidate(),
+        profile_set,
+    )
+
+    assert assessment.warning_level == "none"
+    assert "broadly balanced" in assessment.summary_text
+
+
+def test_capability_assessment_display_helpers_flag_unmapped_candidates():
+    assessment = assess_candidate_capability(
+        build_candidate(
+            source_id="unknown_source"
+        ),
+        build_profile_set(),
+    )
+
+    assert assessment.score_field_label is None
+    assert assessment.warning_level == "info"
+    assert assessment.summary_text == (
+        "No capability mapping is available for this tile."
+    )
