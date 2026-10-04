@@ -119,3 +119,48 @@ def test_unknown_route_has_no_capability_field():
     assert get_capability_score_field_for_route(
         route
     ) is None
+
+
+def test_combined_source_ids_map_when_parts_share_same_capability_field():
+    assert get_capability_score_field_for_source_id(
+        "chaos_elemental_/_chaos_fanatic"
+    ) == "wilderness_boss_score"
+
+
+def test_combined_source_ids_do_not_map_when_parts_have_different_fields():
+    assert get_capability_score_field_for_source_id(
+        "zulrah_/_kraken"
+    ) is None
+
+
+def test_pet_source_aliases_map_to_capability_fields():
+    assert get_capability_score_field_for_source_id(
+        "royal_titans"
+    ) == "group_boss_score"
+
+    assert get_capability_score_field_for_source_id(
+        "ice_inferno"
+    ) == "endgame_boss_score"
+
+    assert get_capability_score_field_for_source_id(
+        "master_clue_scrolls"
+    ) == "clue_activity_score"
+
+
+def test_skilling_pet_sources_map_to_skilling_score():
+    for source_id in (
+        "agility",
+        "farming",
+        "fishing",
+        "herbiboars",
+        "hunter",
+        "hunter_guild_rumours",
+        "mining",
+        "runecraft",
+        "sailing",
+        "thieving",
+        "woodcutting",
+    ):
+        assert get_capability_score_field_for_source_id(
+            source_id
+        ) == "skilling_score"

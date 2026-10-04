@@ -58,6 +58,17 @@ METRIC_GROUP_CAPABILITY_FIELDS = (
 
 
 SPECIAL_CAPABILITY_FIELD_BY_SOURCE_ID = {
+    "agility": "skilling_score",
+    "farming": "skilling_score",
+    "fishing": "skilling_score",
+    "herbiboars": "skilling_score",
+    "hunter": "skilling_score",
+    "hunter_guild_rumours": "skilling_score",
+    "mining": "skilling_score",
+    "runecraft": "skilling_score",
+    "sailing": "skilling_score",
+    "thieving": "skilling_score",
+    "woodcutting": "skilling_score",
     "wilderness": "wilderness_boss_score",
     "wilderness_unique": "wilderness_boss_score",
     "wilderness_ring": "wilderness_boss_score",
@@ -66,6 +77,9 @@ SPECIAL_CAPABILITY_FIELD_BY_SOURCE_ID = {
 
 CAPABILITY_SOURCE_ID_ALIASES = {
     "barrows": "barrows_chests",
+    "ice_inferno": "tzkal_zuk",
+    "master_clue_scrolls": "clue_scrolls_master",
+    "royal_titans": "the_royal_titans",
     "barrows_brothers": "barrows_chests",
     "barrows_brothers_unique": "barrows_chests",
     "dagannoth_rex_uniques": "dagannoth_rex",
@@ -101,7 +115,34 @@ CAPABILITY_FIELD_BY_SOURCE_ID = {
 }
 
 
-def get_capability_score_field_for_source_id(source_id):
+def iter_capability_source_id_parts(source_id):
+    normalised_source_id = normalise_capability_source_id(
+        source_id
+    )
+
+    if not normalised_source_id:
+        return
+
+    yield normalised_source_id
+
+    for separator in (
+        "_/_",
+        "/",
+        ",",
+    ):
+        if separator in normalised_source_id:
+            for source_id_part in normalised_source_id.split(
+                separator
+            ):
+                source_id_part = source_id_part.strip(
+                    "_ "
+                )
+
+                if source_id_part:
+                    yield source_id_part
+
+
+def get_capability_score_field_for_single_source_id(source_id):
     normalised_source_id = normalise_capability_source_id(
         source_id
     )
@@ -127,6 +168,34 @@ def get_capability_score_field_for_source_id(source_id):
     return CAPABILITY_FIELD_BY_SOURCE_ID.get(
         aliased_source_id
     )
+
+
+def get_capability_score_field_for_source_id(source_id):
+    score_fields = tuple(
+        score_field
+        for score_field in (
+            get_capability_score_field_for_single_source_id(
+                source_id_part
+            )
+            for source_id_part in iter_capability_source_id_parts(
+                source_id
+            )
+        )
+        if score_field
+    )
+
+    if not score_fields:
+        return None
+
+    first_score_field = score_fields[0]
+
+    if all(
+        score_field == first_score_field
+        for score_field in score_fields
+    ):
+        return first_score_field
+
+    return None
 
 
 def get_capability_score_field_for_route(route):
