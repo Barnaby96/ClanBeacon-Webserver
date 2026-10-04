@@ -1,7 +1,10 @@
 from dataclasses import dataclass
 from math import ceil
 
-from utils.team_balancing import BOSS_SCORE_FIELDS
+from utils.team_balancing import (
+    BOSS_SCORE_FIELDS,
+    calculate_player_balance_scores,
+)
 
 
 CAPABILITY_SCORE_FIELDS = (
@@ -38,6 +41,13 @@ class CapabilityProfileSet:
         return bool(
             self.profiles
         )
+
+
+
+@dataclass(frozen=True)
+class CapabilityProfileBuildResult:
+    profile_set: CapabilityProfileSet
+    failed_players: tuple[dict, ...] = ()
 
 
 def _safe_float(value):
@@ -166,5 +176,124 @@ def build_average_team_capability_profile_from_players(
                 ),
                 scores=scores,
             ),
+        ),
+    )
+
+
+def _extract_rostered_player_name(player_row):
+    if isinstance(
+        player_row,
+        dict,
+    ):
+        return str(
+            player_row.get("player_name")
+            or player_row.get("displayName")
+            or player_row.get("username")
+            or ""
+        ).strip()
+
+    if isinstance(
+        player_row,
+        (
+            tuple,
+            list,
+        ),
+    ):
+        if len(player_row) >= 2:
+            return str(
+                player_row[1]
+            ).strip()
+
+        if player_row:
+            return str(
+                player_row[0]
+            ).strip()
+
+        return ""
+
+    return str(
+        player_row or ""
+    ).strip()
+
+
+def build_capability_profiles_from_rostered_players(
+    players_by_team,
+    fetch_player,
+    score_player=calculate_player_balance_scores,
+):
+    teams = []
+    failed_players = []
+
+    for team_name, player_rows in (
+        players_by_team or {}
+    ).items():
+        scored_players = []
+
+        for player_row in player_rows or ():
+            player_name = _extract_rostered_player_name(
+                player_row
+            )
+
+            if not player_name:
+                continue
+
+            try:
+                scored_players.append(
+                    score_player(
+                        fetch_player(
+                            player_name
+                        )
+                    )
+                )
+            except Exception as error:
+                failed_players.append(
+                    {
+                        "team_name": str(
+                            team_name
+                        ),
+                        "player_name": player_name,
+                        "error": str(
+                            error
+                        ),
+                    }
+                )
+
+        team = {
+            "team_id": str(
+                team_name
+            ),
+            "team_name": str(
+                team_name
+            ),
+            "players": scored_players,
+        }
+
+        for score_field in CAPABILITY_SCORE_FIELDS:
+            team[score_field] = sum(
+                _safe_float(
+                    player.get(
+                        score_field,
+                        0,
+                    )
+                )
+                for player in scored_players
+            )
+
+        teams.append(
+            team
+        )
+
+    return CapabilityProfileBuildResult(
+        profile_set=CapabilityProfileSet(
+            source="current_teams",
+            profiles=tuple(
+                build_capability_profile_from_team(
+                    team
+                )
+                for team in teams
+            ),
+        ),
+        failed_players=tuple(
+            failed_players
         ),
     )
