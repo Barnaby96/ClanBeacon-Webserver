@@ -89,6 +89,7 @@
                                 <th>Category</th>
                                 <th>Effective Skills</th>
                                 <th>Access Flags</th>
+                                <th>Capability</th>
                                 <th>Hard Tags</th>
                             </tr>
                         </thead>
@@ -117,6 +118,21 @@
                                         {{ candidate.access_flags|join(", ") }}
                                     {% else %}
                                         None
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if candidate.capability_summary_text %}
+                                        <strong>
+                                            {{ candidate.capability_score_field_label or "Capability" }}
+                                        </strong>
+                                        {% if candidate.capability_warning_level and candidate.capability_warning_level != "none" %}
+                                            <br>
+                                            Warning: {{ candidate.capability_warning_level|title }}
+                                        {% endif %}
+                                        <br>
+                                        {{ candidate.capability_summary_text }}
+                                    {% else %}
+                                        Not assessed
                                     {% endif %}
                                 </td>
                                 <td>

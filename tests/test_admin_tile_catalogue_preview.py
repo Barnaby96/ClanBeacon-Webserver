@@ -63,6 +63,9 @@ def test_tile_catalogue_preview_template_links_back_to_bingo_setup():
     assert "Back to Bingo Setup" in template
     assert "admin_routes.bingo_setup" in template
     assert "summary.requirement_summaries" in template
+    assert "Capability" in template
+    assert "candidate.capability_summary_text" in template
+    assert "candidate.capability_warning_level" in template
     assert "summary.conflicts" in template
     assert "tile-catalogue-preview" in template
     assert "color: #2b1a0b;" in template
