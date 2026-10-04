@@ -16,6 +16,9 @@ from utils.spoofed_jsons.spoof_kc import kc_spoof_json
 from utils.spoofed_jsons.spoof_pet import spoof_pet
 from utils.osrs_tile_catalogue_preview import get_curated_tile_catalogue_summary
 from utils.osrs_generated_board_preview import get_curated_generated_board_preview_summary
+from utils.osrs_capability_profiles import (
+    build_capability_profiles_from_rostered_players,
+)
 
 admin_routes = Blueprint("admin_routes", __name__)
 
@@ -1112,9 +1115,30 @@ def generated_board_preview():
 @admin_routes.route('/bingo_setup/tile_catalogue_preview', methods=['GET'])
 @admin_required
 def tile_catalogue_preview():
+    capability_result = build_capability_profiles_from_rostered_players(
+        database.get_players_by_team(),
+        fetch_player=wom.get_player,
+    )
+
+    if capability_result.failed_players:
+        failed_player_names = ", ".join(
+            failed_player["player_name"]
+            for failed_player in capability_result.failed_players
+        )
+
+        flash(
+            (
+                "Could not fetch WOM capability data for: "
+                f"{failed_player_names}."
+            ),
+            "warning",
+        )
+
     return render_template(
         'admin_templates/tile_catalogue_preview.html',
-        summary=get_curated_tile_catalogue_summary(),
+        summary=get_curated_tile_catalogue_summary(
+            capability_profiles=capability_result.profile_set,
+        ),
     )
 
 
