@@ -2,9 +2,14 @@
 
 from utils.board_generation import TileCategory
 from utils.osrs_tile_catalogue import get_curated_tile_candidates
+from utils.osrs_capability_profiles import (
+    CapabilityProfile,
+    CapabilityProfileSet,
+)
 from utils.osrs_tile_catalogue_validation import (
     build_candidate_requirement_summary,
     build_catalogue_summary,
+    format_candidate_requirement_summary,
     find_candidate_conflicts,
     format_catalogue_summary,
     format_skill_requirements,
@@ -157,3 +162,110 @@ def test_format_catalogue_summary_includes_requirements_tags_and_conflicts():
         "source:zulrah: Complete 150 Zulrah KC | Obtain Pet snakeling | Obtain any Zulrah unique"
         in preview
     )
+
+
+def test_build_candidate_requirement_summary_includes_capability_assessment():
+    candidate = next(
+        candidate
+        for candidate in get_curated_tile_candidates()
+        if candidate.title == "Obtain any Zulrah unique"
+    )
+
+    summary = build_candidate_requirement_summary(
+        candidate,
+        capability_profiles=CapabilityProfileSet(
+            source="teams",
+            profiles=(
+                CapabilityProfile(
+                    profile_id="1",
+                    display_name="Team One",
+                    player_count=5,
+                    scores={
+                        "solo_boss_score": 9,
+                    },
+                ),
+                CapabilityProfile(
+                    profile_id="2",
+                    display_name="Team Two",
+                    player_count=5,
+                    scores={
+                        "solo_boss_score": 0,
+                    },
+                ),
+            ),
+        ),
+    )
+
+    assert summary.capability_score_field == "solo_boss_score"
+    assert summary.capability_score_field_label == "Solo boss"
+    assert summary.capability_balance_band == "zero_score_gap"
+    assert summary.capability_warning_level == "danger"
+    assert "Solo boss" in summary.capability_summary_text
+
+
+def test_build_catalogue_summary_can_include_capability_assessments():
+    summary = build_catalogue_summary(
+        get_curated_tile_candidates(),
+        capability_profiles=CapabilityProfileSet(
+            source="teams",
+            profiles=(
+                CapabilityProfile(
+                    profile_id="1",
+                    display_name="Team One",
+                    player_count=5,
+                    scores={
+                        "solo_boss_score": 9,
+                    },
+                ),
+                CapabilityProfile(
+                    profile_id="2",
+                    display_name="Team Two",
+                    player_count=5,
+                    scores={
+                        "solo_boss_score": 0,
+                    },
+                ),
+            ),
+        ),
+    )
+
+    zulrah_summary = next(
+        candidate_summary
+        for candidate_summary in summary.requirement_summaries
+        if candidate_summary.title == "Obtain any Zulrah unique"
+    )
+
+    assert zulrah_summary.capability_warning_level == "danger"
+    assert zulrah_summary.capability_balance_band == "zero_score_gap"
+
+
+def test_format_candidate_requirement_summary_includes_capability_when_present():
+    candidate = next(
+        candidate
+        for candidate in get_curated_tile_candidates()
+        if candidate.title == "Obtain any Zulrah unique"
+    )
+
+    summary = build_candidate_requirement_summary(
+        candidate,
+        capability_profiles=CapabilityProfileSet(
+            source="teams",
+            profiles=(
+                CapabilityProfile(
+                    profile_id="1",
+                    display_name="Team One",
+                    player_count=5,
+                    scores={
+                        "solo_boss_score": 9,
+                    },
+                ),
+            ),
+        ),
+    )
+
+    preview = format_candidate_requirement_summary(
+        summary
+    )
+
+    assert "Capability:" in preview
+    assert "Solo boss" in preview

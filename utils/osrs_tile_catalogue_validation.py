@@ -3,6 +3,9 @@ from dataclasses import dataclass
 from typing import Iterable
 
 from utils.board_generation import TileCandidate
+from utils.osrs_tile_capability_assessment import (
+    assess_candidate_capability,
+)
 
 
 @dataclass(frozen=True)
@@ -20,6 +23,11 @@ class CandidateRequirementSummary:
     effective_skill_requirements: dict[str, int]
     recommended_skill_requirements: dict[str, int]
     access_flags: tuple[str, ...]
+    capability_score_field: str | None = None
+    capability_score_field_label: str | None = None
+    capability_balance_band: str | None = None
+    capability_warning_level: str | None = None
+    capability_summary_text: str | None = None
 
 
 @dataclass(frozen=True)
@@ -31,7 +39,18 @@ class CatalogueSummary:
     conflicts: tuple[CandidateConflict, ...]
 
 
-def build_candidate_requirement_summary(candidate):
+def build_candidate_requirement_summary(
+    candidate,
+    capability_profiles=None,
+):
+    capability_assessment = None
+
+    if capability_profiles is not None:
+        capability_assessment = assess_candidate_capability(
+            candidate,
+            capability_profiles,
+        )
+
     return CandidateRequirementSummary(
         title=candidate.title,
         point_value=candidate.point_value,
@@ -52,6 +71,31 @@ def build_candidate_requirement_summary(candidate):
                 flag.value
                 for flag in candidate.access_profile.access_flags
             )
+        ),
+        capability_score_field=(
+            capability_assessment.capability_score_field
+            if capability_assessment is not None
+            else None
+        ),
+        capability_score_field_label=(
+            capability_assessment.score_field_label
+            if capability_assessment is not None
+            else None
+        ),
+        capability_balance_band=(
+            capability_assessment.balance_band
+            if capability_assessment is not None
+            else None
+        ),
+        capability_warning_level=(
+            capability_assessment.warning_level
+            if capability_assessment is not None
+            else None
+        ),
+        capability_summary_text=(
+            capability_assessment.summary_text
+            if capability_assessment is not None
+            else None
         ),
     )
 
@@ -81,7 +125,10 @@ def find_candidate_conflicts(candidates):
     )
 
 
-def build_catalogue_summary(candidates):
+def build_catalogue_summary(
+    candidates,
+    capability_profiles=None,
+):
     candidates = tuple(
         candidates
     )
@@ -104,7 +151,8 @@ def build_catalogue_summary(candidates):
         ),
         requirement_summaries=tuple(
             build_candidate_requirement_summary(
-                candidate
+                candidate,
+                capability_profiles=capability_profiles,
             )
             for candidate in candidates
         ),
@@ -170,6 +218,12 @@ def format_candidate_requirement_summary(summary):
                 f"{format_skill_requirements(summary.recommended_skill_requirements)}"
             ),
             f"  Access flags: {format_sequence(summary.access_flags)}",
+            (
+                "  Capability: "
+                f"{summary.capability_summary_text}"
+                if summary.capability_summary_text
+                else "  Capability: Not assessed"
+            ),
         )
     )
 
