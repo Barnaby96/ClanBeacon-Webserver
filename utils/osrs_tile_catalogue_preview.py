@@ -5,9 +5,12 @@ from utils.osrs_tile_catalogue_validation import (
 )
 
 
-def get_curated_tile_catalogue_summary():
+def get_curated_tile_catalogue_summary(
+    capability_profiles=None,
+):
     return build_catalogue_summary(
-        get_curated_tile_candidates()
+        get_curated_tile_candidates(),
+        capability_profiles=capability_profiles,
     )
 
 
