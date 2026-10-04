@@ -13,7 +13,9 @@ from utils.osrs_capability_profiles import (
     CapabilityProfileSet,
 )
 from utils.osrs_tile_capability_assessment import (
+    assess_and_sort_candidates_by_capability_risk,
     assess_candidate_capability,
+    sort_candidate_capability_assessments_by_risk,
 )
 
 
@@ -221,3 +223,109 @@ def test_capability_assessment_balance_band_flags_unmapped_candidates():
     )
 
     assert assessment.balance_band == "unmapped"
+
+
+def test_sort_candidate_capability_assessments_by_risk_orders_worst_first():
+    zero_gap = assess_candidate_capability(
+        build_candidate(),
+        build_profile_set(),
+    )
+
+    high_gap = assess_candidate_capability(
+        build_candidate(),
+        CapabilityProfileSet(
+            source="teams",
+            profiles=(
+                CapabilityProfile(
+                    profile_id="1",
+                    display_name="Team One",
+                    player_count=5,
+                    scores={
+                        "solo_boss_score": 9,
+                    },
+                ),
+                CapabilityProfile(
+                    profile_id="2",
+                    display_name="Team Two",
+                    player_count=5,
+                    scores={
+                        "solo_boss_score": 3,
+                    },
+                ),
+            ),
+        ),
+    )
+
+    balanced = assess_candidate_capability(
+        build_candidate(),
+        CapabilityProfileSet(
+            source="teams",
+            profiles=(
+                CapabilityProfile(
+                    profile_id="1",
+                    display_name="Team One",
+                    player_count=5,
+                    scores={
+                        "solo_boss_score": 9,
+                    },
+                ),
+                CapabilityProfile(
+                    profile_id="2",
+                    display_name="Team Two",
+                    player_count=5,
+                    scores={
+                        "solo_boss_score": 6,
+                    },
+                ),
+            ),
+        ),
+    )
+
+    sorted_assessments = sort_candidate_capability_assessments_by_risk(
+        (
+            balanced,
+            zero_gap,
+            high_gap,
+        )
+    )
+
+    assert tuple(
+        assessment.balance_band
+        for assessment in sorted_assessments
+    ) == (
+        "zero_score_gap",
+        "high_gap",
+        "balanced",
+    )
+
+
+def test_assess_and_sort_candidates_by_capability_risk_returns_worst_first():
+    risky_candidate = build_candidate(
+        source_id="zulrah"
+    )
+    unmapped_candidate = build_candidate(
+        source_id="unknown_source"
+    )
+
+    sorted_assessments = assess_and_sort_candidates_by_capability_risk(
+        (
+            unmapped_candidate,
+            risky_candidate,
+        ),
+        build_profile_set(),
+    )
+
+    assert tuple(
+        assessment.candidate_title
+        for assessment in sorted_assessments
+    ) == (
+        "Obtain 1 Zulrah unique",
+        "Obtain 1 Zulrah unique",
+    )
+    assert tuple(
+        assessment.balance_band
+        for assessment in sorted_assessments
+    ) == (
+        "zero_score_gap",
+        "unmapped",
+    )

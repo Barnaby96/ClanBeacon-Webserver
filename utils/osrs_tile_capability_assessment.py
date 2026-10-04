@@ -14,6 +14,17 @@ CAPABILITY_BALANCE_HIGH_GAP = "high_gap"
 CAPABILITY_BALANCE_ZERO_SCORE_GAP = "zero_score_gap"
 
 
+CAPABILITY_BALANCE_BAND_SORT_ORDER = {
+    CAPABILITY_BALANCE_ZERO_SCORE_GAP: 0,
+    CAPABILITY_BALANCE_HIGH_GAP: 1,
+    CAPABILITY_BALANCE_MODERATE_GAP: 2,
+    CAPABILITY_BALANCE_BALANCED: 3,
+    CAPABILITY_BALANCE_NO_SIGNAL: 4,
+    CAPABILITY_BALANCE_NO_PROFILE_DATA: 5,
+    CAPABILITY_BALANCE_UNMAPPED: 6,
+}
+
+
 @dataclass(frozen=True)
 class CandidateCapabilityAssessment:
     candidate_title: str
@@ -160,4 +171,45 @@ def assess_candidate_capability(candidate, capability_profiles):
             if score <= 0
         ),
         score_gap=maximum_score - minimum_score,
+    )
+
+
+def sort_candidate_capability_assessments_by_risk(assessments):
+    return tuple(
+        sorted(
+            assessments,
+            key=lambda assessment: (
+                CAPABILITY_BALANCE_BAND_SORT_ORDER.get(
+                    assessment.balance_band,
+                    99,
+                ),
+                -(
+                    assessment.score_gap
+                    or 0
+                ),
+                assessment.candidate_title,
+            ),
+        )
+    )
+
+
+def assess_candidates_by_capability(candidates, capability_profiles):
+    return tuple(
+        assess_candidate_capability(
+            candidate,
+            capability_profiles,
+        )
+        for candidate in candidates
+    )
+
+
+def assess_and_sort_candidates_by_capability_risk(
+    candidates,
+    capability_profiles,
+):
+    return sort_candidate_capability_assessments_by_risk(
+        assess_candidates_by_capability(
+            candidates,
+            capability_profiles,
+        )
     )
