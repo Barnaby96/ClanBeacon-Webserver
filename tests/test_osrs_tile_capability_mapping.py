@@ -164,3 +164,29 @@ def test_skilling_pet_sources_map_to_skilling_score():
         assert get_capability_score_field_for_source_id(
             source_id
         ) == "skilling_score"
+
+
+def test_refreshed_pet_source_aliases_map_to_capability_fields():
+    assert get_capability_score_field_for_source_id(
+        "inferno"
+    ) == "endgame_boss_score"
+
+    assert get_capability_score_field_for_source_id(
+        "tzhaar_fight_cave"
+    ) == "midgame_boss_score"
+
+    assert get_capability_score_field_for_source_id(
+        "tzkhaar_fight_cave"
+    ) == "midgame_boss_score"
+
+    assert get_capability_score_field_for_source_id(
+        "tzrek_jad"
+    ) == "midgame_boss_score"
+
+    assert get_capability_score_field_for_source_id(
+        "tzek_jad"
+    ) == "midgame_boss_score"
+
+    assert get_capability_score_field_for_source_id(
+        "wyrmscraig_goats"
+    ) == "skilling_score"
