@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Drop Tile Effort Preview{% endblock %}
+
+{% block content %}
+<title>Drop Tile Effort Preview</title>
+
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/osrs-dashboard.css') }}"
+>
+
+<style>
+    .drop-tile-effort-preview .osrs-panel-body,
+    .drop-tile-effort-preview .osrs-panel-body p,
+    .drop-tile-effort-preview .osrs-panel-body td,
+    .drop-tile-effort-preview .osrs-panel-body th {
+        color: #2b1a0b;
+    }
+
+    .drop-tile-effort-preview .osrs-panel-body strong {
+        color: #1d1006;
+    }
+
+    .drop-tile-effort-preview .osrs-table-wrapper {
+        overflow-x: auto;
+    }
+
+    .drop-tile-effort-preview .osrs-muted {
+        opacity: 0.75;
+        font-size: 0.9em;
+    }
+</style>
+
+<div class="osrs-dashboard drop-tile-effort-preview">
+    <main class="osrs-page">
+        <header class="osrs-page-header">
+            <h1 class="osrs-page-title">Drop Tile Effort Preview</h1>
+
+            <p class="osrs-page-subtitle">
+                Review generated group-unique and specific-drop tile effort
+                estimates before they are allowed into board generation.
+            </p>
+
+            <div class="osrs-page-actions">
+                <a
+                    class="osrs-button osrs-button-secondary"
+                    href="{{ url_for('admin_routes.bingo_setup') }}"
+                >
+                    Back to Bingo Setup
+                </a>
+            </div>
+        </header>
+
+        <section class="osrs-panel">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Summary</h2>
+                <p class="osrs-panel-description">
+                    These rows are for review only. They do not currently feed
+                    the board generator.
+                </p>
+            </header>
+
+            <div class="osrs-panel-body">
+                <p><strong>Total preview rows:</strong> {{ row_count }}</p>
+
+                <ul>
+                    {% for mode, count in counts_by_mode.items() %}
+                        <li><strong>{{ mode }}:</strong> {{ count }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </section>
+
+        <section class="osrs-panel">
+            <header class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Effort Rows</h2>
+                <p class="osrs-panel-description">
+                    Point values are suggested from drop rate, source access
+                    and source difficulty multipliers. Rows marked Review need
+                    manual attention.
+                </p>
+            </header>
+
+            <div class="osrs-panel-body osrs-table-wrapper">
+                <table class="osrs-table">
+                    <thead>
+                        <tr>
+                            <th>Mode</th>
+                            <th>Suggested points</th>
+                            <th>Source</th>
+                            <th>Tile target</th>
+                            <th>Drop rate</th>
+                            <th>Expected rolls</th>
+                            <th>Total effort</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                            <tr>
+                                <td>{{ row.tile_mode }}</td>
+                                <td>
+                                    {% if row.suggested_point_value is not none %}
+                                        {{ row.suggested_point_value }}
+                                    {% else %}
+                                        Review
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ row.source_name }}</strong>
+                                    <br>
+                                    <span class="osrs-muted">{{ row.source_id }}</span>
+                                </td>
+                                <td>
+                                    <strong>{{ row.display_name }}</strong>
+                                    <br>
+                                    {% if row.drop_name %}
+                                        {{ row.drop_name }}
+                                    {% elif row.target %}
+                                        {{ row.target }} unique{% if row.target != 1 %}s{% endif %}
+                                    {% else %}
+                                        Review
+                                    {% endif %}
+                                </td>
+                                <td>{{ row.drop_rate or "?" }}</td>
+                                <td>
+                                    {% if row.expected_rolls is not none %}
+                                        {{ row.expected_rolls }}
+                                    {% else %}
+                                        Review
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if row.total_effort is not none %}
+                                        {{ row.total_effort }}
+                                    {% else %}
+                                        Review
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if row.parseable %}
+                                        OK
+                                    {% else %}
+                                        {{ row.reason or "Review" }}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}

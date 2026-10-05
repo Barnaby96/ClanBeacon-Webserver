@@ -1,4 +1,5 @@
 import secrets
+from collections import Counter
 
 from flask import request, render_template, Blueprint, flash, redirect, url_for, abort, send_file
 from flask_login import current_user
@@ -16,6 +17,7 @@ from utils.spoofed_jsons.spoof_kc import kc_spoof_json
 from utils.spoofed_jsons.spoof_pet import spoof_pet
 from utils.osrs_tile_catalogue_preview import get_curated_tile_catalogue_summary
 from utils.osrs_generated_board_preview import get_curated_generated_board_preview_summary
+from utils.osrs_drop_tile_effort_preview import build_drop_tile_effort_preview_rows
 from utils.osrs_capability_profiles import (
     build_capability_profiles_from_rostered_players,
 )
@@ -1125,6 +1127,26 @@ def get_current_roster_capability_profiles():
         )
 
     return capability_result
+
+
+@admin_routes.route('/bingo_setup/drop_tile_effort_preview', methods=['GET'])
+@admin_required
+def drop_tile_effort_preview():
+    rows = build_drop_tile_effort_preview_rows()
+
+    return render_template(
+        'admin_templates/drop_tile_effort_preview.html',
+        rows=rows,
+        row_count=len(
+            rows
+        ),
+        counts_by_mode=dict(
+            Counter(
+                row.tile_mode
+                for row in rows
+            )
+        ),
+    )
 
 
 @admin_routes.route('/bingo_setup/generated_board_preview', methods=['GET'])
