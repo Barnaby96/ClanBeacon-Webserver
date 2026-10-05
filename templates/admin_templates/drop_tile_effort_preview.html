@@ -77,8 +77,9 @@
                 <h2 class="osrs-panel-title">Effort Rows</h2>
                 <p class="osrs-panel-description">
                     Point values are suggested from drop rate, source access
-                    and source difficulty multipliers. Rows marked Review need
-                    manual attention.
+                    and source difficulty multipliers. Decimal values are
+                    rounded for readability. Rows marked Review need manual
+                    attention.
                 </p>
             </header>
 
@@ -125,18 +126,10 @@
                                 </td>
                                 <td>{{ row.drop_rate or "?" }}</td>
                                 <td>
-                                    {% if row.expected_rolls is not none %}
-                                        {{ row.expected_rolls }}
-                                    {% else %}
-                                        Review
-                                    {% endif %}
+                                    {{ row.expected_rolls_display }}
                                 </td>
                                 <td>
-                                    {% if row.total_effort is not none %}
-                                        {{ row.total_effort }}
-                                    {% else %}
-                                        Review
-                                    {% endif %}
+                                    {{ row.total_effort_display }}
                                 </td>
                                 <td>
                                     {% if row.parseable %}

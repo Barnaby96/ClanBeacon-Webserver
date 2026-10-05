@@ -110,3 +110,18 @@ def test_drop_tile_effort_preview_applies_fortis_colosseum_source_effort():
     assert "quiver" in quiver.drop_name
     assert quiver.expected_rolls == 1
     assert quiver.suggested_point_value == 5
+
+
+def test_drop_tile_effort_preview_formats_decimal_values_for_display():
+    rows = build_drop_tile_effort_preview_rows()
+
+    row = next(
+        row
+        for row in rows
+        if row.drop_group_id == "abyssal_bludgeon_part"
+        and row.tile_mode == DROP_TILE_EFFORT_MODE_GROUP_UNIQUES
+        and row.target == 1
+    )
+
+    assert row.expected_rolls_display == "67.33"
+    assert row.total_effort_display == "202"

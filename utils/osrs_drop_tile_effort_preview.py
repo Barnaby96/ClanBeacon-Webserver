@@ -35,6 +35,18 @@ class DropTileEffortPreviewRow:
     parseable: bool = False
     reason: str = ""
 
+    @property
+    def expected_rolls_display(self):
+        return format_effort_decimal(
+            self.expected_rolls
+        )
+
+    @property
+    def total_effort_display(self):
+        return format_effort_decimal(
+            self.total_effort
+        )
+
 
 def build_drop_group_definitions_by_id(drop_groups):
     return {
@@ -44,6 +56,23 @@ def build_drop_group_definitions_by_id(drop_groups):
             for group in drop_groups
         )
     }
+
+
+def format_effort_decimal(value):
+    if value is None:
+        return "Review"
+
+    value = Decimal(value)
+
+    if value == value.to_integral_value():
+        return f"{int(value):,}"
+
+    return format(
+        value.quantize(
+            Decimal("0.01")
+        ),
+        ",f",
+    ).rstrip("0").rstrip(".")
 
 
 def format_joined(values):
