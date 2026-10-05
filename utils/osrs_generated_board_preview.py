@@ -3,9 +3,52 @@
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 
-from utils.board_generation import assemble_board_candidates
-from utils.osrs_tile_capability_assessment import assess_candidate_capability
+from utils.board_generation import BoardAssemblyError, assemble_board_candidates
+from utils.osrs_tile_capability_assessment import (
+    CAPABILITY_BALANCE_BALANCED,
+    CAPABILITY_BALANCE_HIGH_GAP,
+    CAPABILITY_BALANCE_MODERATE_GAP,
+    CAPABILITY_BALANCE_NO_PROFILE_DATA,
+    CAPABILITY_BALANCE_NO_SIGNAL,
+    CAPABILITY_BALANCE_UNMAPPED,
+    CAPABILITY_BALANCE_ZERO_SCORE_GAP,
+    assess_candidate_capability,
+)
 from utils.osrs_tile_catalogue import get_curated_tile_generation_candidates
+
+
+CAPABILITY_GENERATION_BALANCE_BAND_ORDER = {
+    CAPABILITY_BALANCE_BALANCED: 0,
+    CAPABILITY_BALANCE_NO_SIGNAL: 1,
+    CAPABILITY_BALANCE_NO_PROFILE_DATA: 2,
+    CAPABILITY_BALANCE_UNMAPPED: 3,
+    CAPABILITY_BALANCE_MODERATE_GAP: 4,
+    CAPABILITY_BALANCE_HIGH_GAP: 5,
+    CAPABILITY_BALANCE_ZERO_SCORE_GAP: 6,
+}
+
+
+def build_capability_candidate_order_key(capability_profiles):
+    def candidate_order_key(candidate):
+        assessment = assess_candidate_capability(
+            candidate,
+            capability_profiles,
+        )
+
+        return (
+            CAPABILITY_GENERATION_BALANCE_BAND_ORDER.get(
+                assessment.balance_band,
+                99,
+            ),
+            assessment.zero_score_profile_count,
+            assessment.score_gap or 0,
+            -(
+                assessment.minimum_score
+                or 0
+            ),
+        )
+
+    return candidate_order_key
 
 
 @dataclass(frozen=True)
@@ -134,9 +177,27 @@ def build_generated_board_preview_summary(
 def get_curated_generated_board_preview_summary(
     capability_profiles=None,
 ):
-    board = assemble_board_candidates(
-        get_curated_tile_generation_candidates()
-    )
+    candidate_order_key = None
+
+    if capability_profiles is not None:
+        candidate_order_key = build_capability_candidate_order_key(
+            capability_profiles
+        )
+
+    generation_candidates = get_curated_tile_generation_candidates()
+
+    try:
+        board = assemble_board_candidates(
+            generation_candidates,
+            candidate_order_key=candidate_order_key,
+        )
+    except BoardAssemblyError:
+        if candidate_order_key is None:
+            raise
+
+        board = assemble_board_candidates(
+            generation_candidates,
+        )
 
     return build_generated_board_preview_summary(
         board,
