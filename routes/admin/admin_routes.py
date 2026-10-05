@@ -1107,9 +1107,30 @@ def dink_events():
 @admin_routes.route('/bingo_setup/generated_board_preview', methods=['GET'])
 @admin_required
 def generated_board_preview():
+    capability_result = build_capability_profiles_from_rostered_players(
+        database.get_players_by_team(),
+        fetch_player=wom.get_player,
+    )
+
+    if capability_result.failed_players:
+        failed_player_names = ", ".join(
+            failed_player["player_name"]
+            for failed_player in capability_result.failed_players
+        )
+
+        flash(
+            (
+                "Could not fetch WOM capability data for: "
+                f"{failed_player_names}."
+            ),
+            "warning",
+        )
+
     return render_template(
         'admin_templates/generated_board_preview.html',
-        summary=get_curated_generated_board_preview_summary(),
+        summary=get_curated_generated_board_preview_summary(
+            capability_profiles=capability_result.profile_set,
+        ),
     )
 
 @admin_routes.route('/bingo_setup/tile_catalogue_preview', methods=['GET'])

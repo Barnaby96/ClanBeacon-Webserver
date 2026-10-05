@@ -190,3 +190,9 @@ def test_refreshed_pet_source_aliases_map_to_capability_fields():
     assert get_capability_score_field_for_source_id(
         "wyrmscraig_goats"
     ) == "skilling_score"
+
+
+def test_custom_clue_sources_map_to_clue_activity_score():
+    assert get_capability_score_field_for_source_id(
+        "clue_scrolls_medium_plus"
+    ) == "clue_activity_score"

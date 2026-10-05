@@ -70,6 +70,7 @@ SPECIAL_CAPABILITY_FIELD_BY_SOURCE_ID = {
     "sailing": "skilling_score",
     "thieving": "skilling_score",
     "woodcutting": "skilling_score",
+    "clue_scrolls_medium_plus": "clue_activity_score",
     "wilderness": "wilderness_boss_score",
     "wilderness_unique": "wilderness_boss_score",
     "wilderness_ring": "wilderness_boss_score",
