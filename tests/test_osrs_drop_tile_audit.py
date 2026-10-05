@@ -117,3 +117,17 @@ def test_drop_group_tile_audit_rejects_specific_drops_from_multi_source_groups()
     assert rows[0].supports_group_unique_tiles is False
     assert rows[0].supports_specific_drop_tiles is False
     assert rows[0].specific_drop_tile_count == 0
+
+
+def test_drop_group_tile_audit_blocks_individual_clue_drop_tiles():
+    rows = build_drop_group_tile_audit_rows()
+
+    rows_by_group_id = {
+        row.drop_group_id: row
+        for row in rows
+    }
+
+    third_age = rows_by_group_id["3rd_age_unique"]
+
+    assert third_age.supports_specific_drop_tiles is False
+    assert third_age.specific_drop_tile_count == 0

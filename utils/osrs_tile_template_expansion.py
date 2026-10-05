@@ -896,6 +896,27 @@ def get_drop_group_drop_count(group):
     )
 
 
+def is_clue_drop_group(group):
+    searchable_text = " ".join(
+        (
+            group.get("drop_group_id")
+            or "",
+            group.get("display_name")
+            or "",
+            " ".join(
+                group.get("source_ids")
+                or ()
+            ),
+            " ".join(
+                group.get("source_names")
+                or ()
+            ),
+        )
+    ).casefold()
+
+    return "clue" in searchable_text
+
+
 def build_drop_id_source_id_map(drop_groups=DROP_GROUP_DATA):
     """Map drops to clear single-source ownership.
 
@@ -928,6 +949,9 @@ def build_drop_id_source_id_map(drop_groups=DROP_GROUP_DATA):
 
 
 def count_specific_drop_tile_candidates(group, drop_id_source_ids):
+    if is_clue_drop_group(group):
+        return 0
+
     source_ids = tuple(
         group.get("source_ids")
         or ()

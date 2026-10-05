@@ -9,6 +9,7 @@ from utils.osrs_drop_tile_effort import (
     DROP_TILE_EFFORT_REASON_UNPARSEABLE_DROP_RATE,
     estimate_group_unique_tile_effort,
     estimate_specific_drop_tile_effort_from_rate,
+    suggest_drop_tile_point_value,
 )
 
 
@@ -85,3 +86,10 @@ def test_effort_multipliers_must_be_positive():
             "1/512",
             source_difficulty_multiplier=0,
         )
+
+
+def test_suggest_drop_tile_point_value_uses_effort_thresholds():
+    assert suggest_drop_tile_point_value(Decimal("50")) == 1
+    assert suggest_drop_tile_point_value(Decimal("512")) == 3
+    assert suggest_drop_tile_point_value(Decimal("5000")) == 5
+    assert suggest_drop_tile_point_value(None) is None

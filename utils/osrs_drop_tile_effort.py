@@ -12,6 +12,14 @@ DROP_TILE_EFFORT_REASON_NO_GROUP_EXPECTED_ROLLS = "no_group_expected_rolls"
 
 DEFAULT_EFFORT_MULTIPLIER = Decimal("1")
 
+DROP_TILE_POINT_TIER_EFFORT_THRESHOLDS = (
+    (1, Decimal("100")),
+    (2, Decimal("300")),
+    (3, Decimal("750")),
+    (4, Decimal("1500")),
+    (5, Decimal("3000")),
+)
+
 
 @dataclass(frozen=True)
 class DropTileEffortEstimate:
@@ -148,3 +156,19 @@ def estimate_group_unique_tile_effort(
         access_requirement_multiplier=access_requirement_multiplier,
         source_difficulty_multiplier=source_difficulty_multiplier,
     )
+
+
+def suggest_drop_tile_point_value(
+    total_effort,
+    thresholds=DROP_TILE_POINT_TIER_EFFORT_THRESHOLDS,
+):
+    if total_effort is None:
+        return None
+
+    effort = Decimal(total_effort)
+
+    for point_value, maximum_effort in thresholds:
+        if effort <= maximum_effort:
+            return point_value
+
+    return thresholds[-1][0]
