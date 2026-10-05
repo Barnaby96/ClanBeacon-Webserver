@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from utils.osrs_drop_group_data import DROP_GROUP_DATA
+
 from utils.osrs_drop_groups import get_drop_group_definition
 from utils.osrs_drop_target_models import get_valid_drop_target_profile
 from utils.osrs_generation_recipes import (
@@ -854,6 +856,240 @@ STATIC_SKILL_XP_TEMPLATES = (
     SkillXpTileTemplate("Hitpoints", "hitpoints", STATIC_SKILL_XP_TARGETS),
     SkillXpTileTemplate("Sailing", "sailing", STATIC_SKILL_XP_TARGETS),
 )
+
+
+
+
+DROP_GROUP_TILE_AUDIT_ALREADY_TEMPLATED = "already_static_template"
+DROP_GROUP_TILE_AUDIT_ELIGIBLE_SINGLE_SOURCE = "eligible_single_source"
+DROP_GROUP_TILE_AUDIT_REVIEW_CLUE_OR_ACTIVITY = "review_clue_or_activity"
+DROP_GROUP_TILE_AUDIT_REVIEW_SET_SUBGROUP = "review_set_subgroup"
+DROP_GROUP_TILE_AUDIT_REVIEW_MULTI_SOURCE = "review_multi_source"
+DROP_GROUP_TILE_AUDIT_SKIPPED_NO_DROPS = "skipped_no_drops"
+
+
+@dataclass(frozen=True)
+class DropGroupTileAuditRow:
+    drop_group_id: str
+    display_name: str
+    source_ids: tuple
+    source_names: tuple
+    drop_count: int
+    classification: str
+    reason: str
+    supports_group_unique_tiles: bool = False
+    supports_specific_drop_tiles: bool = False
+    specific_drop_tile_count: int = 0
+
+
+def get_static_drop_template_group_ids():
+    return frozenset(
+        template.drop_group_id
+        for template in STATIC_DROP_TEMPLATES
+    )
+
+
+def get_drop_group_drop_count(group):
+    return len(
+        group.get("drop_ids")
+        or ()
+    )
+
+
+def build_drop_id_source_id_map(drop_groups=DROP_GROUP_DATA):
+    """Map drops to clear single-source ownership.
+
+    Broad aggregate groups can repeat the same drop across multiple sources.
+    Those groups are useful for group tiles, but should not disqualify a
+    specific-drop tile when the item also has one clear single-source group.
+    """
+
+    drop_id_source_ids = {}
+
+    for group in drop_groups:
+        source_ids = tuple(
+            group.get("source_ids")
+            or ()
+        )
+
+        if len(source_ids) != 1:
+            continue
+
+        for drop_id in group.get("drop_ids") or ():
+            drop_id_source_ids.setdefault(
+                drop_id,
+                set()
+            ).add(source_ids[0])
+
+    return {
+        drop_id: frozenset(source_ids)
+        for drop_id, source_ids in drop_id_source_ids.items()
+    }
+
+
+def count_specific_drop_tile_candidates(group, drop_id_source_ids):
+    source_ids = tuple(
+        group.get("source_ids")
+        or ()
+    )
+
+    if len(source_ids) != 1:
+        return 0
+
+    source_id = source_ids[0]
+
+    return sum(
+        1
+        for drop_id in group.get("drop_ids") or ()
+        if drop_id_source_ids.get(drop_id) == frozenset((source_id,))
+    )
+
+
+def supports_group_unique_tile_generation(classification):
+    return classification in {
+        DROP_GROUP_TILE_AUDIT_ALREADY_TEMPLATED,
+        DROP_GROUP_TILE_AUDIT_ELIGIBLE_SINGLE_SOURCE,
+    }
+
+
+def is_clue_or_activity_drop_group(group):
+    searchable_text = " ".join(
+        (
+            group.get("drop_group_id")
+            or "",
+            group.get("display_name")
+            or "",
+            " ".join(
+                group.get("source_ids")
+                or ()
+            ),
+            " ".join(
+                group.get("source_names")
+                or ()
+            ),
+        )
+    ).casefold()
+
+    return any(
+        marker in searchable_text
+        for marker in (
+            "clue",
+            "aerial_fishing",
+            "wintertodt",
+            "tempoross",
+            "guardians_of_the_rift",
+            "soul_wars",
+        )
+    )
+
+
+def is_set_subgroup_drop_group(group):
+    group_id = (
+        group.get("drop_group_id")
+        or ""
+    ).casefold()
+    display_name = (
+        group.get("display_name")
+        or ""
+    ).casefold()
+
+    return (
+        group_id.endswith("_set")
+        or group_id.endswith("'s_set")
+        or display_name.endswith(" set")
+    )
+
+
+def classify_drop_group_for_tile_audit(group, templated_group_ids=None):
+    if templated_group_ids is None:
+        templated_group_ids = get_static_drop_template_group_ids()
+
+    drop_group_id = group.get("drop_group_id")
+
+    if drop_group_id in templated_group_ids:
+        return (
+            DROP_GROUP_TILE_AUDIT_ALREADY_TEMPLATED,
+            "Already emitted by STATIC_DROP_TEMPLATES.",
+        )
+
+    if get_drop_group_drop_count(group) == 0:
+        return (
+            DROP_GROUP_TILE_AUDIT_SKIPPED_NO_DROPS,
+            "No drop IDs are available for tile generation.",
+        )
+
+    source_ids = tuple(
+        group.get("source_ids")
+        or ()
+    )
+
+    if len(source_ids) != 1:
+        return (
+            DROP_GROUP_TILE_AUDIT_REVIEW_MULTI_SOURCE,
+            "Multiple sources need manual review before automatic tile generation.",
+        )
+
+    if is_clue_or_activity_drop_group(group):
+        return (
+            DROP_GROUP_TILE_AUDIT_REVIEW_CLUE_OR_ACTIVITY,
+            "Clue or activity-style groups need manual review for suitable targets.",
+        )
+
+    if is_set_subgroup_drop_group(group):
+        return (
+            DROP_GROUP_TILE_AUDIT_REVIEW_SET_SUBGROUP,
+            "Set subgroups need manual review to avoid overlapping broad groups.",
+        )
+
+    return (
+        DROP_GROUP_TILE_AUDIT_ELIGIBLE_SINGLE_SOURCE,
+        "Single-source drop group with drops; suitable for automatic tile review.",
+    )
+
+
+def build_drop_group_tile_audit_rows(drop_groups=None):
+    if drop_groups is None:
+        drop_groups = DROP_GROUP_DATA
+
+    templated_group_ids = get_static_drop_template_group_ids()
+    drop_id_source_ids = build_drop_id_source_id_map(drop_groups)
+
+    rows = []
+
+    for group in drop_groups:
+        classification, reason = classify_drop_group_for_tile_audit(
+            group,
+            templated_group_ids=templated_group_ids,
+        )
+        specific_drop_tile_count = count_specific_drop_tile_candidates(
+            group,
+            drop_id_source_ids,
+        )
+
+        rows.append(
+            DropGroupTileAuditRow(
+                drop_group_id=group.get("drop_group_id"),
+                display_name=group.get("display_name"),
+                source_ids=tuple(
+                    group.get("source_ids")
+                    or ()
+                ),
+                source_names=tuple(
+                    group.get("source_names")
+                    or ()
+                ),
+                drop_count=get_drop_group_drop_count(group),
+                classification=classification,
+                reason=reason,
+                supports_group_unique_tiles=supports_group_unique_tile_generation(
+                    classification
+                ),
+                supports_specific_drop_tiles=specific_drop_tile_count > 0,
+                specific_drop_tile_count=specific_drop_tile_count,
+            )
+        )
+
+    return tuple(rows)
 
 
 STATIC_DROP_TEMPLATES = (
