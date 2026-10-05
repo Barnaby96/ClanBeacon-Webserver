@@ -94,6 +94,7 @@
                             <th>Drop rate</th>
                             <th>Expected rolls</th>
                             <th>Total effort</th>
+                            <th>Access x difficulty</th>
                             <th>Status</th>
                         </tr>
                     </thead>
@@ -130,6 +131,17 @@
                                 </td>
                                 <td>
                                     {{ row.total_effort_display }}
+                                </td>
+                                <td>
+                                    {{ row.access_requirement_multiplier_display }}
+                                    x
+                                    {{ row.source_difficulty_multiplier_display }}
+                                    {% if row.source_effort_reason %}
+                                        <br>
+                                        <span class="osrs-muted">
+                                            {{ row.source_effort_reason }}
+                                        </span>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     {% if row.parseable %}

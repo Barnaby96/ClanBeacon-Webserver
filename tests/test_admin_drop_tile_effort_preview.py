@@ -72,6 +72,8 @@ def test_drop_tile_effort_preview_template_contains_expected_sections():
     assert "Back to Bingo Setup" in template
     assert "Suggested points" in template
     assert "Total effort" in template
+    assert "Access x difficulty" in template
+    assert "source_effort_reason" in template
     assert "rounded for readability" in template
     assert "expected_rolls_display" in template
     assert "total_effort_display" in template

@@ -34,6 +34,9 @@ class DropTileEffortPreviewRow:
     suggested_point_value: int | None = None
     parseable: bool = False
     reason: str = ""
+    access_requirement_multiplier: Decimal = Decimal("1")
+    source_difficulty_multiplier: Decimal = Decimal("1")
+    source_effort_reason: str = ""
 
     @property
     def expected_rolls_display(self):
@@ -45,6 +48,18 @@ class DropTileEffortPreviewRow:
     def total_effort_display(self):
         return format_effort_decimal(
             self.total_effort
+        )
+
+    @property
+    def access_requirement_multiplier_display(self):
+        return format_effort_decimal(
+            self.access_requirement_multiplier
+        )
+
+    @property
+    def source_difficulty_multiplier_display(self):
+        return format_effort_decimal(
+            self.source_difficulty_multiplier
         )
 
 
@@ -109,11 +124,17 @@ def iter_group_unique_effort_preview_rows(drop_group, max_target=5):
         )
 
         effort_kwargs = {}
+        access_requirement_multiplier = Decimal("1")
+        source_difficulty_multiplier = Decimal("1")
+        source_effort_reason = ""
 
         if source_effort_profile is not None:
+            access_requirement_multiplier = source_effort_profile.access_requirement_multiplier
+            source_difficulty_multiplier = source_effort_profile.source_difficulty_multiplier
+            source_effort_reason = source_effort_profile.reason
             effort_kwargs = {
-                "access_requirement_multiplier": source_effort_profile.access_requirement_multiplier,
-                "source_difficulty_multiplier": source_effort_profile.source_difficulty_multiplier,
+                "access_requirement_multiplier": access_requirement_multiplier,
+                "source_difficulty_multiplier": source_difficulty_multiplier,
             }
 
         effort = estimate_group_unique_tile_effort(
@@ -140,6 +161,9 @@ def iter_group_unique_effort_preview_rows(drop_group, max_target=5):
             ),
             parseable=effort.parseable,
             reason=effort.reason,
+            access_requirement_multiplier=access_requirement_multiplier,
+            source_difficulty_multiplier=source_difficulty_multiplier,
+            source_effort_reason=source_effort_reason,
         )
 
 
@@ -199,6 +223,9 @@ def iter_specific_drop_effort_preview_rows(
             ),
             parseable=effort.parseable,
             reason=effort.reason,
+            access_requirement_multiplier=source_effort_profile.access_requirement_multiplier,
+            source_difficulty_multiplier=source_effort_profile.source_difficulty_multiplier,
+            source_effort_reason=source_effort_profile.reason,
         )
 
 

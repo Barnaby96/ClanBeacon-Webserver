@@ -125,3 +125,18 @@ def test_drop_tile_effort_preview_formats_decimal_values_for_display():
 
     assert row.expected_rolls_display == "67.33"
     assert row.total_effort_display == "202"
+
+
+def test_drop_tile_effort_preview_exposes_source_effort_reason():
+    rows = build_drop_tile_effort_preview_rows()
+
+    quiver = next(
+        row
+        for row in rows
+        if row.drop_group_id == "fortis_colosseum_wave_12"
+        and row.tile_mode == DROP_TILE_EFFORT_MODE_SPECIFIC_DROP
+    )
+
+    assert quiver.access_requirement_multiplier_display == "5"
+    assert quiver.source_difficulty_multiplier_display == "500"
+    assert "Wave 12" in quiver.source_effort_reason
