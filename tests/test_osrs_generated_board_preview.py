@@ -239,6 +239,9 @@ def test_generated_board_preview_falls_back_when_capability_order_cannot_assembl
     assert summary.candidate_count == 0
     assert summary.capability_ordering_applied is True
     assert summary.capability_ordering_fell_back is True
+    assert summary.capability_ordering_fallback_reason == (
+        "Could not fill generated board."
+    )
     assert captured_order_keys[0] is not None
     assert captured_order_keys[1] is None
 
@@ -269,3 +272,4 @@ def test_generated_board_preview_summary_marks_capability_ordering_applied(monke
     assert captured["candidate_order_key"] is not None
     assert summary.capability_ordering_applied is True
     assert summary.capability_ordering_fell_back is False
+    assert summary.capability_ordering_fallback_reason is None

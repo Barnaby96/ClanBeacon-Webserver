@@ -102,6 +102,10 @@
                             <strong>Capability ordering:</strong>
                             Capability-aware ordering could not assemble a valid
                             board, so this preview fell back to normal generation.
+                            {% if summary.capability_ordering_fallback_reason %}
+                                <br>
+                                Reason: {{ summary.capability_ordering_fallback_reason }}
+                            {% endif %}
                             Capability summaries are still shown below.
                         </p>
                     {% endif %}
