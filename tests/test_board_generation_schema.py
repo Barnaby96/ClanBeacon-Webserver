@@ -880,3 +880,52 @@ def test_board_generation_rules_builds_required_slots_before_flex_slots():
         TileCategory.KILLCOUNT,
         TileCategory.DROP,
     }
+
+
+def test_assemble_board_candidates_accepts_candidate_order_key():
+    rules = BoardGenerationRules(
+        board_size=1,
+        points_distribution={
+            1: 1,
+        },
+        required_categories_by_point={
+            1: (),
+        },
+        flex_slots_by_point={
+            1: 1,
+        },
+        primary_pet_tiles_min=0,
+        primary_pet_tiles_target=0,
+        primary_pet_tiles_max=0,
+        secondary_pet_routes_min=0,
+        secondary_pet_routes_target=0,
+        secondary_pet_routes_max=0,
+    )
+
+    normal_candidate = make_assembly_candidate(
+        1,
+        TileCategory.SKILL,
+        "normal_candidate",
+    )
+    preferred_candidate = make_assembly_candidate(
+        1,
+        TileCategory.SKILL,
+        "preferred_candidate",
+    )
+
+    board = assemble_board_candidates(
+        [
+            normal_candidate,
+            preferred_candidate,
+        ],
+        rules,
+        candidate_order_key=lambda candidate: (
+            0
+            if candidate is preferred_candidate
+            else 1
+        ),
+    )
+
+    assert board.candidates == (
+        preferred_candidate,
+    )

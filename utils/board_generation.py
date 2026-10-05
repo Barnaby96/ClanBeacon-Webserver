@@ -794,12 +794,27 @@ def ordered_slot_candidates(
     slot,
     pending_slots,
     remaining_candidates,
+    candidate_order_key=None,
 ):
     indexed_candidates = list(
         enumerate(
             remaining_candidates
         )
     )
+
+    if candidate_order_key is not None:
+        indexed_candidates = sorted(
+            indexed_candidates,
+            key=lambda item: (
+                candidate_order_key(item[1]),
+                (
+                    candidate_order_key(item[1])
+                    if candidate_order_key is not None
+                    else 0
+                ),
+                item[0],
+            ),
+        )
 
     if (
         not slot.is_flex
@@ -823,7 +838,7 @@ def ordered_slot_candidates(
     return indexed_candidates
 
 
-def assemble_board_candidates(candidates, rules=None):
+def assemble_board_candidates(candidates, rules=None, candidate_order_key=None):
     if rules is None:
         rules = BoardGenerationRules()
 
@@ -843,6 +858,7 @@ def assemble_board_candidates(candidates, rules=None):
             slot,
             pending_slots,
             remaining_candidates,
+            candidate_order_key=candidate_order_key,
         ):
             if not slot.matches_candidate(candidate):
                 continue
