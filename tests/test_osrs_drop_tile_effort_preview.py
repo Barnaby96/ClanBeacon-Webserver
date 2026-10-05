@@ -94,3 +94,19 @@ def test_drop_tile_effort_preview_applies_raid_source_effort():
     )
 
     assert ancestral_hat.suggested_point_value >= 4
+
+
+def test_drop_tile_effort_preview_applies_fortis_colosseum_source_effort():
+    rows = build_drop_tile_effort_preview_rows()
+
+    quiver = next(
+        row
+        for row in rows
+        if row.drop_group_id == "fortis_colosseum_wave_12"
+        and row.tile_mode == DROP_TILE_EFFORT_MODE_SPECIFIC_DROP
+    )
+
+    assert "Dizana" in quiver.drop_name
+    assert "quiver" in quiver.drop_name
+    assert quiver.expected_rolls == 1
+    assert quiver.suggested_point_value == 5

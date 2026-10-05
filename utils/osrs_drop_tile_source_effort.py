@@ -27,6 +27,12 @@ CURATED_DROP_TILE_SOURCE_EFFORT_PROFILES = {
         source_difficulty_multiplier=Decimal("50"),
         reason="Raid purple items need raid completion effort, team capability, and MVP/personal-point context.",
     ),
+    "fortis_colosseum": DropTileSourceEffortProfile(
+        source_id="fortis_colosseum",
+        access_requirement_multiplier=Decimal("5"),
+        source_difficulty_multiplier=Decimal("500"),
+        reason="Fortis Colosseum completion rewards require Wave 12 completion and very high mechanical difficulty.",
+    ),
     "theatre_of_blood": DropTileSourceEffortProfile(
         source_id="theatre_of_blood",
         access_requirement_multiplier=Decimal("2"),
