@@ -64,5 +64,8 @@ def test_generated_board_preview_template_contains_expected_sections():
     assert "summary.rows_by_point_value|dictsort" in template
     assert "summary.counts_by_point_value|dictsort" in template
     assert "summary.counts_by_primary_category|dictsort" in template
+    assert "Capability" in template
+    assert "row.capability_summary_text" in template
+    assert "row.capability_warning_level" in template
     assert "generated-board-preview" in template
     assert "color: #2b1a0b;" in template

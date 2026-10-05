@@ -120,6 +120,7 @@
                                     <th>Category</th>
                                     <th>Tile</th>
                                     <th>Routes</th>
+                                    <th>Capability</th>
                                     <th>Hard tags</th>
                                 </tr>
                             </thead>
@@ -144,6 +145,22 @@
                                                 </ul>
                                             {% else %}
                                                 None
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {% if row.capability_summary_text %}
+                                                <strong>
+                                                    {{ row.capability_score_field_label or "Capability" }}
+                                                </strong>
+                                                {% if row.capability_warning_level and row.capability_warning_level != "none" %}
+                                                    <br>
+                                                    Warning: {{ row.capability_warning_level|title }}
+                                                {% endif %}
+                                                <br>
+                                                {{ row.capability_summary_text }}
+                                            {% else %}
+                                                Not assessed
                                             {% endif %}
                                         </td>
 

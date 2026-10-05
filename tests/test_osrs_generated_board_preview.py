@@ -1,3 +1,7 @@
+from utils.osrs_capability_profiles import (
+    CapabilityProfile,
+    CapabilityProfileSet,
+)
 from utils.osrs_generated_board_preview import (
     build_generated_board_preview_summary,
     get_curated_generated_board_preview_summary,
@@ -58,3 +62,46 @@ def test_curated_generated_board_preview_summary_includes_tags_and_routes():
         "source:zulrah" in row.hard_unique_tags
         for row in rows
     )
+
+
+def test_generated_board_preview_summary_accepts_capability_profiles():
+    summary = get_curated_generated_board_preview_summary(
+        capability_profiles=CapabilityProfileSet(
+            source="teams",
+            profiles=(
+                CapabilityProfile(
+                    profile_id="1",
+                    display_name="Team One",
+                    player_count=5,
+                    scores={
+                        "solo_boss_score": 9,
+                    },
+                ),
+                CapabilityProfile(
+                    profile_id="2",
+                    display_name="Team Two",
+                    player_count=5,
+                    scores={
+                        "solo_boss_score": 0,
+                    },
+                ),
+            ),
+        )
+    )
+
+    rows = [
+        row
+        for point_rows in summary.rows_by_point_value.values()
+        for row in point_rows
+    ]
+
+    zulrah_row = next(
+        row
+        for row in rows
+        if "source:zulrah" in row.hard_unique_tags
+    )
+
+    assert zulrah_row.capability_score_field == "solo_boss_score"
+    assert zulrah_row.capability_score_field_label == "Solo boss"
+    assert zulrah_row.capability_warning_level == "danger"
+    assert "Solo boss" in zulrah_row.capability_summary_text
