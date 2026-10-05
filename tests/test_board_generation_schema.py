@@ -541,6 +541,31 @@ def make_valid_assembly_candidate_pool():
         ]
     )
 
+    candidates.extend(
+        [
+            make_assembly_candidate(
+                2,
+                TileCategory.MANUAL,
+                "p2_extra_flex"
+            ),
+            make_assembly_candidate(
+                3,
+                TileCategory.MANUAL,
+                "p3_extra_flex"
+            ),
+            make_assembly_candidate(
+                4,
+                TileCategory.MANUAL,
+                "p4_extra_flex"
+            ),
+            make_assembly_candidate(
+                5,
+                TileCategory.MANUAL,
+                "p5_extra_flex"
+            ),
+        ]
+    )
+
     return candidates
 
 
@@ -556,7 +581,7 @@ def test_assemble_board_candidates_fills_default_board_rules():
         1
         for candidate in board.candidates
         if candidate.pet_role == PetRole.PRIMARY
-    ) == 2
+    ) == 1
 
     assert sum(
         1
@@ -929,3 +954,11 @@ def test_assemble_board_candidates_accepts_candidate_order_key():
     assert board.candidates == (
         preferred_candidate,
     )
+
+
+def test_default_board_generation_rules_cap_primary_pet_tiles_at_one():
+    rules = BoardGenerationRules()
+
+    assert rules.primary_pet_tiles_min == 1
+    assert rules.primary_pet_tiles_target == 1
+    assert rules.primary_pet_tiles_max == 1

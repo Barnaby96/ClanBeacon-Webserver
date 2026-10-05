@@ -71,6 +71,8 @@ class GeneratedBoardPreviewSummary:
     counts_by_point_value: dict
     counts_by_primary_category: dict
     rows_by_point_value: dict
+    capability_ordering_applied: bool = False
+    capability_ordering_fell_back: bool = False
 
 
 def build_generated_board_preview_row(
@@ -129,6 +131,8 @@ def build_generated_board_preview_row(
 def build_generated_board_preview_summary(
     board,
     capability_profiles=None,
+    capability_ordering_applied=False,
+    capability_ordering_fell_back=False,
 ):
     rows = [
         build_generated_board_preview_row(
@@ -171,6 +175,8 @@ def build_generated_board_preview_summary(
                 rows_by_point_value.items()
             )
         },
+        capability_ordering_applied=capability_ordering_applied,
+        capability_ordering_fell_back=capability_ordering_fell_back,
     )
 
 
@@ -178,11 +184,14 @@ def get_curated_generated_board_preview_summary(
     capability_profiles=None,
 ):
     candidate_order_key = None
+    capability_ordering_applied = False
+    capability_ordering_fell_back = False
 
     if capability_profiles is not None:
         candidate_order_key = build_capability_candidate_order_key(
             capability_profiles
         )
+        capability_ordering_applied = True
 
     generation_candidates = get_curated_tile_generation_candidates()
 
@@ -195,6 +204,8 @@ def get_curated_generated_board_preview_summary(
         if candidate_order_key is None:
             raise
 
+        capability_ordering_fell_back = True
+
         board = assemble_board_candidates(
             generation_candidates,
         )
@@ -202,4 +213,6 @@ def get_curated_generated_board_preview_summary(
     return build_generated_board_preview_summary(
         board,
         capability_profiles=capability_profiles,
+        capability_ordering_applied=capability_ordering_applied,
+        capability_ordering_fell_back=capability_ordering_fell_back,
     )

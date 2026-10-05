@@ -237,5 +237,35 @@ def test_generated_board_preview_falls_back_when_capability_order_cannot_assembl
     )
 
     assert summary.candidate_count == 0
+    assert summary.capability_ordering_applied is True
+    assert summary.capability_ordering_fell_back is True
     assert captured_order_keys[0] is not None
     assert captured_order_keys[1] is None
+
+
+def test_generated_board_preview_summary_marks_capability_ordering_applied(monkeypatch):
+    captured = {}
+
+    def fake_assemble_board_candidates(candidates, candidate_order_key=None):
+        captured["candidate_order_key"] = candidate_order_key
+
+        class FakeBoard:
+            candidates = ()
+
+        return FakeBoard()
+
+    monkeypatch.setattr(
+        "utils.osrs_generated_board_preview.assemble_board_candidates",
+        fake_assemble_board_candidates,
+    )
+
+    summary = get_curated_generated_board_preview_summary(
+        capability_profiles=CapabilityProfileSet(
+            source="teams",
+            profiles=(),
+        )
+    )
+
+    assert captured["candidate_order_key"] is not None
+    assert summary.capability_ordering_applied is True
+    assert summary.capability_ordering_fell_back is False

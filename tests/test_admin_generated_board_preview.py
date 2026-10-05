@@ -112,6 +112,7 @@ def test_generated_board_preview_template_contains_expected_sections():
     assert "Capability" in template
     assert "row.capability_summary_text" in template
     assert "row.capability_warning_level" in template
+    assert "summary.capability_ordering_fell_back" in template
     assert "generated-board-preview" in template
     assert "color: #2b1a0b;" in template
 

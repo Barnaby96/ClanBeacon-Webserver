@@ -121,8 +121,8 @@ class BoardGenerationRules:
         default_factory=default_flex_slots_by_point
     )
     primary_pet_tiles_min: int = 1
-    primary_pet_tiles_target: int = 2
-    primary_pet_tiles_max: int = 2
+    primary_pet_tiles_target: int = 1
+    primary_pet_tiles_max: int = 1
     secondary_pet_routes_min: int = 2
     secondary_pet_routes_target: int = 4
     secondary_pet_routes_max: int = 6

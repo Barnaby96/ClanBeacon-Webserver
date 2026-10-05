@@ -96,6 +96,15 @@
                             {{ category }}: {{ count }}{% if not loop.last %}, {% endif %}
                         {% endfor %}
                     </p>
+
+                    {% if summary.capability_ordering_fell_back %}
+                        <p>
+                            <strong>Capability ordering:</strong>
+                            Capability-aware ordering could not assemble a valid
+                            board, so this preview fell back to normal generation.
+                            Capability summaries are still shown below.
+                        </p>
+                    {% endif %}
                 </div>
             </div>
         </section>

@@ -627,3 +627,20 @@ def test_generated_board_respects_wilderness_pvm_mix_rules():
         wilderness_drop_count
         and wilderness_killcount_count
     )
+
+
+def test_curated_tile_generation_board_uses_one_primary_pet_tile_by_default():
+    from utils.board_generation import PetRole, assemble_board_candidates
+    from utils.osrs_tile_catalogue import get_curated_tile_generation_candidates
+
+    board = assemble_board_candidates(
+        get_curated_tile_generation_candidates()
+    )
+
+    primary_pet_tiles = [
+        candidate
+        for candidate in board.candidates
+        if candidate.pet_role == PetRole.PRIMARY
+    ]
+
+    assert len(primary_pet_tiles) == 1
