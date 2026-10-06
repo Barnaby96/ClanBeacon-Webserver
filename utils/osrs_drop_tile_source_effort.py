@@ -16,6 +16,12 @@ class DropTileSourceEffortProfile:
 
 
 CURATED_DROP_TILE_SOURCE_EFFORT_PROFILES = {
+    "zalcano": DropTileSourceEffortProfile(
+        source_id="zalcano",
+        access_requirement_multiplier=Decimal("1.5"),
+        source_difficulty_multiplier=Decimal("1.5"),
+        reason="Zalcano uniques require Song of the Elves completion and Prifddinas access.",
+    ),
     "wilderness_multi_source": DropTileSourceEffortProfile(
         source_id="wilderness_multi_source",
         access_requirement_multiplier=Decimal("1.5"),

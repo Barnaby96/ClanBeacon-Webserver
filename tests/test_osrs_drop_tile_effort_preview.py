@@ -252,3 +252,20 @@ def test_drop_tile_effort_preview_applies_minimum_point_floors():
 
     assert superior_row.minimum_point_value == 4
     assert superior_row.suggested_point_value >= 4
+
+
+def test_drop_tile_effort_preview_applies_zalcano_source_effort():
+    rows = build_drop_tile_effort_preview_rows()
+
+    zalcano_row = next(
+        row
+        for row in rows
+        if row.source_id == "zalcano"
+        and row.tile_mode == DROP_TILE_EFFORT_MODE_GROUP_UNIQUES
+        and row.target == 1
+    )
+
+    assert zalcano_row.access_requirement_multiplier_display == "1.5"
+    assert zalcano_row.source_difficulty_multiplier_display == "1.5"
+    assert "Song of the Elves" in zalcano_row.source_effort_reason
+    assert zalcano_row.suggested_point_value >= 3

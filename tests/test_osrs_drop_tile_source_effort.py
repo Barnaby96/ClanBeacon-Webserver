@@ -88,3 +88,14 @@ def test_wilderness_and_superior_slayer_source_effort_profiles_apply_weighting()
     assert superior.source_difficulty_multiplier == Decimal("1.5")
     assert superior.minimum_point_value == 4
     assert "superior spawn RNG" in superior.reason
+
+
+def test_zalcano_source_effort_profile_accounts_for_song_of_the_elves_access():
+    profile = get_drop_tile_source_effort_profile(
+        "zalcano"
+    )
+
+    assert profile.access_requirement_multiplier == Decimal("1.5")
+    assert profile.source_difficulty_multiplier == Decimal("1.5")
+    assert "Song of the Elves" in profile.reason
+    assert "Prifddinas" in profile.reason
