@@ -1,5 +1,6 @@
 from utils.osrs_tile_candidate_validation import assert_valid_tile_candidate_pool
 from utils.board_generation import TrackingSource
+from utils.osrs_generated_drop_tile_candidates import build_generated_drop_tile_candidates
 from utils.osrs_generation_recipes import (
     StaticPointTargetModel,
     build_single_tile_candidate,
@@ -295,7 +296,9 @@ def get_curated_tile_generation_candidates():
             *get_static_metric_candidates(),
             *remaining_static_candidates,
             *get_static_killcount_candidates(),
-            *get_static_drop_candidates(),
+            *build_generated_drop_tile_candidates(),
             *get_static_skill_xp_candidates(),
         )
     )
+
+

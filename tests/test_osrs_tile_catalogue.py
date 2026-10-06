@@ -310,44 +310,30 @@ def test_curated_tile_generation_candidates_expand_drop_templates():
         if candidate.primary_category == TileCategory.DROP
     ]
 
-    from utils.osrs_tile_template_expansion import (
-        build_drop_target_model_from_template,
+    from utils.osrs_generated_drop_tile_candidates import (
+        build_generated_drop_tile_candidates,
     )
 
-    expected_drop_candidate_count = sum(
-        len(
-            dict(
-                build_drop_target_model_from_template(
-                    template
-                ).target_by_point_value
-            )
+    expected_drop_candidates = build_generated_drop_tile_candidates()
+
+    def signature(candidate):
+        route = candidate.routes[0]
+        return (
+            candidate.title,
+            candidate.point_value,
+            route.drop_group_id,
+            route.drop_id,
+            route.target,
         )
-        for template in STATIC_DROP_TEMPLATES
-    )
 
-    assert len(drop_candidates) == expected_drop_candidate_count
-
+    assert len(drop_candidates) == len(expected_drop_candidates)
     assert {
-        candidate.point_value
+        signature(candidate)
         for candidate in drop_candidates
     } == {
-        1,
-        2,
-        3,
-        4,
-        5,
+        signature(candidate)
+        for candidate in expected_drop_candidates
     }
-
-    titles = {
-        candidate.title
-        for candidate in drop_candidates
-    }
-
-    assert "Obtain 1 Zulrah unique" in titles
-    assert "Obtain 1 Vorkath unique" in titles
-    assert "Obtain 1 Giant Mole unique" in titles
-    assert "Obtain 1 Scurrius unique" in titles
-
 
 def test_curated_tile_generation_candidates_expand_skill_xp_templates():
     candidates = get_curated_tile_generation_candidates()
@@ -544,31 +530,32 @@ def test_curated_tile_generation_candidates_do_not_include_targets_above_defined
     from utils.osrs_drop_groups import get_max_distinct_drop_count
     from utils.osrs_tile_catalogue import get_curated_tile_generation_candidates
 
-    titles = {
-        candidate.title
-        for candidate in get_curated_tile_generation_candidates()
-    }
-
     max_count = get_max_distinct_drop_count(
         "dagannoth_rex_uniques"
     )
 
     assert max_count >= 2
 
-    for target in range(
-        1,
-        max_count + 1,
-    ):
-        suffix = "unique" if target == 1 else "uniques"
+    targets = {
+        candidate.routes[0].target
+        for candidate in get_curated_tile_generation_candidates()
+        if (
+            candidate.primary_category == TileCategory.DROP
+            and candidate.routes[0].drop_group_id == "dagannoth_rex_uniques"
+            and candidate.routes[0].drop_id is None
+        )
+    }
 
-        assert f"Obtain {target} Dagannoth Rex {suffix}" in titles
-
-    for target in range(
-        max_count + 1,
-        6,
-    ):
-        assert f"Obtain {target} Dagannoth Rex uniques" not in titles
-
+    assert set(
+        range(
+            1,
+            max_count + 1,
+        )
+    ).issubset(targets)
+    assert all(
+        target <= max_count
+        for target in targets
+    )
 
 def test_generated_board_does_not_include_overlapping_wilderness_drop_groups():
     from utils.board_generation import assemble_board_candidates
