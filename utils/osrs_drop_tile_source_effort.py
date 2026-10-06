@@ -15,6 +15,66 @@ class DropTileSourceEffortProfile:
 
 
 CURATED_DROP_TILE_SOURCE_EFFORT_PROFILES = {
+    "corporeal_beast": DropTileSourceEffortProfile(
+        source_id="corporeal_beast",
+        access_requirement_multiplier=Decimal("1.5"),
+        source_difficulty_multiplier=Decimal("4"),
+        reason="Corporeal Beast uniques require high combat capability, slower kills, and are often group-content effort.",
+    ),
+    "dagannoth_prime": DropTileSourceEffortProfile(
+        source_id="dagannoth_prime",
+        access_requirement_multiplier=Decimal("1.25"),
+        source_difficulty_multiplier=Decimal("1.5"),
+        reason="Dagannoth King uniques require Waterbirth access and multi-boss lair setup.",
+    ),
+    "dagannoth_rex": DropTileSourceEffortProfile(
+        source_id="dagannoth_rex",
+        access_requirement_multiplier=Decimal("1.25"),
+        source_difficulty_multiplier=Decimal("1.25"),
+        reason="Dagannoth King uniques require Waterbirth access and multi-boss lair setup.",
+    ),
+    "dagannoth_supreme": DropTileSourceEffortProfile(
+        source_id="dagannoth_supreme",
+        access_requirement_multiplier=Decimal("1.25"),
+        source_difficulty_multiplier=Decimal("1.5"),
+        reason="Dagannoth King uniques require Waterbirth access and multi-boss lair setup.",
+    ),
+    "nex": DropTileSourceEffortProfile(
+        source_id="nex",
+        access_requirement_multiplier=Decimal("2"),
+        source_difficulty_multiplier=Decimal("25"),
+        reason="Nex uniques require high access, group-boss capability, and meaningful per-kill coordination.",
+    ),
+    "phantom_muspah": DropTileSourceEffortProfile(
+        source_id="phantom_muspah",
+        access_requirement_multiplier=Decimal("1.25"),
+        source_difficulty_multiplier=Decimal("1.5"),
+        reason="Phantom Muspah uniques require quest access and stronger solo-boss capability.",
+    ),
+    "tormented_demon": DropTileSourceEffortProfile(
+        source_id="tormented_demon",
+        access_requirement_multiplier=Decimal("1.5"),
+        source_difficulty_multiplier=Decimal("1.75"),
+        reason="Tormented Demon drops require quest access and stronger combat capability.",
+    ),
+    "vorkath": DropTileSourceEffortProfile(
+        source_id="vorkath",
+        access_requirement_multiplier=Decimal("1.5"),
+        source_difficulty_multiplier=Decimal("1.5"),
+        reason="Vorkath uniques require major quest access and reliable solo-boss capability.",
+    ),
+    "yama": DropTileSourceEffortProfile(
+        source_id="yama",
+        access_requirement_multiplier=Decimal("2"),
+        source_difficulty_multiplier=Decimal("5"),
+        reason="Yama drops require high-end boss capability and should not be treated as neutral-effort uniques.",
+    ),
+    "zulrah": DropTileSourceEffortProfile(
+        source_id="zulrah",
+        access_requirement_multiplier=Decimal("1.25"),
+        source_difficulty_multiplier=Decimal("1.5"),
+        reason="Zulrah uniques require quest access and solo-boss capability.",
+    ),
     "alchemical_hydra": DropTileSourceEffortProfile(
         source_id="alchemical_hydra",
         access_requirement_multiplier=Decimal("2"),

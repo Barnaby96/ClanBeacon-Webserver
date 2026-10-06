@@ -170,3 +170,32 @@ def test_drop_tile_effort_preview_applies_slayer_boss_source_effort():
     assert araxxor_one_unique.source_difficulty_multiplier_display == "1.75"
     assert "Slayer" in araxxor_one_unique.source_effort_reason
     assert araxxor_one_unique.suggested_point_value >= 2
+
+
+def test_drop_tile_effort_preview_applies_boss_source_effort():
+    rows = build_drop_tile_effort_preview_rows()
+
+    nex_row = next(
+        row
+        for row in rows
+        if row.source_id == "nex"
+        and row.tile_mode == DROP_TILE_EFFORT_MODE_GROUP_UNIQUES
+        and row.target == 1
+    )
+    vorkath_row = next(
+        row
+        for row in rows
+        if row.drop_group_id == "vorkath_uniques"
+        and row.tile_mode == DROP_TILE_EFFORT_MODE_GROUP_UNIQUES
+        and row.target == 1
+    )
+
+    assert nex_row.access_requirement_multiplier_display == "2"
+    assert nex_row.source_difficulty_multiplier_display == "25"
+    assert "group-boss" in nex_row.source_effort_reason
+    assert nex_row.suggested_point_value >= 4
+
+    assert vorkath_row.access_requirement_multiplier_display == "1.5"
+    assert vorkath_row.source_difficulty_multiplier_display == "1.5"
+    assert "quest access" in vorkath_row.source_effort_reason
+    assert vorkath_row.suggested_point_value >= 3

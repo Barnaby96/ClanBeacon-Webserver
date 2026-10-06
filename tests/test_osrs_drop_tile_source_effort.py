@@ -52,3 +52,20 @@ def test_slayer_boss_source_effort_profiles_apply_task_access_weighting():
     assert araxxor.source_difficulty_multiplier == Decimal("1.75")
     assert "Slayer" in araxxor.reason
     assert "task" in araxxor.reason
+
+
+def test_boss_source_effort_profiles_apply_access_and_difficulty_weighting():
+    nex = get_drop_tile_source_effort_profile(
+        "nex"
+    )
+    vorkath = get_drop_tile_source_effort_profile(
+        "vorkath"
+    )
+
+    assert nex.access_requirement_multiplier == Decimal("2")
+    assert nex.source_difficulty_multiplier == Decimal("25")
+    assert "group-boss" in nex.reason
+
+    assert vorkath.access_requirement_multiplier == Decimal("1.5")
+    assert vorkath.source_difficulty_multiplier == Decimal("1.5")
+    assert "quest access" in vorkath.reason
