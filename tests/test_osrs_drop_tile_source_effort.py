@@ -69,3 +69,22 @@ def test_boss_source_effort_profiles_apply_access_and_difficulty_weighting():
     assert vorkath.access_requirement_multiplier == Decimal("1.5")
     assert vorkath.source_difficulty_multiplier == Decimal("1.5")
     assert "quest access" in vorkath.reason
+
+
+def test_wilderness_and_superior_slayer_source_effort_profiles_apply_weighting():
+    wilderness = get_drop_tile_source_effort_profile(
+        "wilderness_multi_source"
+    )
+    superior = get_drop_tile_source_effort_profile(
+        "superior_slayer_monster"
+    )
+
+    assert wilderness.access_requirement_multiplier == Decimal("1.5")
+    assert wilderness.source_difficulty_multiplier == Decimal("2")
+    assert wilderness.minimum_point_value == 2
+    assert "PvP risk" in wilderness.reason
+
+    assert superior.access_requirement_multiplier == Decimal("2")
+    assert superior.source_difficulty_multiplier == Decimal("1.5")
+    assert superior.minimum_point_value == 4
+    assert "superior spawn RNG" in superior.reason

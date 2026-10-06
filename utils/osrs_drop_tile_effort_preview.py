@@ -32,6 +32,8 @@ class DropTileEffortPreviewRow:
     expected_rolls: Decimal | None = None
     total_effort: Decimal | None = None
     suggested_point_value: int | None = None
+    raw_suggested_point_value: int | None = None
+    minimum_point_value: int | None = None
     parseable: bool = False
     reason: str = ""
     access_requirement_multiplier: Decimal = Decimal("1")
@@ -98,13 +100,46 @@ def format_joined(values):
     )
 
 
-def get_single_source_effort_profile(drop_group):
-    if len(drop_group.source_ids) != 1:
-        return None
+def apply_minimum_point_value(point_value, minimum_point_value):
+    if point_value is None:
+        return minimum_point_value
 
-    return get_drop_tile_source_effort_profile(
-        drop_group.source_ids[0]
+    if minimum_point_value is None:
+        return point_value
+
+    return max(
+        point_value,
+        minimum_point_value,
     )
+
+
+def get_drop_group_effort_profile(drop_group):
+    if len(drop_group.source_ids) == 1:
+        return get_drop_tile_source_effort_profile(
+            drop_group.source_ids[0]
+        )
+
+    if any(
+        source_id in {
+            "artio",
+            "callisto",
+            "calvarion",
+            "calvar'ion",
+            "chaos_fanatic",
+            "crazy_archaeologist",
+            "scorpia",
+            "spindel",
+            "venenatis",
+            "vetion",
+            "vet'ion",
+        }
+        for source_id in drop_group.source_ids
+    ):
+        return get_drop_tile_source_effort_profile(
+            "wilderness_multi_source"
+        )
+
+    return None
 
 
 def iter_group_unique_effort_preview_rows(drop_group, max_target=5):
@@ -119,7 +154,7 @@ def iter_group_unique_effort_preview_rows(drop_group, max_target=5):
         1,
         max_target + 1,
     ):
-        source_effort_profile = get_single_source_effort_profile(
+        source_effort_profile = get_drop_group_effort_profile(
             drop_group
         )
 
@@ -127,11 +162,13 @@ def iter_group_unique_effort_preview_rows(drop_group, max_target=5):
         access_requirement_multiplier = Decimal("1")
         source_difficulty_multiplier = Decimal("1")
         source_effort_reason = ""
+        minimum_point_value = None
 
         if source_effort_profile is not None:
             access_requirement_multiplier = source_effort_profile.access_requirement_multiplier
             source_difficulty_multiplier = source_effort_profile.source_difficulty_multiplier
             source_effort_reason = source_effort_profile.reason
+            minimum_point_value = source_effort_profile.minimum_point_value
             effort_kwargs = {
                 "access_requirement_multiplier": access_requirement_multiplier,
                 "source_difficulty_multiplier": source_difficulty_multiplier,
@@ -141,6 +178,10 @@ def iter_group_unique_effort_preview_rows(drop_group, max_target=5):
             drop_group,
             target,
             **effort_kwargs,
+        )
+
+        raw_suggested_point_value = suggest_drop_tile_point_value(
+            effort.total_effort
         )
 
         yield DropTileEffortPreviewRow(
@@ -156,9 +197,12 @@ def iter_group_unique_effort_preview_rows(drop_group, max_target=5):
             target=target,
             expected_rolls=effort.expected_rolls,
             total_effort=effort.total_effort,
-            suggested_point_value=suggest_drop_tile_point_value(
-                effort.total_effort
+            suggested_point_value=apply_minimum_point_value(
+                raw_suggested_point_value,
+                minimum_point_value,
             ),
+            raw_suggested_point_value=raw_suggested_point_value,
+            minimum_point_value=minimum_point_value,
             parseable=effort.parseable,
             reason=effort.reason,
             access_requirement_multiplier=access_requirement_multiplier,
@@ -207,6 +251,10 @@ def iter_specific_drop_effort_preview_rows(
             source_difficulty_multiplier=source_effort_profile.source_difficulty_multiplier,
         )
 
+        raw_suggested_point_value = suggest_drop_tile_point_value(
+            effort.total_effort
+        )
+
         yield DropTileEffortPreviewRow(
             tile_mode=DROP_TILE_EFFORT_MODE_SPECIFIC_DROP,
             drop_group_id=drop_group.drop_group_id,
@@ -218,9 +266,12 @@ def iter_specific_drop_effort_preview_rows(
             drop_rate=drop_rate,
             expected_rolls=effort.expected_rolls,
             total_effort=effort.total_effort,
-            suggested_point_value=suggest_drop_tile_point_value(
-                effort.total_effort
+            suggested_point_value=apply_minimum_point_value(
+                raw_suggested_point_value,
+                source_effort_profile.minimum_point_value,
             ),
+            raw_suggested_point_value=raw_suggested_point_value,
+            minimum_point_value=source_effort_profile.minimum_point_value,
             parseable=effort.parseable,
             reason=effort.reason,
             access_requirement_multiplier=source_effort_profile.access_requirement_multiplier,

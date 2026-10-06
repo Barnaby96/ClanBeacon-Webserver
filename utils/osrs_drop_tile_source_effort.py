@@ -11,10 +11,43 @@ class DropTileSourceEffortProfile:
     source_id: str
     access_requirement_multiplier: Decimal = DEFAULT_SOURCE_ACCESS_REQUIREMENT_MULTIPLIER
     source_difficulty_multiplier: Decimal = DEFAULT_SOURCE_DIFFICULTY_MULTIPLIER
+    minimum_point_value: int | None = None
     reason: str = ""
 
 
 CURATED_DROP_TILE_SOURCE_EFFORT_PROFILES = {
+    "wilderness_multi_source": DropTileSourceEffortProfile(
+        source_id="wilderness_multi_source",
+        access_requirement_multiplier=Decimal("1.5"),
+        source_difficulty_multiplier=Decimal("2"),
+        minimum_point_value=2,
+        reason="Wilderness drop groups carry PvP risk, travel friction, and multi-source planning constraints.",
+    ),
+    "chaos_fanatic": DropTileSourceEffortProfile(
+        source_id="chaos_fanatic",
+        access_requirement_multiplier=Decimal("1.25"),
+        source_difficulty_multiplier=Decimal("1.5"),
+        reason="Wilderness boss drops carry PvP risk and travel friction.",
+    ),
+    "crazy_archaeologist": DropTileSourceEffortProfile(
+        source_id="crazy_archaeologist",
+        access_requirement_multiplier=Decimal("1.25"),
+        source_difficulty_multiplier=Decimal("1.25"),
+        reason="Wilderness boss drops carry PvP risk and travel friction.",
+    ),
+    "scorpia": DropTileSourceEffortProfile(
+        source_id="scorpia",
+        access_requirement_multiplier=Decimal("1.5"),
+        source_difficulty_multiplier=Decimal("1.75"),
+        reason="Wilderness boss drops carry PvP risk and deeper Wilderness travel friction.",
+    ),
+    "superior_slayer_monster": DropTileSourceEffortProfile(
+        source_id="superior_slayer_monster",
+        access_requirement_multiplier=Decimal("2"),
+        source_difficulty_multiplier=Decimal("1.5"),
+        minimum_point_value=4,
+        reason="Superior Slayer drops require Slayer access, task availability, and superior spawn RNG.",
+    ),
     "corporeal_beast": DropTileSourceEffortProfile(
         source_id="corporeal_beast",
         access_requirement_multiplier=Decimal("1.5"),

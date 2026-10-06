@@ -199,3 +199,56 @@ def test_drop_tile_effort_preview_applies_boss_source_effort():
     assert vorkath_row.source_difficulty_multiplier_display == "1.5"
     assert "quest access" in vorkath_row.source_effort_reason
     assert vorkath_row.suggested_point_value >= 3
+
+
+def test_drop_tile_effort_preview_applies_wilderness_and_superior_slayer_effort():
+    rows = build_drop_tile_effort_preview_rows()
+
+    wilderness_row = next(
+        row
+        for row in rows
+        if row.drop_group_id == "wilderness_unique"
+        and row.tile_mode == DROP_TILE_EFFORT_MODE_GROUP_UNIQUES
+        and row.target == 1
+    )
+    superior_row = next(
+        row
+        for row in rows
+        if row.source_id == "superior_slayer_monster"
+        and row.tile_mode == DROP_TILE_EFFORT_MODE_GROUP_UNIQUES
+        and row.target == 1
+    )
+
+    assert wilderness_row.access_requirement_multiplier_display == "1.5"
+    assert wilderness_row.source_difficulty_multiplier_display == "2"
+    assert "PvP risk" in wilderness_row.source_effort_reason
+
+    assert superior_row.access_requirement_multiplier_display == "2"
+    assert superior_row.source_difficulty_multiplier_display == "1.5"
+    assert "superior spawn RNG" in superior_row.source_effort_reason
+
+
+def test_drop_tile_effort_preview_applies_minimum_point_floors():
+    rows = build_drop_tile_effort_preview_rows()
+
+    wilderness_row = next(
+        row
+        for row in rows
+        if row.drop_group_id == "wilderness_unique"
+        and row.tile_mode == DROP_TILE_EFFORT_MODE_GROUP_UNIQUES
+        and row.target == 1
+    )
+    superior_row = next(
+        row
+        for row in rows
+        if row.source_id == "superior_slayer_monster"
+        and row.tile_mode == DROP_TILE_EFFORT_MODE_GROUP_UNIQUES
+        and row.target == 1
+    )
+
+    assert wilderness_row.raw_suggested_point_value == 1
+    assert wilderness_row.minimum_point_value == 2
+    assert wilderness_row.suggested_point_value == 2
+
+    assert superior_row.minimum_point_value == 4
+    assert superior_row.suggested_point_value >= 4
