@@ -15,6 +15,42 @@ class DropTileSourceEffortProfile:
 
 
 CURATED_DROP_TILE_SOURCE_EFFORT_PROFILES = {
+    "alchemical_hydra": DropTileSourceEffortProfile(
+        source_id="alchemical_hydra",
+        access_requirement_multiplier=Decimal("2"),
+        source_difficulty_multiplier=Decimal("1.5"),
+        reason="Slayer boss drops require Slayer access, task availability, and boss-specific combat capability.",
+    ),
+    "araxxor": DropTileSourceEffortProfile(
+        source_id="araxxor",
+        access_requirement_multiplier=Decimal("2"),
+        source_difficulty_multiplier=Decimal("1.75"),
+        reason="Slayer boss drops require Slayer access, task availability, and boss-specific combat capability.",
+    ),
+    "cerberus": DropTileSourceEffortProfile(
+        source_id="cerberus",
+        access_requirement_multiplier=Decimal("2"),
+        source_difficulty_multiplier=Decimal("1.5"),
+        reason="Slayer boss drops require Slayer access, task availability, and boss-specific combat capability.",
+    ),
+    "grotesque_guardians": DropTileSourceEffortProfile(
+        source_id="grotesque_guardians",
+        access_requirement_multiplier=Decimal("2"),
+        source_difficulty_multiplier=Decimal("1.4"),
+        reason="Slayer boss drops require Slayer access, task availability, and boss-specific combat capability.",
+    ),
+    "kraken": DropTileSourceEffortProfile(
+        source_id="kraken",
+        access_requirement_multiplier=Decimal("2"),
+        source_difficulty_multiplier=Decimal("1.25"),
+        reason="Slayer boss drops require Slayer access and task availability.",
+    ),
+    "thermonuclear_smoke_devil": DropTileSourceEffortProfile(
+        source_id="thermonuclear_smoke_devil",
+        access_requirement_multiplier=Decimal("2"),
+        source_difficulty_multiplier=Decimal("1.25"),
+        reason="Slayer boss drops require Slayer access and task availability.",
+    ),
     "unsired": DropTileSourceEffortProfile(
         source_id="unsired",
         access_requirement_multiplier=Decimal("2"),

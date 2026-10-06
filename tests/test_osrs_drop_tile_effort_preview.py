@@ -140,3 +140,33 @@ def test_drop_tile_effort_preview_exposes_source_effort_reason():
     assert quiver.access_requirement_multiplier_display == "5"
     assert quiver.source_difficulty_multiplier_display == "500"
     assert "Wave 12" in quiver.source_effort_reason
+
+
+def test_drop_tile_effort_preview_applies_slayer_boss_source_effort():
+    rows = build_drop_tile_effort_preview_rows()
+
+    hydra_leather = next(
+        row
+        for row in rows
+        if row.drop_group_id == "alchemical_hydra_unique"
+        and row.tile_mode == DROP_TILE_EFFORT_MODE_SPECIFIC_DROP
+        and row.drop_name == "Hydra leather"
+    )
+
+    araxxor_one_unique = next(
+        row
+        for row in rows
+        if row.drop_group_id == "araxxor_uniques"
+        and row.tile_mode == DROP_TILE_EFFORT_MODE_GROUP_UNIQUES
+        and row.target == 1
+    )
+
+    assert hydra_leather.access_requirement_multiplier_display == "2"
+    assert hydra_leather.source_difficulty_multiplier_display == "1.5"
+    assert "Slayer" in hydra_leather.source_effort_reason
+    assert hydra_leather.suggested_point_value >= 4
+
+    assert araxxor_one_unique.access_requirement_multiplier_display == "2"
+    assert araxxor_one_unique.source_difficulty_multiplier_display == "1.75"
+    assert "Slayer" in araxxor_one_unique.source_effort_reason
+    assert araxxor_one_unique.suggested_point_value >= 2
