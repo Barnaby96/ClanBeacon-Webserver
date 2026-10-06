@@ -16,6 +16,48 @@ class DropTileSourceEffortProfile:
 
 
 CURATED_DROP_TILE_SOURCE_EFFORT_PROFILES = {
+    "hallowed_sepulchre": DropTileSourceEffortProfile(
+        source_id="hallowed_sepulchre",
+        access_requirement_multiplier=Decimal("1.5"),
+        source_difficulty_multiplier=Decimal("1.25"),
+        reason="Hallowed Sepulchre uniques require activity access and higher-movement skilling execution.",
+    ),
+    "lunar_chest": DropTileSourceEffortProfile(
+        source_id="lunar_chest",
+        access_requirement_multiplier=Decimal("1.25"),
+        source_difficulty_multiplier=Decimal("1.25"),
+        reason="Lunar Chest uniques require Varlamore activity access and repeated boss-style chest rolls.",
+    ),
+    "royal_titans": DropTileSourceEffortProfile(
+        source_id="royal_titans",
+        access_requirement_multiplier=Decimal("1.25"),
+        source_difficulty_multiplier=Decimal("1.5"),
+        reason="Royal Titans uniques require boss-specific combat capability and repeated boss kills.",
+    ),
+    "sarachnis": DropTileSourceEffortProfile(
+        source_id="sarachnis",
+        access_requirement_multiplier=Decimal("1"),
+        source_difficulty_multiplier=Decimal("1.25"),
+        reason="Sarachnis uniques require midgame bossing capability rather than neutral-effort collection.",
+    ),
+    "skotizo": DropTileSourceEffortProfile(
+        source_id="skotizo",
+        access_requirement_multiplier=Decimal("1.25"),
+        source_difficulty_multiplier=Decimal("1.5"),
+        reason="Skotizo uniques are gated by totem access and boss completion.",
+    ),
+    "sulphur_nagua": DropTileSourceEffortProfile(
+        source_id="sulphur_nagua",
+        access_requirement_multiplier=Decimal("1"),
+        source_difficulty_multiplier=Decimal("1.25"),
+        reason="Sulphur Nagua drops require dedicated combat farming rather than passive collection.",
+    ),
+    "the_hueycoatl": DropTileSourceEffortProfile(
+        source_id="the_hueycoatl",
+        access_requirement_multiplier=Decimal("1.25"),
+        source_difficulty_multiplier=Decimal("1.25"),
+        reason="Hueycoatl uniques require boss-specific access and repeated boss kills.",
+    ),
     "zalcano": DropTileSourceEffortProfile(
         source_id="zalcano",
         access_requirement_multiplier=Decimal("1.5"),

@@ -269,3 +269,41 @@ def test_drop_tile_effort_preview_applies_zalcano_source_effort():
     assert zalcano_row.source_difficulty_multiplier_display == "1.5"
     assert "Song of the Elves" in zalcano_row.source_effort_reason
     assert zalcano_row.suggested_point_value >= 3
+
+
+def test_drop_tile_effort_preview_applies_midgame_source_effort():
+    rows = build_drop_tile_effort_preview_rows()
+
+    royal_titans_row = next(
+        row
+        for row in rows
+        if row.source_id == "royal_titans"
+        and row.tile_mode == DROP_TILE_EFFORT_MODE_GROUP_UNIQUES
+        and row.target == 1
+    )
+    hallowed_row = next(
+        row
+        for row in rows
+        if row.source_id == "hallowed_sepulchre"
+        and row.tile_mode == DROP_TILE_EFFORT_MODE_GROUP_UNIQUES
+        and row.target == 1
+    )
+    lunar_row = next(
+        row
+        for row in rows
+        if row.source_id == "lunar_chest"
+        and row.tile_mode == DROP_TILE_EFFORT_MODE_GROUP_UNIQUES
+        and row.target == 1
+    )
+
+    assert royal_titans_row.access_requirement_multiplier_display == "1.25"
+    assert royal_titans_row.source_difficulty_multiplier_display == "1.5"
+    assert "boss-specific" in royal_titans_row.source_effort_reason
+
+    assert hallowed_row.access_requirement_multiplier_display == "1.5"
+    assert hallowed_row.source_difficulty_multiplier_display == "1.25"
+    assert "activity access" in hallowed_row.source_effort_reason
+
+    assert lunar_row.access_requirement_multiplier_display == "1.25"
+    assert lunar_row.source_difficulty_multiplier_display == "1.25"
+    assert "Varlamore" in lunar_row.source_effort_reason

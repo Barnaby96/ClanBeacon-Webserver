@@ -99,3 +99,27 @@ def test_zalcano_source_effort_profile_accounts_for_song_of_the_elves_access():
     assert profile.source_difficulty_multiplier == Decimal("1.5")
     assert "Song of the Elves" in profile.reason
     assert "Prifddinas" in profile.reason
+
+
+def test_midgame_source_effort_profiles_apply_modest_weighting():
+    royal_titans = get_drop_tile_source_effort_profile(
+        "royal_titans"
+    )
+    hallowed_sepulchre = get_drop_tile_source_effort_profile(
+        "hallowed_sepulchre"
+    )
+    lunar_chest = get_drop_tile_source_effort_profile(
+        "lunar_chest"
+    )
+
+    assert royal_titans.access_requirement_multiplier == Decimal("1.25")
+    assert royal_titans.source_difficulty_multiplier == Decimal("1.5")
+    assert "boss-specific" in royal_titans.reason
+
+    assert hallowed_sepulchre.access_requirement_multiplier == Decimal("1.5")
+    assert hallowed_sepulchre.source_difficulty_multiplier == Decimal("1.25")
+    assert "activity access" in hallowed_sepulchre.reason
+
+    assert lunar_chest.access_requirement_multiplier == Decimal("1.25")
+    assert lunar_chest.source_difficulty_multiplier == Decimal("1.25")
+    assert "Varlamore" in lunar_chest.reason
