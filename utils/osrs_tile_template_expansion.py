@@ -1340,3 +1340,4 @@ def get_static_metric_candidates():
     return tuple(
         candidates
     )
+
