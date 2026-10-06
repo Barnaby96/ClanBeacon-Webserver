@@ -122,7 +122,7 @@ def test_static_killcount_candidates_cover_each_point_tier():
         "Complete 400 Zulrah KC",
         "Complete 25 Vorkath KC",
         "Complete 400 Vorkath KC",
-        "Complete 25 Giant Mole KC",
+        "Complete 50 Giant Mole KC",
         "Complete 500 Scurrius KC",
     }
 
@@ -993,3 +993,4 @@ def test_zulrah_single_unique_route_uses_any_unique_expected_rolls():
     assert candidate.routes[0].expected_rolls < Decimal(
         "512"
     )
+

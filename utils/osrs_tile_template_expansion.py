@@ -607,11 +607,11 @@ STATIC_KILLCOUNT_TEMPLATES = (
         source_name="Giant Mole",
         boss_id="giant_mole",
         target_by_point_value={
-            1: 25,
-            2: 75,
-            3: 150,
-            4: 250,
-            5: 400,
+            1: 50,
+            2: 150,
+            3: 300,
+            4: 500,
+            5: 800,
         },
         explanation=(
             "Prototype fallback source; access profile to be added later.",

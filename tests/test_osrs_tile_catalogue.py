@@ -1,4 +1,4 @@
-﻿from utils.osrs_pets import get_osrs_pet_options
+from utils.osrs_pets import get_osrs_pet_options
 from utils.osrs_tile_template_expansion import (
     STATIC_DROP_TEMPLATES,
     STATIC_KILLCOUNT_TEMPLATES,
@@ -296,7 +296,7 @@ def test_curated_tile_generation_candidates_expand_killcount_templates():
         "Complete 400 Zulrah KC",
         "Complete 25 Vorkath KC",
         "Complete 400 Vorkath KC",
-        "Complete 25 Giant Mole KC",
+        "Complete 50 Giant Mole KC",
         "Complete 500 Scurrius KC",
     }
 
@@ -631,3 +631,4 @@ def test_curated_tile_generation_board_uses_one_primary_pet_tile_by_default():
     ]
 
     assert len(primary_pet_tiles) == 1
+
