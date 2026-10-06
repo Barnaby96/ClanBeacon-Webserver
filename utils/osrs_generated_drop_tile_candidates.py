@@ -55,7 +55,13 @@ def is_supported_generated_drop_effort_row(row):
 
 
 def format_generated_group_drop_title(row):
-    return f"Obtain {row.target} {row.display_name}"
+    target = generated_drop_target_for_row(row)
+    display_name = row.display_name
+
+    if target == 1 and display_name.endswith(" Uniques"):
+        display_name = f"{display_name[:-8]} Unique"
+
+    return f"Obtain {target} {display_name}"
 
 
 def format_generated_specific_drop_title(row):

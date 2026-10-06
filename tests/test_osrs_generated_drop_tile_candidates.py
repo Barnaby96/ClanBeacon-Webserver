@@ -93,3 +93,15 @@ def test_build_generated_drop_tile_candidates_filters_unsupported_rows():
     assert len(candidates) == 1
     assert candidates[0].title == "Obtain 1 Zulrah uniques"
 
+
+
+def test_build_generated_group_drop_tile_candidate_singularises_uniques():
+    candidate = build_generated_drop_tile_candidate(
+        make_row(
+            display_name="Phantom Muspah Uniques",
+            target=1,
+        )
+    )
+
+    assert candidate.title == "Obtain 1 Phantom Muspah Unique"
+    assert candidate.routes[0].display_text == "Obtain 1 Phantom Muspah Unique"
