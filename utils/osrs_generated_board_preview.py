@@ -2,6 +2,8 @@
 
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+import hashlib
+import json
 
 from utils.board_generation import BoardAssemblyError, assemble_board_candidates
 from utils.osrs_tile_capability_assessment import (
@@ -50,9 +52,46 @@ def build_capability_candidate_order_key(capability_profiles):
 
     return candidate_order_key
 
+def build_generated_board_candidate_key(candidate):
+    payload = {
+        "point_value": candidate.point_value,
+        "primary_category": (
+            candidate.primary_category.value
+            if candidate.primary_category is not None
+            else None
+        ),
+        "title": candidate.title,
+        "routes": [
+            {
+                "route_type": route.route_type.value,
+                "display_text": route.display_text,
+                "target": route.target,
+                "source_id": route.source_id,
+                "metric_id": route.metric_id,
+                "skill_id": route.skill_id,
+                "boss_id": route.boss_id,
+                "drop_id": route.drop_id,
+                "drop_group_id": route.drop_group_id,
+                "pet_id": route.pet_id,
+            }
+            for route in candidate.routes
+        ],
+        "hard_unique_tags": sorted(
+            candidate.all_hard_unique_tags
+        ),
+    }
+
+    return hashlib.sha256(
+        json.dumps(
+            payload,
+            sort_keys=True,
+            default=str,
+        ).encode("utf-8")
+    ).hexdigest()
 
 @dataclass(frozen=True)
 class GeneratedBoardPreviewRow:
+    tile_key: str
     point_value: int
     category: str
     title: str
@@ -89,6 +128,7 @@ def build_generated_board_preview_row(
         )
 
     return GeneratedBoardPreviewRow(
+        tile_key=build_generated_board_candidate_key(candidate),
         point_value=candidate.point_value,
         category=candidate.primary_category.value,
         title=candidate.title,
@@ -183,8 +223,65 @@ def build_generated_board_preview_summary(
     )
 
 
+def get_candidate_by_generated_board_key(candidates):
+    return {
+        build_generated_board_candidate_key(candidate): candidate
+        for candidate in candidates
+    }
+
+
+def build_filtered_generation_candidates(
+    candidates,
+    kept_tile_keys=(),
+    banned_tile_keys=(),
+):
+    kept_tile_keys = frozenset(kept_tile_keys or ())
+    banned_tile_keys = frozenset(banned_tile_keys or ()) - kept_tile_keys
+
+    return tuple(
+        candidate
+        for candidate in candidates
+        if build_generated_board_candidate_key(candidate) not in banned_tile_keys
+    )
+
+
+def get_preselected_generation_candidates(
+    candidates,
+    kept_tile_keys=(),
+):
+    candidate_by_key = get_candidate_by_generated_board_key(
+        candidates
+    )
+
+    return tuple(
+        candidate_by_key[tile_key]
+        for tile_key in kept_tile_keys or ()
+        if tile_key in candidate_by_key
+    )
+
+
+def assemble_preview_board(
+    generation_candidates,
+    candidate_order_key=None,
+    preselected_candidates=(),
+):
+    kwargs = {
+        "candidate_order_key": candidate_order_key,
+    }
+
+    if preselected_candidates:
+        kwargs["preselected_candidates"] = preselected_candidates
+
+    return assemble_board_candidates(
+        generation_candidates,
+        **kwargs,
+    )
+
+
 def get_curated_generated_board_preview_summary(
     capability_profiles=None,
+    kept_tile_keys=(),
+    banned_tile_keys=(),
 ):
     candidate_order_key = None
     capability_ordering_applied = False
@@ -198,11 +295,21 @@ def get_curated_generated_board_preview_summary(
         capability_ordering_applied = True
 
     generation_candidates = get_curated_tile_generation_candidates()
+    preselected_candidates = get_preselected_generation_candidates(
+        generation_candidates,
+        kept_tile_keys=kept_tile_keys,
+    )
+    generation_candidates = build_filtered_generation_candidates(
+        generation_candidates,
+        kept_tile_keys=kept_tile_keys,
+        banned_tile_keys=banned_tile_keys,
+    )
 
     try:
-        board = assemble_board_candidates(
+        board = assemble_preview_board(
             generation_candidates,
             candidate_order_key=candidate_order_key,
+            preselected_candidates=preselected_candidates,
         )
     except BoardAssemblyError as error:
         if candidate_order_key is None:
@@ -211,8 +318,9 @@ def get_curated_generated_board_preview_summary(
         capability_ordering_fell_back = True
         capability_ordering_fallback_reason = str(error)
 
-        board = assemble_board_candidates(
+        board = assemble_preview_board(
             generation_candidates,
+            preselected_candidates=preselected_candidates,
         )
 
     return build_generated_board_preview_summary(
@@ -222,3 +330,4 @@ def get_curated_generated_board_preview_summary(
         capability_ordering_fell_back=capability_ordering_fell_back,
         capability_ordering_fallback_reason=capability_ordering_fallback_reason,
     )
+

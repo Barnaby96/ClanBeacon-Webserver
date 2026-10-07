@@ -113,6 +113,16 @@
             </div>
         </section>
 
+        <form method="post">
+            <div class="osrs-form-actions">
+                <button
+                    type="submit"
+                    class="osrs-button"
+                >
+                    Reroll unkept tiles
+                </button>
+            </div>
+
         {% for point_value, rows in summary.rows_by_point_value|dictsort %}
             <section class="osrs-panel">
                 <header class="osrs-panel-header">
@@ -130,6 +140,7 @@
                         <table class="osrs-table">
                             <thead>
                                 <tr>
+                                    <th>Keep</th>
                                     <th>Category</th>
                                     <th>Tile</th>
                                     <th>Routes</th>
@@ -141,6 +152,20 @@
                             <tbody>
                                 {% for row in rows %}
                                     <tr>
+                                        <td>
+                                            <input
+                                                type="hidden"
+                                                name="current_tile_key"
+                                                value="{{ row.tile_key }}"
+                                            >
+                                            <input
+                                                type="checkbox"
+                                                name="kept_tile_key"
+                                                value="{{ row.tile_key }}"
+                                                {% if row.tile_key in kept_tile_keys %}checked{% endif %}
+                                            >
+                                        </td>
+
                                         <td>{{ row.category }}</td>
 
                                         <td>
@@ -198,6 +223,16 @@
                 </div>
             </section>
         {% endfor %}
+
+            <div class="osrs-form-actions">
+                <button
+                    type="submit"
+                    class="osrs-button"
+                >
+                    Reroll unkept tiles
+                </button>
+            </div>
+        </form>
     </main>
 </div>
 {% endblock %}

@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 
 from utils.board_generation import (
     AccessConfidence,
@@ -962,3 +962,100 @@ def test_default_board_generation_rules_cap_primary_pet_tiles_at_one():
     assert rules.primary_pet_tiles_min == 1
     assert rules.primary_pet_tiles_target == 1
     assert rules.primary_pet_tiles_max == 1
+
+def test_assemble_board_candidates_preserves_preselected_candidate():
+    rules = BoardGenerationRules(
+        board_size=2,
+        points_distribution={
+            1: 2,
+        },
+        required_categories_by_point={
+            1: (
+                TileCategory.SKILL,
+            ),
+        },
+        flex_slots_by_point={
+            1: 1,
+        },
+        primary_pet_tiles_min=0,
+        primary_pet_tiles_target=0,
+        primary_pet_tiles_max=0,
+        secondary_pet_routes_min=0,
+        secondary_pet_routes_target=0,
+        secondary_pet_routes_max=0,
+    )
+
+    kept_candidate = make_assembly_candidate(
+        1,
+        TileCategory.SKILL,
+        "kept",
+    )
+    filler_candidate = make_assembly_candidate(
+        1,
+        TileCategory.KILLCOUNT,
+        "filler",
+    )
+
+    board = assemble_board_candidates(
+        (
+            kept_candidate,
+            filler_candidate,
+        ),
+        rules=rules,
+        preselected_candidates=(
+            kept_candidate,
+        ),
+    )
+
+    assert board.candidates[0] == kept_candidate
+    assert board.candidates == (
+        kept_candidate,
+        filler_candidate,
+    )
+
+
+def test_assemble_board_candidates_rejects_conflicting_preselected_candidates():
+    rules = BoardGenerationRules(
+        board_size=2,
+        points_distribution={
+            1: 2,
+        },
+        required_categories_by_point={},
+        flex_slots_by_point={
+            1: 2,
+        },
+        primary_pet_tiles_min=0,
+        primary_pet_tiles_target=0,
+        primary_pet_tiles_max=0,
+        secondary_pet_routes_min=0,
+        secondary_pet_routes_target=0,
+        secondary_pet_routes_max=0,
+    )
+
+    first_candidate = make_assembly_candidate(
+        1,
+        TileCategory.SKILL,
+        "same_source",
+    )
+    second_candidate = make_assembly_candidate(
+        1,
+        TileCategory.SKILL,
+        "same_source",
+    )
+
+    with pytest.raises(
+        BoardAssemblyError,
+        match="Preselected tile conflicts",
+    ):
+        assemble_board_candidates(
+            (
+                first_candidate,
+                second_candidate,
+            ),
+            rules=rules,
+            preselected_candidates=(
+                first_candidate,
+                second_candidate,
+            ),
+        )
+

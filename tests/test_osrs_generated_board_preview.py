@@ -4,6 +4,9 @@ from utils.osrs_capability_profiles import (
 )
 from utils.osrs_generated_board_preview import (
     build_capability_candidate_order_key,
+    build_filtered_generation_candidates,
+    build_generated_board_candidate_key,
+    get_curated_generated_board_preview_summary,
     build_generated_board_preview_summary,
     get_curated_generated_board_preview_summary,
 )
@@ -273,3 +276,112 @@ def test_generated_board_preview_summary_marks_capability_ordering_applied(monke
     assert summary.capability_ordering_applied is True
     assert summary.capability_ordering_fell_back is False
     assert summary.capability_ordering_fallback_reason is None
+
+
+def test_generated_board_candidate_key_is_stable():
+    candidate = next(
+        candidate
+        for candidate in get_curated_tile_generation_candidates()
+        if candidate.title == "Complete 800 Giant Mole KC"
+    )
+
+    assert build_generated_board_candidate_key(candidate) == (
+        build_generated_board_candidate_key(candidate)
+    )
+    assert len(build_generated_board_candidate_key(candidate)) == 64
+
+
+def test_generated_board_candidate_key_distinguishes_point_tiers():
+    candidates = get_curated_tile_generation_candidates()
+
+    lower_tier = next(
+        candidate
+        for candidate in candidates
+        if candidate.title == "Complete 500 Giant Mole KC"
+    )
+    higher_tier = next(
+        candidate
+        for candidate in candidates
+        if candidate.title == "Complete 800 Giant Mole KC"
+    )
+
+    assert build_generated_board_candidate_key(lower_tier) != (
+        build_generated_board_candidate_key(higher_tier)
+    )
+
+
+def test_generated_board_preview_rows_include_tile_key():
+    summary = get_curated_generated_board_preview_summary()
+    row = next(iter(summary.rows_by_point_value.values()))[0]
+
+    assert row.tile_key
+    assert len(row.tile_key) == 64
+
+
+def test_build_filtered_generation_candidates_bans_exact_tile_key_only():
+    candidates = tuple(
+        candidate
+        for candidate in get_curated_tile_generation_candidates()
+        if candidate.title in {
+            "Complete 500 Giant Mole KC",
+            "Complete 800 Giant Mole KC",
+        }
+    )
+
+    banned_key = build_generated_board_candidate_key(
+        next(
+            candidate
+            for candidate in candidates
+            if candidate.title == "Complete 800 Giant Mole KC"
+        )
+    )
+
+    filtered = build_filtered_generation_candidates(
+        candidates,
+        banned_tile_keys=(
+            banned_key,
+        ),
+    )
+
+    assert {
+        candidate.title
+        for candidate in filtered
+    } == {
+        "Complete 500 Giant Mole KC",
+    }
+
+
+def test_reroll_summary_keeps_selected_tile_and_excludes_unkept_exact_tile():
+    first_summary = get_curated_generated_board_preview_summary()
+
+    first_rows = tuple(
+        row
+        for rows in first_summary.rows_by_point_value.values()
+        for row in rows
+    )
+
+    kept_row = first_rows[0]
+    banned_row = first_rows[1]
+
+    rerolled_summary = get_curated_generated_board_preview_summary(
+        kept_tile_keys=(
+            kept_row.tile_key,
+        ),
+        banned_tile_keys=(
+            banned_row.tile_key,
+        ),
+    )
+
+    rerolled_rows = tuple(
+        row
+        for rows in rerolled_summary.rows_by_point_value.values()
+        for row in rows
+    )
+
+    rerolled_keys = {
+        row.tile_key
+        for row in rerolled_rows
+    }
+
+    assert kept_row.tile_key in rerolled_keys
+    assert banned_row.tile_key not in rerolled_keys

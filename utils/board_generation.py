@@ -838,14 +838,55 @@ def ordered_slot_candidates(
     return indexed_candidates
 
 
-def assemble_board_candidates(candidates, rules=None, candidate_order_key=None):
+def assemble_board_candidates(candidates, rules=None, candidate_order_key=None, preselected_candidates=()):
     if rules is None:
         rules = BoardGenerationRules()
 
     remaining_candidates = list(candidates)
     selected_candidates = []
     used_tags = frozenset()
-    slots = rules.build_slots()
+    slots = list(rules.build_slots())
+
+    for preselected_candidate in preselected_candidates:
+        slot_index = next(
+            (
+                index
+                for index, slot in enumerate(slots)
+                if slot.matches_candidate(preselected_candidate)
+            ),
+            None,
+        )
+
+        if slot_index is None:
+            raise BoardAssemblyError(
+                f"Could not fit preselected tile {preselected_candidate.title}."
+            )
+
+        if find_conflicting_tags(preselected_candidate, used_tags):
+            raise BoardAssemblyError(
+                f"Preselected tile conflicts with another kept tile: "
+                f"{preselected_candidate.title}."
+            )
+
+        used_tags = reserve_candidate_tags(
+            preselected_candidate,
+            used_tags
+        )
+        selected_candidates.append(
+            preselected_candidate
+        )
+        slots.pop(
+            slot_index
+        )
+
+        for candidate_index, candidate in enumerate(tuple(remaining_candidates)):
+            if candidate == preselected_candidate:
+                remaining_candidates.pop(
+                    candidate_index
+                )
+                break
+
+    slots = tuple(slots)
 
     for slot_index, slot in enumerate(slots):
         selected_candidate = None

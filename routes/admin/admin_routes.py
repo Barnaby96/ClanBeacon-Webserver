@@ -1149,15 +1149,44 @@ def drop_tile_effort_preview():
     )
 
 
-@admin_routes.route('/bingo_setup/generated_board_preview', methods=['GET'])
+@admin_routes.route('/bingo_setup/generated_board_preview', methods=['GET', 'POST'])
 @admin_required
 def generated_board_preview():
     capability_result = get_current_roster_capability_profiles()
+
+    current_tile_keys = ()
+    kept_tile_keys = ()
+    banned_tile_keys = ()
+
+    if request.method == 'POST':
+        current_tile_keys = tuple(
+            request.form.getlist(
+                'current_tile_key'
+            )
+        )
+        kept_tile_keys = tuple(
+            request.form.getlist(
+                'kept_tile_key'
+            )
+        )
+        kept_tile_key_set = set(
+            kept_tile_keys
+        )
+        banned_tile_keys = tuple(
+            tile_key
+            for tile_key in current_tile_keys
+            if tile_key not in kept_tile_key_set
+        )
 
     return render_template(
         'admin_templates/generated_board_preview.html',
         summary=get_curated_generated_board_preview_summary(
             capability_profiles=capability_result.profile_set,
+            kept_tile_keys=kept_tile_keys,
+            banned_tile_keys=banned_tile_keys,
+        ),
+        kept_tile_keys=set(
+            kept_tile_keys
         ),
     )
 
