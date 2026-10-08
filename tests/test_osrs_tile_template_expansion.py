@@ -1,6 +1,10 @@
 import pytest
 
-from utils.board_generation import TileCategory, TrackingSource
+from utils.board_generation import (
+    RouteMode,
+    TileCategory,
+    TrackingSource,
+)
 from utils.osrs_tile_template_expansion import (
     DropTileTemplate,
     KillcountTileTemplate,
@@ -125,6 +129,18 @@ def test_static_killcount_candidates_cover_each_point_tier():
         "Complete 50 Giant Mole KC",
         "Complete 500 Scurrius KC",
     }
+
+
+def test_static_killcount_candidates_use_exact_wom_metrics():
+    candidates = get_static_killcount_candidates()
+
+    assert candidates
+
+    for candidate in candidates:
+        route = candidate.routes[0]
+
+        assert route.tracking_source == TrackingSource.WOM
+        assert route.metric_id == route.boss_id
 
 
 def test_expand_drop_template_builds_point_variants():
@@ -301,6 +317,29 @@ def test_static_skill_xp_candidates_cover_each_point_tier():
     }
 
 
+def test_static_skill_xp_candidates_use_exact_wom_metrics():
+    candidates = get_static_skill_xp_candidates()
+
+    candidate_by_title = {
+        candidate.title: candidate
+        for candidate in candidates
+    }
+
+    expected_metrics = {
+        "Gain 250,000 Cooking XP": "cooking",
+        "Gain 250,000 Runecraft XP": "runecrafting",
+        "Gain 250,000 Sailing XP": "sailing",
+    }
+
+    for title, expected_metric in expected_metrics.items():
+        candidate = candidate_by_title[title]
+
+        assert candidate.route_mode == RouteMode.SINGLE
+        assert len(candidate.routes) == 1
+        assert candidate.routes[0].tracking_source == TrackingSource.WOM
+        assert candidate.routes[0].metric_id == expected_metric
+
+
 def test_expand_metric_template_builds_wom_activity_candidates():
     template = MetricTileTemplate(
         display_name="medium-or-harder clue scrolls",
@@ -337,6 +376,74 @@ def test_expand_metric_template_builds_wom_activity_candidates():
         "activity_group:clue_scrolls" in candidate.all_hard_unique_tags
         for candidate in candidates
     )
+
+
+def test_medium_plus_clue_candidate_sums_real_wom_metrics():
+    candidates = get_static_metric_candidates()
+
+    candidate = next(
+        candidate
+        for candidate in candidates
+        if candidate.title
+        == "Complete 10 medium-or-harder clue scrolls"
+    )
+
+    assert candidate.route_mode == RouteMode.SUM
+
+    assert tuple(
+        route.metric_id
+        for route in candidate.routes
+    ) == (
+        "clue_scrolls_medium",
+        "clue_scrolls_hard",
+        "clue_scrolls_elite",
+        "clue_scrolls_master",
+    )
+
+    assert all(
+        route.tracking_source == TrackingSource.WOM
+        for route in candidate.routes
+    )
+
+    assert tuple(
+        route.target
+        for route in candidate.routes
+    ) == (
+        10,
+        10,
+        10,
+        10,
+    )
+
+
+def test_static_activity_candidates_use_exact_wom_metrics():
+    candidates = get_static_metric_candidates()
+
+    expected_metrics = {
+        "Complete 25 Guardians of the Rift completions":
+            "guardians_of_the_rift",
+        "Complete 25 Tempoross completions":
+            "tempoross",
+        "Complete 25 Wintertodt kills":
+            "wintertodt",
+        "Complete 5 hard clue scrolls":
+            "clue_scrolls_hard",
+        "Complete 2 elite clue scrolls":
+            "clue_scrolls_elite",
+    }
+
+    candidate_by_title = {
+        candidate.title: candidate
+        for candidate in candidates
+    }
+
+    for title, expected_metric in expected_metrics.items():
+        candidate = candidate_by_title[title]
+
+        assert candidate.route_mode == RouteMode.SINGLE
+        assert len(candidate.routes) == 1
+        assert candidate.routes[0].tracking_source == TrackingSource.WOM
+        assert candidate.routes[0].metric_id == expected_metric
 
 
 def test_static_metric_candidates_cover_each_point_tier_and_clue_group():
@@ -404,7 +511,7 @@ def test_killcount_template_expands_via_component_single_recipe():
     assert route.display_text == "Complete 35 Callisto KC"
     assert route.target == 35
     assert route.tracking_source == TrackingSource.WOM
-    assert route.metric_id == "boss_callisto_kc"
+    assert route.metric_id == "callisto"
     assert route.source_id == "callisto"
     assert route.boss_id == "callisto"
     assert candidate.explanation == (
@@ -446,7 +553,7 @@ def test_skill_xp_template_expands_via_component_single_recipe():
     assert route.display_text == "Gain 500,000 Magic XP"
     assert route.target == 500000
     assert route.tracking_source == TrackingSource.WOM
-    assert route.metric_id == "skill_magic_xp"
+    assert route.metric_id == "magic"
     assert route.source_id == "magic"
     assert route.skill_id == "magic"
     assert candidate.explanation == (

@@ -136,6 +136,12 @@ def test_generated_board_preview_template_contains_expected_sections():
     assert 'name="current_tile_key"' in template
     assert 'name="kept_tile_key"' in template
     assert "Reroll unkept tiles" in template
+    assert "Apply to Bingo Board" in template
+    assert 'name="action"' in template
+    assert 'value="apply_to_board"' in template
+    assert "replace" in template.lower()
+    assert "recorded progress" in template.lower()
+    assert "or evidence" in template.lower()
     assert "row.tile_key" in template
     assert "color: #2b1a0b;" in template
 
@@ -210,3 +216,242 @@ def test_generated_board_preview_route_flashes_wom_failures(monkeypatch):
         ),
     ]
 
+
+
+def test_generated_board_preview_apply_uses_exact_current_tiles(monkeypatch):
+    captured = {
+        "converted_keys": None,
+        "replacement_payloads": None,
+        "flashes": [],
+        "redirect": None,
+        "url_for": None,
+    }
+
+    submitted_keys = tuple(
+        f"tile-key-{index}"
+        for index in range(1, 26)
+    )
+    expected_payloads = tuple(
+        {
+            "tile_name": f"Live Tile {index}",
+            "tile_points": ((index - 1) // 5) + 1,
+        }
+        for index in range(1, 26)
+    )
+
+    class ApplyRequest:
+        method = "POST"
+
+        class form:
+            @staticmethod
+            def get(name, default=None):
+                if name == "action":
+                    return "apply_to_board"
+
+                return default
+
+            @staticmethod
+            def getlist(name):
+                if name == "current_tile_key":
+                    return submitted_keys
+
+                return ()
+
+    def fake_build_payloads(tile_keys):
+        captured["converted_keys"] = tuple(
+            tile_keys
+        )
+        return expected_payloads
+
+    def fake_replace_board(payloads):
+        captured["replacement_payloads"] = tuple(
+            payloads
+        )
+        return tuple(range(1, 26))
+
+    def fake_url_for(endpoint):
+        captured["url_for"] = endpoint
+        return "/board/"
+
+    def fake_redirect(location):
+        captured["redirect"] = location
+        return "redirected"
+
+    monkeypatch.setattr(
+        admin_routes,
+        "request",
+        ApplyRequest()
+    )
+    monkeypatch.setattr(
+        admin_routes,
+        "build_live_tile_payloads_from_generated_board_keys",
+        fake_build_payloads,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_routes.database,
+        "replace_bingo_board_tiles",
+        fake_replace_board
+    )
+    monkeypatch.setattr(
+        admin_routes,
+        "flash",
+        lambda message, category: captured["flashes"].append(
+            (
+                message,
+                category,
+            )
+        )
+    )
+    monkeypatch.setattr(
+        admin_routes,
+        "url_for",
+        fake_url_for
+    )
+    monkeypatch.setattr(
+        admin_routes,
+        "redirect",
+        fake_redirect
+    )
+    monkeypatch.setattr(
+        admin_routes,
+        "get_current_roster_capability_profiles",
+        lambda: (_ for _ in ()).throw(
+            AssertionError(
+                "Apply should not fetch WOM capability profiles."
+            )
+        )
+    )
+
+    route_function = getattr(
+        admin_routes.generated_board_preview,
+        "__wrapped__",
+        admin_routes.generated_board_preview
+    )
+
+    assert route_function() == "redirected"
+    assert captured["converted_keys"] == submitted_keys
+    assert captured["replacement_payloads"] == expected_payloads
+    assert captured["url_for"] == "board_routes.index"
+    assert captured["redirect"] == "/board/"
+    assert captured["flashes"] == [
+        (
+            "Generated Bingo board applied successfully.",
+            "success",
+        )
+    ]
+
+
+def test_generated_board_preview_apply_failure_preserves_preview(monkeypatch):
+    captured = {
+        "flashes": [],
+        "kept_tile_keys": None,
+        "banned_tile_keys": None,
+    }
+
+    submitted_keys = tuple(
+        f"tile-key-{index}"
+        for index in range(1, 26)
+    )
+
+    class ApplyRequest:
+        method = "POST"
+
+        class form:
+            @staticmethod
+            def get(name, default=None):
+                if name == "action":
+                    return "apply_to_board"
+
+                return default
+
+            @staticmethod
+            def getlist(name):
+                if name == "current_tile_key":
+                    return submitted_keys
+
+                return ()
+
+    class FakeCapabilityResult:
+        failed_players = ()
+        profile_set = "capability-profiles"
+
+    def fake_get_summary(
+        capability_profiles=None,
+        kept_tile_keys=(),
+        banned_tile_keys=(),
+    ):
+        captured["kept_tile_keys"] = tuple(
+            kept_tile_keys
+        )
+        captured["banned_tile_keys"] = tuple(
+            banned_tile_keys
+        )
+        return "preserved-summary"
+
+    monkeypatch.setattr(
+        admin_routes,
+        "request",
+        ApplyRequest()
+    )
+    monkeypatch.setattr(
+        admin_routes,
+        "build_live_tile_payloads_from_generated_board_keys",
+        lambda tile_keys: (
+            {
+                "tile_name": "Replacement Tile",
+            },
+        ),
+    )
+    monkeypatch.setattr(
+        admin_routes.database,
+        "replace_bingo_board_tiles",
+        lambda payloads: (_ for _ in ()).throw(
+            ValueError(
+                "The bingo board cannot be replaced because "
+                "tile 'Existing Tile' has recorded progress or evidence."
+            )
+        )
+    )
+    monkeypatch.setattr(
+        admin_routes,
+        "get_current_roster_capability_profiles",
+        lambda: FakeCapabilityResult()
+    )
+    monkeypatch.setattr(
+        admin_routes,
+        "get_curated_generated_board_preview_summary",
+        fake_get_summary
+    )
+    monkeypatch.setattr(
+        admin_routes,
+        "flash",
+        lambda message, category: captured["flashes"].append(
+            (
+                message,
+                category,
+            )
+        )
+    )
+    monkeypatch.setattr(
+        admin_routes,
+        "render_template",
+        lambda template_name, **context: "rendered"
+    )
+
+    route_function = getattr(
+        admin_routes.generated_board_preview,
+        "__wrapped__",
+        admin_routes.generated_board_preview
+    )
+
+    assert route_function() == "rendered"
+    assert captured["flashes"] == [
+        (
+            "The bingo board cannot be replaced because "
+            "tile 'Existing Tile' has recorded progress or evidence.",
+            "danger",
+        )
+    ]
+    assert captured["kept_tile_keys"] == submitted_keys
+    assert captured["banned_tile_keys"] == ()

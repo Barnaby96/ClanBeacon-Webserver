@@ -10,6 +10,7 @@
     canonical_id,
 )
 from utils.osrs_content_access import build_access_profile_for_content
+from utils.osrs_wom_metrics import get_skill_wom_metric_id
 
 
 def format_title_part(value):
@@ -261,7 +262,7 @@ def make_skill_xp_candidate(
                 target=xp_target,
                 tracking_source=tracking_source,
                 contribution_mode=contribution_mode,
-                metric_id=f"skill_{skill_id}_xp",
+                metric_id=get_skill_wom_metric_id(skill_id),
                 source_id=skill_id,
                 skill_id=skill_id,
             )
@@ -313,7 +314,7 @@ def make_skill_xp_or_pet_candidate(
                 target=xp_target,
                 tracking_source=TrackingSource.WOM,
                 contribution_mode=ContributionMode.TEAM_SUM,
-                metric_id=f"skill_{skill_id}_xp",
+                metric_id=get_skill_wom_metric_id(skill_id),
                 source_id=skill_id,
                 skill_id=skill_id,
             ),

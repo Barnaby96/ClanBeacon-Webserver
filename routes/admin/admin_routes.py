@@ -17,6 +17,9 @@ from utils.spoofed_jsons.spoof_kc import kc_spoof_json
 from utils.spoofed_jsons.spoof_pet import spoof_pet
 from utils.osrs_tile_catalogue_preview import get_curated_tile_catalogue_summary
 from utils.osrs_generated_board_preview import get_curated_generated_board_preview_summary
+from utils.osrs_generated_board_live_tiles import (
+    build_live_tile_payloads_from_generated_board_keys,
+)
 from utils.osrs_drop_tile_effort_preview import build_drop_tile_effort_preview_rows
 from utils.osrs_capability_profiles import (
     build_capability_profiles_from_rostered_players,
@@ -1152,6 +1155,47 @@ def drop_tile_effort_preview():
 @admin_routes.route('/bingo_setup/generated_board_preview', methods=['GET', 'POST'])
 @admin_required
 def generated_board_preview():
+    apply_failed = False
+
+    if (
+        request.method == 'POST'
+        and request.form.get(
+            'action',
+            'reroll'
+        ).strip() == 'apply_to_board'
+    ):
+        current_tile_keys = tuple(
+            request.form.getlist(
+                'current_tile_key'
+            )
+        )
+
+        try:
+            tile_payloads = (
+                build_live_tile_payloads_from_generated_board_keys(
+                    current_tile_keys
+                )
+            )
+
+            database.replace_bingo_board_tiles(
+                tile_payloads
+            )
+        except ValueError as error:
+            flash(
+                str(error),
+                'danger'
+            )
+            apply_failed = True
+        else:
+            flash(
+                'Generated Bingo board applied successfully.',
+                'success'
+            )
+
+            return redirect(
+                url_for('board_routes.index')
+            )
+
     capability_result = get_current_roster_capability_profiles()
 
     current_tile_keys = ()
@@ -1164,19 +1208,24 @@ def generated_board_preview():
                 'current_tile_key'
             )
         )
-        kept_tile_keys = tuple(
-            request.form.getlist(
-                'kept_tile_key'
+
+        if apply_failed:
+            kept_tile_keys = current_tile_keys
+            banned_tile_keys = ()
+        else:
+            kept_tile_keys = tuple(
+                request.form.getlist(
+                    'kept_tile_key'
+                )
             )
-        )
-        kept_tile_key_set = set(
-            kept_tile_keys
-        )
-        banned_tile_keys = tuple(
-            tile_key
-            for tile_key in current_tile_keys
-            if tile_key not in kept_tile_key_set
-        )
+            kept_tile_key_set = set(
+                kept_tile_keys
+            )
+            banned_tile_keys = tuple(
+                tile_key
+                for tile_key in current_tile_keys
+                if tile_key not in kept_tile_key_set
+            )
 
     return render_template(
         'admin_templates/generated_board_preview.html',

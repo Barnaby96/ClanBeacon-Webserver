@@ -263,6 +263,10 @@ def test_n_of_route_mode_requires_valid_required_route_count():
     assert candidate.required_route_count == 1
 
 
+def test_sum_route_mode_is_available():
+    assert RouteMode.SUM.value == "SUM"
+
+
 def make_schema_test_candidate(
     point_value=1,
     primary_category=TileCategory.SKILL,

@@ -35,6 +35,30 @@ def _format_admin_label(value):
     ).title()
 
 
+def _format_admin_condition_trigger(
+    condition_type,
+    condition_trigger,
+):
+    if not condition_trigger:
+        return condition_trigger
+
+    condition_type = str(condition_type).strip().upper()
+
+    if condition_type == "EXPERIENCE":
+        if str(condition_trigger).strip().lower() == "runecrafting":
+            return "Runecraft"
+
+        return _format_admin_label(condition_trigger)
+
+    if condition_type in {
+        "KILLCOUNT",
+        "METRIC",
+    }:
+        return _format_admin_label(condition_trigger)
+
+    return condition_trigger
+
+
 def _format_admin_tile_condition(condition):
     condition_type = condition[3]
     condition_trigger = condition[4]
@@ -49,7 +73,12 @@ def _format_admin_tile_condition(condition):
     )
 
     if condition_trigger:
-        return f"{condition_text}: {condition_trigger}"
+        display_trigger = _format_admin_condition_trigger(
+            condition_type,
+            condition_trigger,
+        )
+
+        return f"{condition_text}: {display_trigger}"
 
     return condition_text
 

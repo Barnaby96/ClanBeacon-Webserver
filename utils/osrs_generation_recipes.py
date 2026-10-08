@@ -19,6 +19,7 @@ from utils.osrs_tile_components import (
     TileComponent,
     TileComponentType,
 )
+from utils.osrs_wom_metrics import get_skill_wom_metric_id
 
 
 class GenerationRecipeId(str, Enum):
@@ -181,7 +182,10 @@ def build_single_experience_route(component, target, display_text=None):
             "Experience components require a skill_id."
         )
 
-    metric_id = component.metric_id or f"skill_{component.skill_id}_xp"
+    metric_id = (
+        component.metric_id
+        or get_skill_wom_metric_id(component.skill_id)
+    )
     source_id = component.source_id or component.skill_id
 
     return Route(

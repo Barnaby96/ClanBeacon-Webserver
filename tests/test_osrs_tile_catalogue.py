@@ -396,7 +396,10 @@ def test_curated_tile_generation_candidates_expand_metric_templates():
         for candidate in candidates
         if (
             candidate.primary_category == TileCategory.HYBRID
-            and candidate.route_mode == RouteMode.SINGLE
+            and candidate.route_mode in {
+                RouteMode.SINGLE,
+                RouteMode.SUM,
+            }
             and candidate.routes[0].tracking_source == TrackingSource.WOM
         )
     ]
@@ -421,6 +424,40 @@ def test_curated_tile_generation_candidates_expand_metric_templates():
         "Complete 25 Guardians of the Rift completions",
         "Complete 50 medium-or-harder clue scrolls",
     }
+
+
+def test_all_curated_wom_routes_use_real_wom_metrics():
+    from wom import Activities, Bosses, Skills
+
+    valid_wom_metrics = {
+        member.value
+        for enum_type in (
+            Skills,
+            Bosses,
+            Activities,
+        )
+        for member in enum_type
+    }
+
+    # The installed WOM package predates Sailing, but the
+    # live WOM API/game supports it and ClanBeacon must retain it.
+    valid_wom_metrics.add("sailing")
+
+    invalid_routes = [
+        (
+            candidate.title,
+            route.route_type.value,
+            route.metric_id,
+        )
+        for candidate in get_curated_tile_generation_candidates()
+        for route in candidate.routes
+        if (
+            route.tracking_source == TrackingSource.WOM
+            and route.metric_id not in valid_wom_metrics
+        )
+    ]
+
+    assert invalid_routes == []
 
 
 def test_curated_tile_generation_board_limits_clue_tiles_by_hard_tag():

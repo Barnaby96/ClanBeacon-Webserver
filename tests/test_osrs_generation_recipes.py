@@ -239,11 +239,39 @@ def test_build_single_experience_candidate_from_component():
     assert route.route_type == TileCategory.SKILL
     assert route.display_text == "Gain 500,000 Magic XP"
     assert route.target == 500000
-    assert route.metric_id == "skill_magic_xp"
+    assert route.metric_id == "magic"
     assert route.source_id == "magic"
     assert route.skill_id == "magic"
     assert "component:magic_xp" in candidate.all_hard_unique_tags
     assert "skill:magic" in candidate.all_hard_unique_tags
+
+
+def test_build_single_experience_candidate_uses_runecrafting_wom_metric():
+    component = TileComponent(
+        component_id="Runecraft XP",
+        component_type=TileComponentType.EXPERIENCE,
+        display_name="Runecraft",
+        tracking_source=TrackingSource.WOM,
+        target_model_id="Static XP",
+        skill_id="Runecraft",
+    )
+    target_model = StaticPointTargetModel(
+        target_model_id="Static XP",
+        target_by_point_value={
+            2: 500000,
+        },
+    )
+
+    candidate = build_single_tile_candidate(
+        component,
+        2,
+        target_model,
+    )
+
+    route = candidate.routes[0]
+
+    assert route.skill_id == "runecraft"
+    assert route.metric_id == "runecrafting"
 
 
 def test_build_single_candidate_can_suppress_generation_note():

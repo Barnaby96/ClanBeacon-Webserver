@@ -1660,3 +1660,266 @@ def test_update_tile_board_position_json_rejects_invalid_coordinate(client):
     )
 
     assert tile.board_coordinate is None
+
+
+def test_replace_bingo_board_tiles_replaces_existing_unused_tiles():
+    old_assigned_tile_id = create_test_tile(
+        "Old Assigned Tile"
+    )
+    create_test_tile(
+        "Old Unassigned Tile"
+    )
+
+    database.set_tile_board_coordinate(
+        old_assigned_tile_id,
+        "C3"
+    )
+
+    payloads = []
+
+    for index in range(25):
+        point_value = (index // 5) + 1
+
+        payloads.append(
+            {
+                "tile_name": f"Generated Tile {index + 1}",
+                "tile_points": point_value,
+                "tile_rules": f"Generated rules {index + 1}",
+                "conditions": [
+                    {
+                        "completion_path": 1,
+                        "condition_type": "MANUAL",
+                        "condition_trigger": None,
+                        "target": 1,
+                    }
+                ],
+                "completion_paths": [
+                    {
+                        "completion_path": 1,
+                        "route_mode": "ALL",
+                        "route_target": None,
+                        "require_unique": False,
+                    }
+                ],
+            }
+        )
+
+    tile_ids = database.replace_bingo_board_tiles(
+        payloads
+    )
+
+    assert len(tile_ids) == 25
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT
+                tile_name,
+                tile_points,
+                board_coordinate
+            FROM tiles
+            ORDER BY
+                board_coordinate
+            '''
+        )
+        rows = cursor.fetchall()
+
+    assert len(rows) == 25
+
+    for _, tile_points, board_coordinate in rows:
+        assert board_coordinate[1] == str(
+            int(tile_points)
+        )
+
+    for point_value in range(1, 6):
+        point_rows = [
+            row
+            for row in rows
+            if int(row[1]) == point_value
+        ]
+
+        assert len(point_rows) == 5
+        assert {
+            row[2]
+            for row in point_rows
+        } == {
+            f"{board_row}{point_value}"
+            for board_row in "ABCDE"
+        }
+
+
+def test_replace_bingo_board_tiles_refuses_existing_activity():
+    existing_tile_id = create_test_tile(
+        "Existing Completed Tile"
+    )
+
+    database.set_tile_board_coordinate(
+        existing_tile_id,
+        "B2"
+    )
+
+    database.add_team(
+        "Replacement Safety Team",
+        0,
+        None
+    )
+
+    team = db_entities.Team(
+        database.get_team_by_name(
+            "Replacement Safety Team"
+        )
+    )
+
+    database.add_completed_tile(
+        existing_tile_id,
+        team.team_id
+    )
+
+    payloads = []
+
+    for index in range(25):
+        point_value = (index // 5) + 1
+
+        payloads.append(
+            {
+                "tile_name": f"Replacement Tile {index + 1}",
+                "tile_points": point_value,
+                "tile_rules": f"Replacement rules {index + 1}",
+                "conditions": [
+                    {
+                        "completion_path": 1,
+                        "condition_type": "MANUAL",
+                        "condition_trigger": None,
+                        "target": 1,
+                    }
+                ],
+                "completion_paths": [
+                    {
+                        "completion_path": 1,
+                        "route_mode": "ALL",
+                        "route_target": None,
+                        "require_unique": False,
+                    }
+                ],
+            }
+        )
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "cannot be replaced because "
+            "tile 'Existing Completed Tile' "
+            "has recorded progress or evidence"
+        )
+    ):
+        database.replace_bingo_board_tiles(
+            payloads
+        )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            SELECT
+                tile_id,
+                tile_name,
+                board_coordinate
+            FROM tiles
+            ORDER BY tile_id
+            '''
+        )
+        rows = cursor.fetchall()
+
+    assert rows == [
+        (
+            existing_tile_id,
+            "Existing Completed Tile",
+            "B2"
+        )
+    ]
+
+
+def test_replace_bingo_board_tiles_rolls_back_if_new_tile_insert_fails():
+    existing_tile_id = create_test_tile(
+        "Existing Rollback Tile"
+    )
+
+    database.set_tile_board_coordinate(
+        existing_tile_id,
+        "C3"
+    )
+
+    payloads = []
+
+    for index in range(25):
+        point_value = (index // 5) + 1
+
+        if index in (0, 1):
+            conditions = [
+                {
+                    "completion_path": 1,
+                    "condition_type": "DROP",
+                    "condition_trigger": "Rollback Test Drop",
+                    "target": 1,
+                }
+            ]
+        else:
+            conditions = [
+                {
+                    "completion_path": 1,
+                    "condition_type": "MANUAL",
+                    "condition_trigger": None,
+                    "target": 1,
+                }
+            ]
+
+        payloads.append(
+            {
+                "tile_name": f"Replacement Tile {index + 1}",
+                "tile_points": point_value,
+                "tile_rules": f"Replacement rules {index + 1}",
+                "conditions": conditions,
+                "completion_paths": [
+                    {
+                        "completion_path": 1,
+                        "route_mode": "ALL",
+                        "route_target": None,
+                        "require_unique": False,
+                    }
+                ],
+            }
+        )
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "DROP trigger 'Rollback Test Drop' is already "
+            "used by tile 'Replacement Tile 1'"
+        )
+    ):
+        database.replace_bingo_board_tiles(
+            payloads
+        )
+
+    with database.connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT
+                tile_id,
+                tile_name,
+                board_coordinate
+            FROM tiles
+            ORDER BY tile_id
+            """
+        )
+        rows = cursor.fetchall()
+
+    assert rows == [
+        (
+            existing_tile_id,
+            "Existing Rollback Tile",
+            "C3",
+        )
+    ]

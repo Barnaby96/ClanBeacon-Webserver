@@ -23,6 +23,7 @@ class RouteMode(str, Enum):
     SINGLE = "SINGLE"
     OR = "OR"
     AND = "AND"
+    SUM = "SUM"
     N_OF = "N_OF"
 
 

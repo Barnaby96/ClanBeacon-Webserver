@@ -136,6 +136,7 @@ def build_killcount_component_from_template(template):
         display_name=template.source_name,
         tracking_source=TrackingSource.WOM,
         target_model_id=f"{template.boss_id}_static_killcount",
+        metric_id=template.boss_id,
         source_id=template.content_id or template.boss_id,
         boss_id=template.boss_id,
         access_profile=access_profile_for_content(
@@ -367,6 +368,7 @@ class SkillXpTileTemplate:
     skill_name: str
     skill_id: str
     target_by_point_value: tuple
+    wom_metric_id: str | None = None
     rng_level: int = 0
     explanation: tuple = ()
 
@@ -377,6 +379,27 @@ class SkillXpTileTemplate:
             normalise_skill_xp_target_by_point_value(
                 self.target_by_point_value
             )
+        )
+
+        wom_metric_id = (
+            self.wom_metric_id
+            if self.wom_metric_id is not None
+            else self.skill_id
+        )
+
+        wom_metric_id = str(
+            wom_metric_id
+        ).strip()
+
+        if not wom_metric_id:
+            raise ValueError(
+                "Skill XP templates require a WOM metric."
+            )
+
+        object.__setattr__(
+            self,
+            "wom_metric_id",
+            wom_metric_id,
         )
 
 
@@ -391,6 +414,7 @@ def build_skill_xp_component_from_template(template):
         display_name=template.skill_name,
         tracking_source=TrackingSource.WOM,
         target_model_id=f"{template.skill_id}_static_experience",
+        metric_id=template.wom_metric_id,
         source_id=template.skill_id,
         skill_id=template.skill_id,
         rng_level=template.rng_level,
@@ -478,6 +502,7 @@ class MetricTileTemplate:
     metric_id: str
     source_id: str
     target_by_point_value: tuple
+    wom_metric_ids: tuple = ()
     activity_group_id: str | None = None
     rng_level: int = 0
     explanation: tuple = ()
@@ -489,6 +514,35 @@ class MetricTileTemplate:
             normalise_metric_target_by_point_value(
                 self.target_by_point_value
             )
+        )
+
+        wom_metric_ids = self.wom_metric_ids
+
+        if isinstance(wom_metric_ids, str):
+            wom_metric_ids = (
+                wom_metric_ids,
+            )
+
+        if not wom_metric_ids:
+            wom_metric_ids = (
+                self.metric_id,
+            )
+
+        wom_metric_ids = tuple(
+            str(metric_id).strip()
+            for metric_id in wom_metric_ids
+            if str(metric_id).strip()
+        )
+
+        if not wom_metric_ids:
+            raise ValueError(
+                "Metric templates require at least one WOM metric."
+            )
+
+        object.__setattr__(
+            self,
+            "wom_metric_ids",
+            wom_metric_ids,
         )
 
 
@@ -523,7 +577,7 @@ def build_metric_component_from_template(template):
         display_name=template.display_name,
         tracking_source=TrackingSource.WOM,
         target_model_id=f"{template.metric_id}_static_metric",
-        metric_id=template.metric_id,
+        metric_id=template.wom_metric_ids[0],
         source_id=template.source_id,
         groups=groups,
         compatible_recipe_ids=(
@@ -544,31 +598,84 @@ def build_metric_target_model_from_template(template):
 
 
 def expand_metric_template(template):
-    component = build_metric_component_from_template(
-        template
-    )
-    target_model = build_metric_target_model_from_template(
-        template
-    )
+    if len(template.wom_metric_ids) == 1:
+        component = build_metric_component_from_template(
+            template
+        )
+        target_model = build_metric_target_model_from_template(
+            template
+        )
 
-    return expand_single_component(
-        component=component,
-        target_model=target_model,
-        title_formatter=lambda point_value, target: format_metric_title(
-            template.display_name,
-            target
-        ),
-        display_text_formatter=lambda point_value, target: format_metric_title(
-            template.display_name,
-            target
-        ),
-        explanation_formatter=lambda point_value, target: (
-            (
-                f"Generated {point_value}-point WOM metric target "
-                f"from the {template.display_name} template."
+        return expand_single_component(
+            component=component,
+            target_model=target_model,
+            title_formatter=lambda point_value, target: format_metric_title(
+                template.display_name,
+                target
             ),
-        ),
-        include_generation_note=False,
+            display_text_formatter=lambda point_value, target: format_metric_title(
+                template.display_name,
+                target
+            ),
+            explanation_formatter=lambda point_value, target: (
+                (
+                    f"Generated {point_value}-point WOM metric target "
+                    f"from the {template.display_name} template."
+                ),
+            ),
+            include_generation_note=False,
+        )
+
+    candidates = []
+
+    for point_value, target in template.target_by_point_value:
+        title = format_metric_title(
+            template.display_name,
+            target,
+        )
+
+        routes = tuple(
+            Route(
+                route_type=TileCategory.HYBRID,
+                display_text=metric_id,
+                target=target,
+                tracking_source=TrackingSource.WOM,
+                contribution_mode=ContributionMode.TEAM_SUM,
+                metric_id=metric_id,
+                source_id=template.source_id,
+            )
+            for metric_id in template.wom_metric_ids
+        )
+
+        candidates.append(
+            TileCandidate(
+                title=title,
+                point_value=point_value,
+                primary_category=TileCategory.HYBRID,
+                route_mode=RouteMode.SUM,
+                routes=routes,
+                hard_unique_tags=build_metric_hard_unique_tags(
+                    template
+                ),
+                tracking_sources=frozenset(
+                    {
+                        TrackingSource.WOM,
+                    }
+                ),
+                rng_level=template.rng_level,
+                explanation=(
+                    *template.explanation,
+                    (
+                        f"Generated {point_value}-point summed WOM "
+                        f"metric target from the "
+                        f"{template.display_name} template."
+                    ),
+                ),
+            )
+        )
+
+    return tuple(
+        candidates
     )
 
 
@@ -723,6 +830,9 @@ STATIC_METRIC_TEMPLATES = (
         display_name="Guardians of the Rift completions",
         metric_id="guardians_of_the_rift_completions",
         source_id="guardians_of_the_rift",
+        wom_metric_ids=(
+            "guardians_of_the_rift",
+        ),
         activity_group_id="skilling_minigames",
         target_by_point_value={
             1: 25,
@@ -739,6 +849,9 @@ STATIC_METRIC_TEMPLATES = (
         display_name="Tempoross completions",
         metric_id="tempoross_completions",
         source_id="tempoross",
+        wom_metric_ids=(
+            "tempoross",
+        ),
         activity_group_id="skilling_minigames",
         target_by_point_value={
             1: 25,
@@ -755,6 +868,9 @@ STATIC_METRIC_TEMPLATES = (
         display_name="Wintertodt kills",
         metric_id="wintertodt_kills",
         source_id="wintertodt",
+        wom_metric_ids=(
+            "wintertodt",
+        ),
         activity_group_id="skilling_minigames",
         target_by_point_value={
             1: 25,
@@ -771,6 +887,12 @@ STATIC_METRIC_TEMPLATES = (
         display_name="medium-or-harder clue scrolls",
         metric_id="clue_scrolls_medium_plus_completed",
         source_id="clue_scrolls_medium_plus",
+        wom_metric_ids=(
+            "clue_scrolls_medium",
+            "clue_scrolls_hard",
+            "clue_scrolls_elite",
+            "clue_scrolls_master",
+        ),
         activity_group_id="clue_scrolls",
         target_by_point_value={
             1: 10,
@@ -788,6 +910,9 @@ STATIC_METRIC_TEMPLATES = (
         display_name="hard clue scrolls",
         metric_id="clue_scrolls_hard_completed",
         source_id="clue_scrolls_hard",
+        wom_metric_ids=(
+            "clue_scrolls_hard",
+        ),
         activity_group_id="clue_scrolls",
         target_by_point_value={
             1: 5,
@@ -805,6 +930,9 @@ STATIC_METRIC_TEMPLATES = (
         display_name="elite clue scrolls",
         metric_id="clue_scrolls_elite_completed",
         source_id="clue_scrolls_elite",
+        wom_metric_ids=(
+            "clue_scrolls_elite",
+        ),
         activity_group_id="clue_scrolls",
         target_by_point_value={
             1: 2,
@@ -838,7 +966,12 @@ STATIC_SKILL_XP_TEMPLATES = (
     SkillXpTileTemplate("Thieving", "thieving", STATIC_SKILL_XP_TARGETS),
     SkillXpTileTemplate("Fishing", "fishing", STATIC_SKILL_XP_TARGETS),
     SkillXpTileTemplate("Mining", "mining", STATIC_SKILL_XP_TARGETS),
-    SkillXpTileTemplate("Runecraft", "runecraft", STATIC_SKILL_XP_TARGETS),
+    SkillXpTileTemplate(
+        "Runecraft",
+        "runecraft",
+        STATIC_SKILL_XP_TARGETS,
+        wom_metric_id="runecrafting",
+    ),
     SkillXpTileTemplate("Woodcutting", "woodcutting", STATIC_SKILL_XP_TARGETS),
     SkillXpTileTemplate("Hunter", "hunter", STATIC_SKILL_XP_TARGETS),
     SkillXpTileTemplate("Agility", "agility", STATIC_SKILL_XP_TARGETS),

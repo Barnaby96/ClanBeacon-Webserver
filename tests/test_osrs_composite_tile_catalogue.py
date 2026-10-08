@@ -37,6 +37,6 @@ def test_curated_composite_tile_candidates_expose_internal_hard_tags():
     assert "component:guardians_of_the_rift_completions_metric" in candidate.all_hard_unique_tags
     assert "component:tempoross_completions_metric" in candidate.all_hard_unique_tags
     assert "component:wintertodt_kills_metric" in candidate.all_hard_unique_tags
-    assert "metric:guardians_of_the_rift_completions" in candidate.all_hard_unique_tags
-    assert "metric:tempoross_completions" in candidate.all_hard_unique_tags
-    assert "metric:wintertodt_kills" in candidate.all_hard_unique_tags
+    assert "metric:guardians_of_the_rift" in candidate.all_hard_unique_tags
+    assert "metric:tempoross" in candidate.all_hard_unique_tags
+    assert "metric:wintertodt" in candidate.all_hard_unique_tags

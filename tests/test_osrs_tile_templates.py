@@ -103,16 +103,33 @@ def test_make_skill_xp_or_pet_candidate_builds_secondary_pet_route():
     assert candidate.pet_role == PetRole.SECONDARY
     assert candidate.has_fallback is True
     assert len(candidate.routes) == 2
+    assert candidate.routes[0].metric_id == "thieving"
 
     assert candidate.all_hard_unique_tags == frozenset(
         {
             "skill:thieving",
-            "metric:skill_thieving_xp",
+            "metric:thieving",
             "metric:pet_rocky",
             "source:thieving",
             "pet:rocky",
         }
     )
+
+
+def test_make_skill_xp_or_pet_candidate_uses_runecrafting_wom_metric():
+    candidate = make_skill_xp_or_pet_candidate(
+        title=(
+            "Gain 1,000,000 Runecraft XP "
+            "OR obtain Rift guardian"
+        ),
+        point_value=4,
+        skill_id="Runecraft",
+        xp_target=1_000_000,
+        pet_id="Rift guardian",
+    )
+
+    assert candidate.routes[0].skill_id == "runecraft"
+    assert candidate.routes[0].metric_id == "runecrafting"
 
 
 def test_make_killcount_candidate_without_content_has_empty_access_profile():
@@ -141,11 +158,12 @@ def test_make_skill_xp_candidate_builds_wom_tracked_skill_tile():
     assert candidate.pet_role == PetRole.NONE
     assert candidate.routes[0].display_text == "Gain 500,000 Cooking XP"
     assert candidate.routes[0].tracking_source == TrackingSource.WOM
+    assert candidate.routes[0].metric_id == "cooking"
 
     assert candidate.all_hard_unique_tags == frozenset(
         {
             "skill:cooking",
-            "metric:skill_cooking_xp",
+            "metric:cooking",
             "source:cooking",
         }
     )

@@ -12428,10 +12428,7 @@ def update_tile_with_conditions(
         conn.commit()
 
 
-def add_tile_with_conditions(
-    tile_name,
-    tile_points,
-    tile_rules,
+def _normalise_tile_with_conditions_input(
     conditions,
     completion_paths=None
 ):
@@ -12518,124 +12515,310 @@ def add_tile_with_conditions(
     else:
         tile_type = "MIXED"
 
+    return (
+        normalised_conditions,
+        normalised_paths,
+        tile_type
+    )
+
+
+def _insert_tile_with_conditions(
+    cursor,
+    tile_name,
+    tile_points,
+    tile_rules,
+    normalised_conditions,
+    normalised_paths,
+    tile_type,
+    board_coordinate=None
+):
+    _validate_unique_drop_triggers(
+        cursor,
+        normalised_conditions
+    )
+
+    _ensure_tile_capacity(cursor)
+
+    available_id = 1
+
+    while True:
+        cursor.execute(
+            "SELECT 1 FROM tiles WHERE tile_id = %s",
+            (available_id,)
+        )
+
+        if cursor.fetchone() is None:
+            break
+
+        available_id += 1
+
+    cursor.execute(
+        """
+        INSERT INTO tiles (
+            tile_id,
+            tile_name,
+            tile_type,
+            tile_triggers,
+            tile_trigger_weights,
+            tile_unique_drops,
+            tile_triggers_required,
+            tile_repetition,
+            tile_points,
+            tile_rules,
+            board_coordinate
+        )
+        VALUES (
+            %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s,
+            %s
+        )
+        """,
+        (
+            available_id,
+            tile_name,
+            tile_type,
+            "",
+            None,
+            False,
+            0,
+            1,
+            tile_points,
+            tile_rules,
+            board_coordinate
+        )
+    )
+
+    for path_data in normalised_paths:
+        cursor.execute(
+            """
+            INSERT INTO tile_completion_paths (
+                tile_id,
+                completion_path,
+                route_mode,
+                route_target,
+                require_unique
+            )
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (
+                available_id,
+                path_data["completion_path"],
+                path_data["route_mode"],
+                path_data["route_target"],
+                path_data["require_unique"]
+            )
+        )
+
+    for condition in normalised_conditions:
+        cursor.execute(
+            """
+            INSERT INTO tile_conditions (
+                tile_id,
+                completion_path,
+                condition_type,
+                condition_trigger,
+                target
+            )
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (
+                available_id,
+                condition["completion_path"],
+                condition["condition_type"],
+                condition["condition_trigger"],
+                condition["target"]
+            )
+        )
+
+        if condition["condition_type"] == "DROP":
+            cursor.execute(
+                """
+                INSERT INTO drop_whitelist (
+                    drop_name,
+                    tile_id
+                )
+                VALUES (%s, %s)
+                ON CONFLICT (drop_name)
+                DO NOTHING
+                """,
+                (
+                    condition["condition_trigger"],
+                    available_id
+                )
+            )
+
+    return available_id
+
+
+def add_tile_with_conditions(
+    tile_name,
+    tile_points,
+    tile_rules,
+    conditions,
+    completion_paths=None
+):
+    (
+        normalised_conditions,
+        normalised_paths,
+        tile_type
+    ) = _normalise_tile_with_conditions_input(
+        conditions,
+        completion_paths
+    )
+
     with connect() as conn:
         cursor = conn.cursor()
 
-        _validate_unique_drop_triggers(
+        available_id = _insert_tile_with_conditions(
             cursor,
-            normalised_conditions
+            tile_name,
+            tile_points,
+            tile_rules,
+            normalised_conditions,
+            normalised_paths,
+            tile_type
         )
-
-        _ensure_tile_capacity(cursor)
-
-        available_id = 1
-
-        while True:
-            cursor.execute(
-                "SELECT 1 FROM tiles WHERE tile_id = %s",
-                (available_id,)
-            )
-
-            if cursor.fetchone() is None:
-                break
-
-            available_id += 1
-
-        cursor.execute(
-            '''
-            INSERT INTO tiles (
-                tile_id,
-                tile_name,
-                tile_type,
-                tile_triggers,
-                tile_trigger_weights,
-                tile_unique_drops,
-                tile_triggers_required,
-                tile_repetition,
-                tile_points,
-                tile_rules
-            )
-            VALUES (
-                %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s
-            )
-            ''',
-            (
-                available_id,
-                tile_name,
-                tile_type,
-                "",
-                None,
-                False,
-                0,
-                1,
-                tile_points,
-                tile_rules
-            )
-        )
-
-        for path in normalised_paths:
-            cursor.execute(
-                '''
-                INSERT INTO tile_completion_paths (
-                    tile_id,
-                    completion_path,
-                    route_mode,
-                    route_target,
-                    require_unique
-                )
-                VALUES (%s, %s, %s, %s, %s)
-                ''',
-                (
-                    available_id,
-                    path["completion_path"],
-                    path["route_mode"],
-                    path["route_target"],
-                    path["require_unique"]
-                )
-            )
-
-        for condition in normalised_conditions:
-            cursor.execute(
-                '''
-                INSERT INTO tile_conditions (
-                    tile_id,
-                    completion_path,
-                    condition_type,
-                    condition_trigger,
-                    target
-                )
-                VALUES (%s, %s, %s, %s, %s)
-                ''',
-                (
-                    available_id,
-                    condition["completion_path"],
-                    condition["condition_type"],
-                    condition["condition_trigger"],
-                    condition["target"]
-                )
-            )
-
-            if condition["condition_type"] == "DROP":
-                cursor.execute(
-                    '''
-                    INSERT INTO drop_whitelist (
-                        drop_name,
-                        tile_id
-                    )
-                    VALUES (%s, %s)
-                    ON CONFLICT (drop_name)
-                    DO NOTHING
-                    ''',
-                    (
-                        condition["condition_trigger"],
-                        available_id
-                    )
-                )
 
         conn.commit()
 
     return available_id
+
+
+def replace_bingo_board_tiles(tile_payloads):
+    tile_payloads = tuple(tile_payloads)
+
+    if len(tile_payloads) != MAX_BINGO_TILES:
+        raise ValueError(
+            "A generated bingo board must contain exactly 25 tiles."
+        )
+
+    normalised_payloads = []
+
+    for payload in tile_payloads:
+        (
+            normalised_conditions,
+            normalised_paths,
+            tile_type
+        ) = _normalise_tile_with_conditions_input(
+            payload["conditions"],
+            payload.get("completion_paths")
+        )
+
+        normalised_payloads.append(
+            {
+                "tile_name": payload["tile_name"],
+                "tile_points": payload["tile_points"],
+                "tile_rules": payload.get(
+                    "tile_rules",
+                    ""
+                ),
+                "conditions": normalised_conditions,
+                "completion_paths": normalised_paths,
+                "tile_type": tile_type,
+            }
+        )
+
+    payloads_by_point = {
+        point_value: []
+        for point_value in range(1, 6)
+    }
+
+    for payload in normalised_payloads:
+        raw_point_value = payload["tile_points"]
+
+        try:
+            point_value = int(raw_point_value)
+        except (TypeError, ValueError):
+            raise ValueError(
+                "Generated tile points must be whole numbers "
+                "between 1 and 5."
+            )
+
+        if (
+            float(raw_point_value) != point_value
+            or point_value not in payloads_by_point
+        ):
+            raise ValueError(
+                "Generated tile points must be whole numbers "
+                "between 1 and 5."
+            )
+
+        payloads_by_point[point_value].append(
+            payload
+        )
+
+    for point_value, point_payloads in payloads_by_point.items():
+        if len(point_payloads) != 5:
+            raise ValueError(
+                "A generated bingo board must contain exactly "
+                f"5 tiles worth {point_value} point"
+                f"{'s' if point_value != 1 else ''}."
+            )
+
+    assignments = [
+        (
+            payload,
+            f"{row}{point_value}"
+        )
+        for point_value in range(1, 6)
+        for row, payload in zip(
+            "ABCDE",
+            payloads_by_point[point_value]
+        )
+    ]
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "LOCK TABLE tiles IN SHARE ROW EXCLUSIVE MODE"
+        )
+
+        cursor.execute(
+            """
+            SELECT
+                tile_id,
+                tile_name
+            FROM tiles
+            ORDER BY tile_id
+            """
+        )
+        existing_tiles = cursor.fetchall()
+
+        for tile_id, tile_name in existing_tiles:
+            if _tile_has_recorded_activity(
+                cursor,
+                tile_id
+            ):
+                raise ValueError(
+                    "The bingo board cannot be replaced because "
+                    f"tile '{tile_name}' has recorded progress "
+                    "or evidence."
+                )
+
+        cursor.execute(
+            "DELETE FROM tiles"
+        )
+
+        tile_ids = []
+
+        for payload, board_coordinate in assignments:
+            tile_id = _insert_tile_with_conditions(
+                cursor,
+                payload["tile_name"],
+                payload["tile_points"],
+                payload["tile_rules"],
+                payload["conditions"],
+                payload["completion_paths"],
+                payload["tile_type"],
+                board_coordinate=board_coordinate
+            )
+
+            tile_ids.append(tile_id)
+
+        conn.commit()
+
+    return tile_ids
 
 
 def add_tile_condition(

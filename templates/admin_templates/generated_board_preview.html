@@ -232,6 +232,38 @@
                     Reroll unkept tiles
                 </button>
             </div>
+
+            <section class="osrs-panel">
+                <header class="osrs-panel-header">
+                    <h2 class="osrs-panel-title">
+                        Apply Generated Board
+                    </h2>
+
+                    <p class="osrs-panel-description">
+                        Applying this preview will replace all existing Bingo
+                        tiles with these 25 generated tiles. Replacement will
+                        be blocked if any existing tile has recorded progress
+                        or evidence.
+                    </p>
+                </header>
+
+                <div class="osrs-panel-body">
+                    <div class="osrs-form-actions">
+                        <button
+                            type="submit"
+                            name="action"
+                            value="apply_to_board"
+                            class="osrs-button"
+                            onclick="return confirm(
+                                'Apply these 25 tiles to the live Bingo board? '
+                                + 'This will replace all existing Bingo tiles.'
+                            );"
+                        >
+                            Apply to Bingo Board
+                        </button>
+                    </div>
+                </div>
+            </section>
         </form>
     </main>
 </div>
