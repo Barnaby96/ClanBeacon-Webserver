@@ -73,10 +73,11 @@
 
         <section class="osrs-panel">
             <div class="osrs-panel-header">
-                <h2 class="osrs-panel-title">Board Generation Tools</h2>
+                <h2 class="osrs-panel-title">Bingo Board Generator</h2>
                 <p class="osrs-panel-description">
-                    Development previews for generated Bingo tile candidates,
-                    requirements and uniqueness conflicts.
+                    Create a complete 5x5 Bingo board from the curated
+                    tile catalogue, then review and adjust it before applying
+                    it to the live board.
                 </p>
             </div>
 
@@ -84,29 +85,15 @@
                 <div class="osrs-form-actions">
                     <a
                         class="osrs-button osrs-button-primary"
-                        href="{{ url_for('admin_routes.tile_catalogue_preview') }}"
+                        href="{{ url_for('admin_routes.generated_board_preview') }}"
                     >
-                        Preview Tile Catalogue
+                        Generate Bingo Board
                     </a>
-
-                    <a
-                        class="osrs-button osrs-button-primary"
-                        href="{{ url_for('admin_routes.drop_tile_effort_preview') }}"
-                    >
-                        Preview Drop Effort
-                    </a>
-
-            <a
-                class="osrs-button osrs-button-primary"
-                href="{{ url_for('admin_routes.generated_board_preview') }}"
-            >
-                Preview Generated Board
-            </a>
                 </div>
 
                 <p class="osrs-form-help">
-                    This preview is for the future automatic board generator.
-                    It does not create or update live Bingo tiles yet.
+                    Previewing a generated board does not affect the live board.
+                    Tiles are only replaced when you select Apply to Board.
                 </p>
             </div>
         </section>
