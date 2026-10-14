@@ -150,6 +150,68 @@ def test_player_data_links_directly_to_team_board(client):
     assert "View Board" in html
 
 
+def test_player_bingo_evidence_displays_local_datetime(client, monkeypatch):
+    from datetime import datetime, timezone
+
+    player_name = "Local Timestamp Player"
+
+    _, player_id = create_team_and_player(
+        team_name="Local Timestamp Team",
+        player_name=player_name
+    )
+
+    create_dashboard_user(
+        "Local Timestamp Login",
+        "test-password",
+        player_id=player_id
+    )
+
+    login_response = login_dashboard_user(
+        client,
+        "Local Timestamp Login",
+        "test-password"
+    )
+
+    assert login_response.status_code == 302
+
+    monkeypatch.setattr(
+        database,
+        "get_player_bingo_evidence",
+        lambda requested_player_id: [
+            {
+                "date": datetime(
+                    2026, 9, 21, 18, 0,
+                    tzinfo=timezone.utc
+                ),
+                "tile_name": "Local Timestamp Tile",
+                "contribution": 1.0,
+                "source": "Automatic submission",
+                "evidence_type": "dink",
+                "evidence_id": 12345,
+                "screenshot_path": "test-screenshot.png",
+                "status": "In progress"
+            }
+        ] if requested_player_id == player_id else []
+    )
+
+    monkeypatch.setattr(
+        "routes.user_routes.resolve_dink_evidence_path",
+        lambda **kwargs: "test-screenshot.png"
+    )
+
+    response = client.get(
+        f"/user/player/{player_name}"
+    )
+
+    assert response.status_code == 200
+
+    page = response.get_data(as_text=True)
+
+    assert "Local Timestamp Tile" in page
+    assert 'class="osrs-local-datetime"' in page
+    assert 'datetime="2026-09-21T18:00:00+00:00"' in page
+
+
 def create_test_tile(tile_name):
     return database.add_tile(
         tile_name,

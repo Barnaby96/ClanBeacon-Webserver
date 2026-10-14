@@ -1,5 +1,6 @@
 ﻿import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -138,7 +139,7 @@ def test_admin_review_page_shows_pending_manual_evidence(
                 "submitter_name": "Discord Submitter",
                 "evidence_author_name": "Discord Author",
                 "evidence_codeword_at_submission": "Blackout Sky",
-                "submitted_at": "2026-09-21 18:00:00",
+                "submitted_at": datetime(2026, 9, 21, 18, 0, tzinfo=timezone.utc),
                 "discord_message_id": "123456789"
             },
             {
@@ -157,7 +158,7 @@ def test_admin_review_page_shows_pending_manual_evidence(
                 "submitter_name": "Web Submitter",
                 "evidence_author_name": None,
                 "evidence_codeword_at_submission": "Blackout Sky",
-                "submitted_at": "2026-09-21 18:05:00",
+                "submitted_at": datetime(2026, 9, 21, 18, 5, tzinfo=timezone.utc),
                 "discord_message_id": None
             }
         ]
@@ -187,6 +188,9 @@ def test_admin_review_page_shows_pending_manual_evidence(
     assert "accept_manual_evidence" in page
     assert "accept_manual_evidence_with_mvp" in page
     assert "reject_manual_evidence" in page
+    assert 'class="osrs-local-datetime"' in page
+    assert 'datetime="2026-09-21T18:00:00+00:00"' in page
+    assert 'datetime="2026-09-21T18:05:00+00:00"' in page
 
 
 def test_admin_can_accept_pending_manual_evidence_from_web(

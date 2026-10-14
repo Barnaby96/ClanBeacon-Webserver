@@ -228,6 +228,7 @@ def test_admin_can_view_linked_dink_identity(client):
     assert "Linked Tester" in page
     assert "Identity Test Team" in page
     assert "linked-test-hash" in page
+    assert 'class="osrs-local-datetime"' in page
 
 
 def test_admin_sees_player_not_found_state(client):
@@ -731,6 +732,7 @@ def test_admin_can_view_historical_dink_event_review(client):
     assert "historical-review-test-hash" in page
     assert 'name="reason_code"' in page
     assert "Rejection reason" in page
+    assert 'class="osrs-local-datetime"' in page
 
     for reason_code in (
         "INSUFFICIENT_EVIDENCE",

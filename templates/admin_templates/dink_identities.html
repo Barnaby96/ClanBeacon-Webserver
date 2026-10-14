@@ -179,7 +179,12 @@
                                 {% if entry.linked_at %}
                                     <div style="margin-top: 6px;">
                                         <strong>Matched at:</strong>
-                                        {{ entry.linked_at }}
+                                        <time
+                                            class="osrs-local-datetime"
+                                            datetime="{{ entry.linked_at.isoformat() }}"
+                                        >
+                                            {{ entry.linked_at }}
+                                        </time>
                                     </div>
                                 {% endif %}
                             </details>

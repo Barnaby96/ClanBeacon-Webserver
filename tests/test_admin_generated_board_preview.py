@@ -104,14 +104,14 @@ def test_generated_board_preview_route_renders_summary(monkeypatch):
     assert captured["context"]["summary"] is expected_summary
 
 
-def test_bingo_setup_links_to_generated_board_preview():
+def test_bingo_setup_links_to_generate_board_action():
     template = (
         PROJECT_ROOT / "templates/admin_templates/bingo_setup.html"
     ).read_text(
         encoding="utf-8"
     )
 
-    assert "Preview Generated Board" in template
+    assert "Generate Bingo Board" in template
     assert "admin_routes.generated_board_preview" in template
 
 

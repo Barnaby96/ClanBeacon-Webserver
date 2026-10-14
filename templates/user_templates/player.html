@@ -572,11 +572,7 @@
                             {% for evidence in bingo_evidence %}
                                 <tr>
                                     <td>
-                                        {{
-                                            evidence.date.strftime(
-                                                '%d/%m/%y %H:%M'
-                                            )
-                                        }}
+                                        <time class="osrs-local-datetime" datetime="{{ evidence.date.isoformat() }}">{{ evidence.date.strftime('%d/%m/%y %H:%M') }}</time>
                                     </td>
 
                                     <td>

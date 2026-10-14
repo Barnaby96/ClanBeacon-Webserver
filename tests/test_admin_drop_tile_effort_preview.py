@@ -50,15 +50,16 @@ def test_drop_tile_effort_preview_route_renders_rows(monkeypatch):
     }
 
 
-def test_bingo_setup_links_to_drop_tile_effort_preview():
+def test_bingo_setup_uses_generator_instead_of_drop_tile_effort_preview():
     template = (
         PROJECT_ROOT / "templates/admin_templates/bingo_setup.html"
     ).read_text(
         encoding="utf-8"
     )
 
-    assert "Preview Drop Effort" in template
-    assert "admin_routes.drop_tile_effort_preview" in template
+    assert "Generate Bingo Board" in template
+    assert "Preview Drop Effort" not in template
+    assert "admin_routes.drop_tile_effort_preview" not in template
 
 
 def test_drop_tile_effort_preview_template_contains_expected_sections():

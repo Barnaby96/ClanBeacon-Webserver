@@ -145,6 +145,7 @@ def test_admin_can_view_dink_auth_audit(client):
     assert "JSON" in page
     assert "127.0.0.1" in page
     assert "Bingo bot audit regression test" in page
+    assert 'class="osrs-local-datetime"' in page
 
 
 def test_non_admin_cannot_view_dink_auth_audit(client):

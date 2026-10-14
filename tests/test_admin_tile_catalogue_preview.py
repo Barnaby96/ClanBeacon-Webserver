@@ -82,16 +82,17 @@ def test_tile_catalogue_preview_route_renders_summary(monkeypatch):
     }
 
 
-def test_bingo_setup_links_to_tile_catalogue_preview():
+def test_bingo_setup_uses_generator_instead_of_catalogue_preview():
     template = Path(
         "../templates/admin_templates/bingo_setup.html"
     ).read_text(
         encoding="utf-8"
     )
 
-    assert "Board Generation Tools" in template
-    assert "Preview Tile Catalogue" in template
-    assert "admin_routes.tile_catalogue_preview" in template
+    assert "Bingo Board Generator" in template
+    assert "Generate Bingo Board" in template
+    assert "Preview Tile Catalogue" not in template
+    assert "admin_routes.tile_catalogue_preview" not in template
 
 
 def test_tile_catalogue_preview_template_links_back_to_bingo_setup():

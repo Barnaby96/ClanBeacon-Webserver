@@ -59,7 +59,12 @@
                 {% for entry in audit_entries %}
                     <tr>
                         <td style="padding: 10px; white-space: nowrap;">
-                            {{ entry.received_at }}
+                            <time
+                                class="osrs-local-datetime"
+                                datetime="{{ entry.received_at.isoformat() }}"
+                            >
+                                {{ entry.received_at }}
+                            </time>
                         </td>
 
                         <td style="padding: 10px;">

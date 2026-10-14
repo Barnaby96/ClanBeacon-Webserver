@@ -368,14 +368,14 @@
                 {% if lifecycle_status.start_webhook_sent_at %}
                     <p class="osrs-form-help">
                         Start announcement sent:
-                        {{ lifecycle_status.start_webhook_sent_at }}
+                        <time class="osrs-local-datetime" datetime="{{ lifecycle_status.start_webhook_sent_at.isoformat() }}">{{ lifecycle_status.start_webhook_sent_at }}</time>
                     </p>
                 {% endif %}
 
                 {% if lifecycle_status.end_webhook_sent_at %}
                     <p class="osrs-form-help">
                         End announcement sent:
-                        {{ lifecycle_status.end_webhook_sent_at }}
+                        <time class="osrs-local-datetime" datetime="{{ lifecycle_status.end_webhook_sent_at.isoformat() }}">{{ lifecycle_status.end_webhook_sent_at }}</time>
                     </p>
                 {% endif %}
 
@@ -460,7 +460,7 @@
                             <tbody>
                                 {% for refresh in recent_wom_refreshes %}
                                     <tr>
-                                        <td>{{ refresh.requested_at }}</td>
+                                        <td><time class="osrs-local-datetime" datetime="{{ refresh.requested_at.isoformat() }}">{{ refresh.requested_at }}</time></td>
                                         <td>
                                             {{ refresh.requested_by_username or 'Unknown' }}
                                         </td>

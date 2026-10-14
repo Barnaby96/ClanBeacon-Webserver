@@ -875,6 +875,30 @@ def test_bingo_setup_shows_recent_wom_refresh_audit_rows(
     assert ">1<" in compact_page
     assert "hunter" in page
     assert "Example warning" in page
+    assert 'class="osrs-local-datetime"' in page
+
+def test_bingo_setup_announcements_display_local_datetime(client, monkeypatch):
+    from datetime import datetime, timezone
+    monkeypatch.setattr(
+        database,
+        "get_bingo_lifecycle_status",
+        lambda: {
+            "start_webhook_sent_at": datetime(
+                2026, 9, 21, 18, tzinfo=timezone.utc
+            ),
+            "end_webhook_sent_at": datetime(
+                2026, 9, 22, 19, 5, tzinfo=timezone.utc
+            )
+        }
+    )
+    create_admin_user()
+    login_admin(client)
+    response = client.get("/admin/bingo_setup")
+    assert response.status_code == 200
+    page = response.get_data(as_text=True)
+    assert 'datetime="2026-09-21T18:00:00+00:00"' in page
+    assert 'datetime="2026-09-22T19:05:00+00:00"' in page
+
 
 def test_bingo_setup_reset_refuses_wrong_password(
     client
