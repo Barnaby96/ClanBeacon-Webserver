@@ -459,6 +459,17 @@ def test_board_passes_progress_coordinates_to_renderer(
         0.25
     )
 
+    # Discord renderer post-start fixture
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO bingo_config (config_id, wom_competition_starts_at) "
+                "VALUES (1, TIMESTAMPTZ '2020-01-01 00:00:00+00') "
+                "ON CONFLICT (config_id) DO UPDATE SET "
+                "wom_competition_starts_at = EXCLUDED.wom_competition_starts_at"
+            )
+
+
     captured_renderer_args = {}
 
     def fake_render_bingo_board(
@@ -511,3 +522,47 @@ def test_board_passes_progress_coordinates_to_renderer(
     }
 
     assert captured_renderer_args["show_progress"] is True
+
+def test_discord_shared_staff_role_cannot_reveal_hidden_tile(monkeypatch):
+    from datetime import datetime, timezone
+    from io import BytesIO
+
+    monkeypatch.setenv("BINGO_ORGANISER_ROLE_ID", "123456")
+    team, _ = create_board_team_and_player(
+        "Hidden Discord Team", "Hidden Discord Player", discord_user_id=12345
+    )
+    tile_id = database.add_tile_with_conditions(
+        "Secret Discord Tile", 1, "Private rules",
+        [{"completion_path": 1, "condition_type": "MANUAL",
+          "condition_trigger": None, "target": 1}]
+    )
+    database.set_tile_board_coordinate(tile_id, "A1")
+    database.add_completed_tile(tile_id, team[3])
+
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO bingo_config (config_id, wom_competition_starts_at) "
+                "VALUES (1, %s) ON CONFLICT (config_id) "
+                "DO UPDATE SET wom_competition_starts_at = EXCLUDED.wom_competition_starts_at",
+                (datetime(2099, 1, 1, tzinfo=timezone.utc),)
+            )
+
+    captured = {}
+    def fake_renderer(names, **kwargs):
+        captured["names"] = dict(names)
+        captured["completed"] = set(kwargs.get("completed_coordinates") or [])
+        captured["partial"] = set(kwargs.get("partial_coordinates") or [])
+        return BytesIO(b"fake png")
+
+    monkeypatch.setattr(
+        "cogs.UserCog.board_renderer.render_bingo_board", fake_renderer
+    )
+    ctx = FakeBoardContext(
+        author_id=12345, roles=[SimpleNamespace(id=123456)]
+    )
+    run_board(ctx)
+
+    assert captured["names"] == {"A1": "Hidden Tile"}
+    assert captured["completed"] == set()
+    assert captured["partial"] == set()

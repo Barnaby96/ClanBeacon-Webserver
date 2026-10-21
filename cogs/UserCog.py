@@ -1261,10 +1261,14 @@ class UserCog(commands.Cog):
         else:
             team = None
 
-        board_state = bingo.get_board_render_state(
+        lifecycle_status = database.get_bingo_lifecycle_status() or {}
+        start_at = lifecycle_status.get("starts_at")
+        board_state = bingo.get_viewer_board_render_state(
             team.team_id
             if team is not None
-            else None
+            else None,
+            start_at=start_at,
+            is_organiser=False
         )
 
         board_image = board_renderer.render_bingo_board(

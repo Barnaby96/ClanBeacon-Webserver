@@ -30,6 +30,18 @@ def client(app):
         yield test_client
 
 
+@pytest.fixture
+def started_bingo():
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO bingo_config (config_id, wom_competition_starts_at) "
+                "VALUES (1, TIMESTAMPTZ '2020-01-01 00:00:00+00') "
+                "ON CONFLICT (config_id) DO UPDATE SET "
+                "wom_competition_starts_at = EXCLUDED.wom_competition_starts_at"
+            )
+
+
 def create_admin_user():
     database.add_user(
         "Board Test Admin",
@@ -155,6 +167,88 @@ def create_test_tile(tile_name):
         1,
         "Board regression test tile"
     )
+
+
+def test_prestart_visibility_schema_defaults():
+    tile_id = create_test_tile("Visibility Defaults")
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT prestart_revealed, hidden_message, hidden_teaser "
+                "FROM tiles WHERE tile_id = %s",
+                (tile_id,)
+            )
+            assert cursor.fetchone() == (False, None, None)
+            cursor.execute(
+                "SELECT default_hidden_message FROM bingo_config LIMIT 0"
+            )
+
+
+def test_prestart_visibility_migration_preserves_existing_tiles():
+    tile_id = create_test_tile("Migration Survivor")
+    database.set_tile_board_coordinate(tile_id, "C3")
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("ALTER TABLE tiles DROP COLUMN prestart_revealed, DROP COLUMN hidden_message, DROP COLUMN hidden_teaser")
+            cursor.execute("ALTER TABLE bingo_config DROP COLUMN default_hidden_message")
+    database.ensure_schema()
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT tile_name, board_coordinate, prestart_revealed, hidden_message, hidden_teaser FROM tiles WHERE tile_id = %s", (tile_id,))
+            assert cursor.fetchone() == ("Migration Survivor", "C3", False, None, None)
+            cursor.execute("SELECT default_hidden_message FROM bingo_config LIMIT 0")
+
+
+def test_tile_entity_reads_prestart_settings():
+    tile_id = create_test_tile("Visibility Model")
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE tiles SET prestart_revealed = TRUE, "
+                "hidden_message = %s, hidden_teaser = %s "
+                "WHERE tile_id = %s",
+                ("Please wait", "A mysterious hint", tile_id)
+            )
+    tile = db_entities.Tile(database.get_tile_by_id(tile_id))
+    assert tile.prestart_revealed is True
+    assert tile.hidden_message == "Please wait"
+    assert tile.hidden_teaser == "A mysterious hint"
+
+
+def test_prestart_tile_visibility_rules():
+    from datetime import datetime, timedelta, timezone
+    from utils import bingo
+
+    tile_id = create_test_tile("Visibility Rules")
+    tile = db_entities.Tile(database.get_tile_by_id(tile_id))
+    start = datetime(2026, 10, 20, 18, tzinfo=timezone.utc)
+    before = start - timedelta(seconds=1)
+
+    assert bingo.is_tile_visible_to_participants(tile, start, now=before) is False
+    assert bingo.is_tile_visible_to_participants(tile, None, now=before) is False
+    assert bingo.is_tile_visible_to_participants(tile, start, now=start) is True
+
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("UPDATE tiles SET prestart_revealed = TRUE WHERE tile_id = %s", (tile_id,))
+    tile = db_entities.Tile(database.get_tile_by_id(tile_id))
+    assert bingo.is_tile_visible_to_participants(tile, start, now=before) is True
+
+
+def test_hidden_board_requires_organiser_permission():
+    from datetime import datetime, timedelta, timezone
+    from utils import bingo
+
+    tile_id = create_test_tile("Organiser Secret")
+    database.set_tile_board_coordinate(tile_id, "A1")
+    start = datetime(2026, 10, 20, 18, tzinfo=timezone.utc)
+    before = start - timedelta(seconds=1)
+
+    ordinary = bingo.get_viewer_board_render_state(start_at=start, now=before, is_organiser=False)
+    organiser = bingo.get_viewer_board_render_state(start_at=start, now=before, is_organiser=True)
+
+    assert ordinary["tile_names_by_coordinate"] == {"A1": "Hidden Tile"}
+    assert organiser["tile_names_by_coordinate"] == {"A1": "Organiser Secret"}
 
 
 def test_set_tile_board_coordinate_assigns_empty_coordinate():
@@ -306,7 +400,8 @@ def test_board_position_route_updates_coordinate(client):
         "Board Route Tile"
     )
 
-    login_admin(client)
+    create_board_user("Board Test Organiser", account_role="ORGANISER")
+    login_board_user(client, "Board Test Organiser")
 
     response = client.post(
         f"/tile/tiles/board-position/{tile_id}",
@@ -334,7 +429,8 @@ def test_board_position_route_rejects_invalid_coordinate(client):
         "A3"
     )
 
-    login_admin(client)
+    create_board_user("Board Test Organiser", account_role="ORGANISER")
+    login_board_user(client, "Board Test Organiser")
 
     response = client.post(
         f"/tile/tiles/board-position/{tile_id}",
@@ -365,7 +461,8 @@ def test_edit_tile_does_not_render_board_position_controls(client):
         "C4"
     )
 
-    login_admin(client)
+    create_board_user("Board Test Organiser", account_role="ORGANISER")
+    login_board_user(client, "Board Test Organiser")
 
     response = client.get(
         f"/tile/tiles/edit/{tile_id}"
@@ -426,7 +523,8 @@ def test_board_position_route_works_after_recorded_activity(client):
             ]
         )
 
-    login_admin(client)
+    create_board_user("Board Test Organiser", account_role="ORGANISER")
+    login_board_user(client, "Board Test Organiser")
 
     response = client.post(
         f"/tile/tiles/board-position/{tile_id}",
@@ -444,6 +542,7 @@ def test_board_position_route_works_after_recorded_activity(client):
     assert tile.board_coordinate == "E4"
 
 
+@pytest.mark.usefixtures("started_bingo")
 def test_board_renders_all_25_coordinates_with_empty_cells(client):
     tile_id = database.add_tile_with_conditions(
         "Board Render Tile",
@@ -519,6 +618,7 @@ def test_board_renders_all_25_coordinates_with_empty_cells(client):
     ) == 24
 
 
+@pytest.mark.usefixtures("started_bingo")
 def test_board_renders_tiles_by_coordinate_not_tile_id(client):
     first_tile_id = database.add_tile_with_conditions(
         "Later Board Position",
@@ -586,6 +686,7 @@ def test_board_renders_tiles_by_coordinate_not_tile_id(client):
     assert earlier_position < later_position
 
 
+@pytest.mark.usefixtures("started_bingo")
 def test_board_renders_completed_partial_and_zero_progress_states(client):
     completed_tile_id = database.add_tile_with_conditions(
         "Completed Board Tile",
@@ -738,6 +839,7 @@ def test_board_renders_completed_partial_and_zero_progress_states(client):
     )
 
 
+@pytest.mark.usefixtures("started_bingo")
 def test_get_progress_endpoint_returns_completed_status(client):
     tile_id = database.add_tile_with_conditions(
         "Completed Modal Tile",
@@ -783,6 +885,7 @@ def test_get_progress_endpoint_returns_completed_status(client):
     assert response.get_json() == "This tile is complete."
 
 
+@pytest.mark.usefixtures("started_bingo")
 def test_get_progress_endpoint_returns_partial_status(client):
     tile_id = database.add_tile_with_conditions(
         "Partial Modal Tile",
@@ -845,6 +948,7 @@ def test_get_progress_endpoint_returns_partial_status(client):
     assert response.get_json() == "Team progress: 25.00%"
 
 
+@pytest.mark.usefixtures("started_bingo")
 def test_get_progress_endpoint_returns_killcount_partial_status(client):
     tile_id = database.add_tile_with_conditions(
         "Killcount Modal Tile",
@@ -910,6 +1014,7 @@ def test_get_progress_endpoint_returns_killcount_partial_status(client):
     )
 
 
+@pytest.mark.usefixtures("started_bingo")
 def test_get_progress_endpoint_returns_experience_partial_status(client):
     tile_id = database.add_tile_with_conditions(
         "Experience Modal Tile",
@@ -975,6 +1080,7 @@ def test_get_progress_endpoint_returns_experience_partial_status(client):
     )
 
 
+@pytest.mark.usefixtures("started_bingo")
 def test_get_progress_endpoint_returns_zero_progress_status(client):
     database.add_tile_with_conditions(
         "Zero Modal Tile",
@@ -1096,7 +1202,8 @@ def test_create_tile_route_rejects_twenty_sixth_tile(client):
             f"Route Capacity Existing Tile {tile_number}"
         )
 
-    login_admin(client)
+    create_board_user("Board Test Organiser", account_role="ORGANISER")
+    login_board_user(client, "Board Test Organiser")
 
     response = client.post(
         "/tile/tiles/new",
@@ -1304,6 +1411,7 @@ def test_player_other_team_board_redirects_to_own_board(client):
     )
 
 
+@pytest.mark.usefixtures("started_bingo")
 def test_player_cannot_query_other_team_progress(client):
     database.add_tile_with_conditions(
         "Protected Progress Tile",
@@ -1578,7 +1686,8 @@ def test_get_board_render_state_includes_completed_tile():
     assert board_state["partial_coordinates"] == set()
 
 def test_update_tile_board_position_json_assigns_coordinate(client):
-    login_admin(client)
+    create_board_user("Board Test Organiser", account_role="ORGANISER")
+    login_board_user(client, "Board Test Organiser")
 
     tile_id = create_test_tile(
         "JSON Board Tile"
@@ -1604,7 +1713,8 @@ def test_update_tile_board_position_json_assigns_coordinate(client):
 
 
 def test_update_tile_board_position_json_unassigns_blank_coordinate(client):
-    login_admin(client)
+    create_board_user("Board Test Organiser", account_role="ORGANISER")
+    login_board_user(client, "Board Test Organiser")
 
     tile_id = create_test_tile(
         "JSON Unassigned Board Tile"
@@ -1635,7 +1745,8 @@ def test_update_tile_board_position_json_unassigns_blank_coordinate(client):
 
 
 def test_update_tile_board_position_json_rejects_invalid_coordinate(client):
-    login_admin(client)
+    create_board_user("Board Test Organiser", account_role="ORGANISER")
+    login_board_user(client, "Board Test Organiser")
 
     tile_id = create_test_tile(
         "JSON Invalid Board Tile"
@@ -1923,3 +2034,224 @@ def test_replace_bingo_board_tiles_rolls_back_if_new_tile_insert_fails():
             "C3",
         )
     ]
+
+@pytest.mark.parametrize("account_role,can_see_secret", [
+    ("PLAYER", False),
+    ("ADMIN", False),
+    ("ORGANISER", True),
+])
+def test_web_board_hidden_tile_requires_organiser(client, account_role, can_see_secret):
+    team, player = create_board_team_and_player("Web Secret Team", "Web Secret Player")
+    tile_id = database.add_tile_with_conditions(
+        "Web Secret Tile", 1, "Private web tile rules",
+        [{"completion_path": 1, "condition_type": "MANUAL",
+          "condition_trigger": None, "target": 1}]
+    )
+    database.set_tile_board_coordinate(tile_id, "A1")
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO bingo_config (config_id, wom_competition_starts_at) "
+                "VALUES (1, TIMESTAMPTZ '2099-01-01 00:00:00+00') "
+                "ON CONFLICT (config_id) DO UPDATE SET "
+                "wom_competition_starts_at = EXCLUDED.wom_competition_starts_at"
+            )
+    create_board_user("Web Secret Viewer", account_role=account_role, player_id=player.player_id)
+    login_board_user(client, "Web Secret Viewer")
+    response = client.get("/board/Web Secret Team")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert ("Web Secret Tile" in html) is can_see_secret
+    if not can_see_secret:
+        assert "Hidden Tile" in html
+        assert 'data-hidden="true"' in html
+        assert "Private web tile rules" not in html
+    else:
+        assert 'data-hidden="false"' in html
+        assert "Private web tile rules" in html
+
+
+
+@pytest.mark.parametrize("role,expected_status", [
+    ("PLAYER", 404),
+    ("ADMIN", 404),
+    ("ORGANISER", 200),
+])
+def test_hidden_tile_progress_requires_organiser(client, role, expected_status):
+    team, player = create_board_team_and_player("Secret Progress Team", "Secret Progress Player")
+    tile_id = database.add_tile_with_conditions(
+        "Secret Progress Tile", 1, "Private requirements",
+        [{"completion_path": 1, "condition_type": "MANUAL",
+          "condition_trigger": None, "target": 1}]
+    )
+    database.set_tile_board_coordinate(tile_id, "A1")
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO bingo_config (config_id, wom_competition_starts_at) "
+                "VALUES (1, TIMESTAMPTZ '2099-01-01 00:00:00+00') "
+                "ON CONFLICT (config_id) DO UPDATE SET "
+                "wom_competition_starts_at = EXCLUDED.wom_competition_starts_at"
+            )
+    create_board_user("Secret Progress Viewer", account_role=role, player_id=player.player_id)
+    login_board_user(client, "Secret Progress Viewer")
+    response = client.get("/board/get_progress", query_string={
+        "tileName": "Secret Progress Tile", "teamName": "Secret Progress Team"
+    })
+    assert response.status_code == expected_status
+    if role != "ORGANISER":
+        assert response.get_json() == "Tile not found."
+
+def test_web_hidden_tile_uses_configured_default_message(client):
+    database.add_team("Default Hidden Message Team", 0, None)
+    tile_id = database.add_tile_with_conditions(
+        "Unreleased Mystery", 1, "Secret instructions",
+        [{"completion_path": 1, "condition_type": "MANUAL",
+          "condition_trigger": None, "target": 1}]
+    )
+    database.set_tile_board_coordinate(tile_id, "A1")
+    database.set_default_hidden_tile_message(
+        "Look out for the grand reveal!"
+    )
+    login_admin(client)
+    response = client.get("/board/Default Hidden Message Team")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Look out for the grand reveal!" in html
+    assert "Unreleased Mystery" not in html
+    assert "Secret instructions" not in html
+
+
+def test_web_hidden_tile_override_and_teaser(client):
+    database.add_team("Two Hidden Tiles Team", 0, None)
+    condition = [{"completion_path": 1, "condition_type": "MANUAL",
+                  "condition_trigger": None, "target": 1}]
+    first = database.add_tile_with_conditions(
+        "First Secret Identity", 1, "First secret rules", condition
+    )
+    second = database.add_tile_with_conditions(
+        "Second Secret Identity", 1, "Second secret rules", condition
+    )
+    database.set_tile_board_coordinate(first, "A1")
+    database.set_tile_board_coordinate(second, "A2")
+    database.set_default_hidden_tile_message("Global mystery message")
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE tiles SET hidden_message = %s, hidden_teaser = %s WHERE tile_id = %s",
+                ("Special mystery message", "Look beneath the surface", first)
+            )
+    login_admin(client)
+    response = client.get("/board/Two Hidden Tiles Team")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert html.count('data-tile="Hidden Tile"') == 2
+    assert "Special mystery message" in html
+    assert "Global mystery message" in html
+    assert 'data-teaser="Look beneath the surface"' in html
+    for secret in ("First Secret Identity", "Second Secret Identity",
+                   "First secret rules", "Second secret rules"):
+        assert secret not in html
+
+
+def test_general_board_marks_concealed_tiles_as_hidden(client):
+    tile_id = database.add_tile_with_conditions(
+        "Unreleased General Board Tile",
+        1,
+        "Secret general board requirements",
+        [{"completion_path": 1, "condition_type": "MANUAL",
+          "condition_trigger": None, "target": 1}]
+    )
+    database.set_tile_board_coordinate(tile_id, "A1")
+    login_admin(client)
+
+    response = client.get("/board/")
+    assert response.status_code == 200
+
+    html = response.get_data(as_text=True)
+    assert 'data-tile="Hidden Tile"' in html
+    assert 'data-hidden="true"' in html
+    assert "Unreleased General Board Tile" not in html
+    assert "Secret general board requirements" not in html
+
+
+
+@pytest.mark.parametrize("path,expect_redirect", [
+    ("/board/", False),
+    ("/board/Deleted Team", True),
+])
+def test_board_without_teams_handles_stale_selection(
+    client, path, expect_redirect
+):
+    tile_id = database.add_tile_with_conditions(
+        "No Team Preview Objective",
+        1,
+        "A revealed objective for preview testing",
+        [{
+            "completion_path": 1,
+            "condition_type": "KILLCOUNT",
+            "condition_trigger": "no_team_preview_metric",
+            "target": 10
+        }]
+    )
+
+    assert database.update_tile_visibility_settings(
+        tile_id, True, None, None
+    )
+
+    assert database.get_teams() == []
+
+    login_admin(client)
+
+    client.set_cookie(
+        "teamname",
+        "Deleted Team"
+    )
+
+    response = client.get(path)
+
+    if expect_redirect:
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("/board/")
+
+        response = client.get(
+            response.headers["Location"]
+        )
+
+    assert response.status_code == 200
+    assert "No Team Preview Objective" in response.get_data(
+        as_text=True
+    )
+
+@pytest.mark.parametrize("endpoint, payload_kind", [
+    ("board-position", "form"),
+    ("board-position-json", "json"),
+])
+def test_admin_cannot_update_organiser_only_board_position(
+    client, endpoint, payload_kind
+):
+    tile_id = create_test_tile("Organiser Only Position")
+    original = db_entities.Tile(
+        database.get_tile_by_id(tile_id)
+    ).board_coordinate
+
+    login_admin(client)
+
+    payload = {"board_coordinate": "D2"}
+    kwargs = (
+        {"json": payload}
+        if payload_kind == "json"
+        else {"data": payload}
+    )
+
+    response = client.post(
+        f"/tile/tiles/{endpoint}/{tile_id}",
+        **kwargs
+    )
+
+    assert response.status_code == 403
+
+    updated = db_entities.Tile(
+        database.get_tile_by_id(tile_id)
+    )
+    assert updated.board_coordinate == original

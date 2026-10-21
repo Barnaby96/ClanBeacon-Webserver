@@ -568,6 +568,21 @@ def player_evidence(evidence_type, evidence_id):
         ):
             abort(404)
 
+    if not current_user.is_organiser:
+        from utils import bingo
+
+        lifecycle_status = database.get_bingo_lifecycle_status() or {}
+        competition_start_at = lifecycle_status.get("starts_at")
+
+        for tile_id in database.get_evidence_tile_ids(
+            evidence_type, evidence_id
+        ):
+            tile_data = database.get_tile_by_id(tile_id)
+            if tile_data is None or not bingo.is_tile_visible_to_participants(
+                db_entities.Tile(tile_data), competition_start_at
+            ):
+                abort(404)
+
     if absolute_path is None:
         abort(404)
 
@@ -901,21 +916,43 @@ def player(player_name):
     if len(relevant_drops) > 0:
         relevant_drops = sorted(relevant_drops, key=lambda relevant_drop: relevant_drop.tile_name, reverse=True)
 
+    can_view_hidden_evidence = current_user.is_organiser
+    visible_tile_ids = None
+
+    if not can_view_hidden_evidence:
+        from utils import bingo
+        lifecycle = database.get_bingo_lifecycle_status() or {}
+        competition_start_at = lifecycle.get("starts_at")
+
+        visible_tile_ids = [
+            tile.tile_id
+            for tile in (
+                db_entities.Tile(row)
+                for row in database.get_tiles()
+            )
+            if bingo.is_tile_visible_to_participants(
+                tile, competition_start_at
+            )
+        ]
+
     relevant_drop_summary = (
         database.get_player_relevant_drop_summary(
-            player.player_id
+            player.player_id,
+            visible_tile_ids=visible_tile_ids
         )
     )
 
     relevant_boss_kc_summary = (
         database.get_player_relevant_boss_kc_summary(
-            player.player_id
+            player.player_id,
+            visible_tile_ids=visible_tile_ids
         )
     )
 
     relevant_xp_summary = (
         database.get_player_relevant_xp_summary(
-            player.player_id
+            player.player_id,
+            visible_tile_ids=visible_tile_ids
         )
     )
 
@@ -924,6 +961,25 @@ def player(player_name):
     for evidence in database.get_player_bingo_evidence(
         player.player_id
     ):
+        if not can_view_hidden_evidence:
+            concealed = False
+
+            for tile_id in database.get_evidence_tile_ids(
+                evidence["evidence_type"],
+                evidence["evidence_id"]
+            ):
+                tile_data = database.get_tile_by_id(tile_id)
+
+                if tile_data is None or not bingo.is_tile_visible_to_participants(
+                    db_entities.Tile(tile_data),
+                    competition_start_at
+                ):
+                    concealed = True
+                    break
+
+            if concealed:
+                continue
+
         if evidence["evidence_type"] == "dink":
             absolute_path = resolve_dink_evidence_path(
                 event_id=evidence["evidence_id"],

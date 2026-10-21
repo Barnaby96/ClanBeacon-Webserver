@@ -41,12 +41,31 @@ def _get_current_user_team():
 @login_required
 def index():
     panelData = {}
+    lifecycle_status = database.get_bingo_lifecycle_status() or {}
+    competition_start_at = lifecycle_status.get("starts_at")
+    can_view_hidden_tiles = current_user.is_organiser
+    default_hidden_message = (
+        database.get_default_hidden_tile_message()
+        or (
+            "This tile is currently hidden! Its requirements will be "
+            "revealed when Bingo begins. Check back once the competition starts!"
+        )
+    )
 
     tiles = []
     tiles_by_coordinate = {}
 
     for tile in database.get_tiles():
         tile = db_entities.Tile(tile)
+        tile.is_hidden = (
+            not can_view_hidden_tiles
+            and not bingo.is_tile_visible_to_participants(
+                tile, competition_start_at
+            )
+        )
+        if tile.is_hidden:
+            tile.tile_name = "Hidden Tile"
+            tile.tile_rules = tile.hidden_message or default_hidden_message
         tiles.append(tile)
 
         if tile.board_coordinate is not None:
@@ -60,7 +79,7 @@ def index():
             "to see your progress"
         )
         pd.rules = f"Rules: {tile.tile_rules}"
-        panelData[tile.tile_name] = pd
+        panelData[tile.tile_id] = pd
 
     tiles = sorted(
         tiles,
@@ -93,7 +112,7 @@ def index():
         'teamname'
     )
 
-    if team_name:
+    if team_name and database.get_team_by_name(team_name) is not None:
         return redirect(
             url_for(
                 'board_routes.board',
@@ -180,6 +199,13 @@ def get_progress():
         tile_row
     )
 
+    if not current_user.is_organiser:
+        lifecycle_status = database.get_bingo_lifecycle_status() or {}
+        if not bingo.is_tile_visible_to_participants(
+            tile, lifecycle_status.get("starts_at")
+        ):
+            return jsonify("Tile not found."), 404
+
     progress = bingo.get_progress(
         team.team_id,
         tile.tile_id
@@ -254,8 +280,8 @@ def board(team_name):
 
                 return resp
 
-            team = db_entities.Team(
-                ("None", 0, None, -1)
+            return redirect(
+                url_for("board_routes.index")
             )
 
         else:
@@ -263,12 +289,32 @@ def board(team_name):
                 team_row
             )
 
+    lifecycle_status = database.get_bingo_lifecycle_status() or {}
+    competition_start_at = lifecycle_status.get("starts_at")
+    can_view_hidden_tiles = current_user.is_organiser
+    default_hidden_message = (
+        database.get_default_hidden_tile_message()
+        or (
+            "This tile is currently hidden! Its requirements will be "
+            "revealed when Bingo begins. Check back once the competition starts!"
+        )
+    )
+
     # get tiles for board population
     tiles = []
     tiles_by_coordinate = {}
 
     for tile in database.get_tiles():
         tile = db_entities.Tile(tile)
+        tile.is_hidden = (
+            not can_view_hidden_tiles
+            and not bingo.is_tile_visible_to_participants(
+                tile, competition_start_at
+            )
+        )
+        if tile.is_hidden:
+            tile.tile_name = "Hidden Tile"
+            tile.tile_rules = tile.hidden_message or default_hidden_message
         tiles.append(tile)
 
         if tile.board_coordinate is not None:
@@ -278,7 +324,7 @@ def board(team_name):
 
         pd = PanelData()
         pd.rules = f"Rules: {tile.tile_rules}"
-        panelData[tile.tile_name] = pd
+        panelData[tile.tile_id] = pd
 
     tiles = sorted(
         tiles,
@@ -289,12 +335,16 @@ def board(team_name):
     partial_tiles = []
 
     for tile in tiles:
+        if tile.is_hidden:
+            panelData[tile.tile_id].completions = ""
+            continue
+
         progress = bingo.get_progress(
             team.team_id,
             tile.tile_id
         )
 
-        panelData[tile.tile_name].completions = (
+        panelData[tile.tile_id].completions = (
             "Completed: Yes"
             if progress.completions > 0
             else "Completed: No"

@@ -116,6 +116,7 @@
                             </td>
                         </tr>
 
+                        {% if current_user.is_organiser %}
                         <tr>
                             <td>
                                 <span class="osrs-player-name">
@@ -132,6 +133,7 @@
                                 </a>
                             </td>
                         </tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>

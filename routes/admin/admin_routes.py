@@ -6,7 +6,7 @@ from flask_login import current_user
 from werkzeug.utils import secure_filename
 
 from routes import dink
-from utils.auth import admin_required
+from utils.auth import admin_required, organiser_required
 from utils.branding import BOT_NAME
 from utils import completion_notifications, database, db_entities, wom
 from utils.dink_evidence import resolve_dink_evidence_path
@@ -1133,7 +1133,7 @@ def get_current_roster_capability_profiles():
 
 
 @admin_routes.route('/bingo_setup/drop_tile_effort_preview', methods=['GET'])
-@admin_required
+@organiser_required
 def drop_tile_effort_preview():
     rows = build_drop_tile_effort_preview_rows()
 
@@ -1153,7 +1153,7 @@ def drop_tile_effort_preview():
 
 
 @admin_routes.route('/bingo_setup/generated_board_preview', methods=['GET', 'POST'])
-@admin_required
+@organiser_required
 def generated_board_preview():
     apply_failed = False
 
@@ -1227,20 +1227,31 @@ def generated_board_preview():
                 if tile_key not in kept_tile_key_set
             )
 
-    return render_template(
-        'admin_templates/generated_board_preview.html',
-        summary=get_curated_generated_board_preview_summary(
+    from utils.board_generation import BoardAssemblyError
+
+    try:
+        summary = get_curated_generated_board_preview_summary(
             capability_profiles=capability_result.profile_set,
             kept_tile_keys=kept_tile_keys,
             banned_tile_keys=banned_tile_keys,
-        ),
+        )
+    except BoardAssemblyError as error:
+        flash(
+            "Could not generate a valid Bingo board: " + str(error),
+            "danger",
+        )
+        return redirect(url_for("admin_routes.bingo_setup"))
+
+    return render_template(
+        'admin_templates/generated_board_preview.html',
+        summary=summary,
         kept_tile_keys=set(
             kept_tile_keys
         ),
     )
 
 @admin_routes.route('/bingo_setup/tile_catalogue_preview', methods=['GET'])
-@admin_required
+@organiser_required
 def tile_catalogue_preview():
     capability_result = get_current_roster_capability_profiles()
 
@@ -1257,6 +1268,7 @@ def tile_catalogue_preview():
 def bingo_setup():
     competition_id = database.get_wom_competition_id()
     evidence_codeword = database.get_evidence_codeword() or ''
+    default_hidden_tile_message = database.get_default_hidden_tile_message()
     stored_competition_id = competition_id
     competition = None
     teams = {}
@@ -1278,6 +1290,16 @@ def bingo_setup():
             'evidence_codeword',
             evidence_codeword
         ).strip()
+
+        if action == 'set_default_hidden_tile_message':
+            if not current_user.is_organiser:
+                abort(403)
+
+            database.set_default_hidden_tile_message(
+                request.form.get("default_hidden_tile_message", "")
+            )
+            flash('Default hidden-tile message saved.', 'success')
+            return redirect(url_for("admin_routes.bingo_setup"))
 
         if action == 'set_lifecycle_ready':
             if not current_user.is_organiser:
@@ -1374,6 +1396,7 @@ def bingo_setup():
                 conflicts=[],
                 import_plan=None,
                 evidence_codeword=evidence_codeword,
+                default_hidden_tile_message=default_hidden_tile_message,
                 recent_wom_refreshes=recent_wom_refreshes,
                 lifecycle_status=lifecycle_status
             )
@@ -1393,6 +1416,7 @@ def bingo_setup():
                 conflicts=[],
                 import_plan=None,
                 evidence_codeword=evidence_codeword,
+                default_hidden_tile_message=default_hidden_tile_message,
                 recent_wom_refreshes=recent_wom_refreshes,
                 lifecycle_status=lifecycle_status
             )
@@ -1521,8 +1545,9 @@ def bingo_setup():
         conflicts=conflicts,
         import_plan=import_plan,
         evidence_codeword=evidence_codeword,
+        default_hidden_tile_message=default_hidden_tile_message,
         recent_wom_refreshes=recent_wom_refreshes,
-                lifecycle_status=lifecycle_status
+        lifecycle_status=lifecycle_status
     )
 
 

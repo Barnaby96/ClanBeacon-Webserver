@@ -13,6 +13,44 @@ class TileProgress:
         self.completions = 0
 
 
+def is_tile_visible_to_participants(tile, start_at, now=None):
+    from datetime import datetime, timezone
+
+    if tile.prestart_revealed:
+        return True
+
+    if start_at is None:
+        return False
+
+    current = now if now is not None else datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    if start_at.tzinfo is None:
+        start_at = start_at.replace(tzinfo=timezone.utc)
+
+    return current.astimezone(timezone.utc) >= start_at.astimezone(timezone.utc)
+
+
+def get_viewer_board_render_state(team_id=None, *, start_at=None, now=None, is_organiser=False):
+    state = get_board_render_state(team_id)
+    if is_organiser:
+        return state
+
+    hidden_coordinates = set()
+    for tile_data in database.get_tiles():
+        tile = db_entities.Tile(tile_data)
+        coordinate = tile.board_coordinate
+        if coordinate not in state["tile_names_by_coordinate"]:
+            continue
+        if not is_tile_visible_to_participants(tile, start_at, now=now):
+            hidden_coordinates.add(coordinate)
+            state["tile_names_by_coordinate"][coordinate] = "Hidden Tile"
+
+    state["completed_coordinates"].difference_update(hidden_coordinates)
+    state["partial_coordinates"].difference_update(hidden_coordinates)
+    return state
+
+
 def get_board_render_state(team_id=None):
     tile_names_by_coordinate = {}
     completed_coordinates = set()

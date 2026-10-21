@@ -92,6 +92,65 @@ def mock_wom_competition():
     }
 
 
+@pytest.mark.parametrize("role,expected_status", [
+    ("ORGANISER", 302),
+    ("ADMIN", 403),
+])
+def test_bingo_setup_hidden_message_requires_organiser(client, monkeypatch, role, expected_status):
+    create_admin_user()
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE users SET account_role = %s WHERE username = %s",
+                (role, "Bingo Setup Admin")
+            )
+    login_admin(client)
+    database.set_default_hidden_tile_message("Existing message")
+
+    def unexpected_wom_request(*args, **kwargs):
+        pytest.fail("Hidden-message settings must not request WOM")
+
+    monkeypatch.setattr(
+        admin_routes_module.wom, "get_competition_details",
+        unexpected_wom_request
+    )
+    response = client.post("/admin/bingo_setup", data={
+        "action": "set_default_hidden_tile_message",
+        "default_hidden_tile_message": "A new secret message!"
+    })
+    assert response.status_code == expected_status
+    expected = ("A new secret message!" if role == "ORGANISER" else "Existing message")
+    assert database.get_default_hidden_tile_message() == expected
+
+
+@pytest.mark.parametrize("role,can_edit", [
+    ("ORGANISER", True),
+    ("ADMIN", False),
+])
+def test_bingo_setup_hidden_message_form_is_organiser_only(client, role, can_edit):
+    create_admin_user()
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE users SET account_role = %s WHERE username = %s",
+                (role, "Bingo Setup Admin")
+            )
+    login_admin(client)
+    database.set_default_hidden_tile_message("A secret awaits!")
+    response = client.get("/admin/bingo_setup")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert ('value="set_default_hidden_tile_message"' in html) is can_edit
+    if can_edit:
+        assert "A secret awaits!" in html
+
+
+def test_hidden_tile_default_message_round_trip():
+    assert database.get_default_hidden_tile_message() is None
+    database.set_default_hidden_tile_message("A secret awaits!")
+    assert database.get_default_hidden_tile_message() == "A secret awaits!"
+
+
 def test_evidence_codeword_can_be_saved_and_retrieved():
     assert database.get_evidence_codeword() is None
 
@@ -1125,3 +1184,193 @@ def test_bingo_setup_reset_clears_event_data_teams_players_and_unlinks_dink_iden
             "PENDING",
             None
         )
+
+
+@pytest.mark.parametrize("role", ["ADMIN", "PLAYER"])
+@pytest.mark.parametrize("method,path", [
+    ("GET", "/tile/tiles"),
+    ("GET", "/tile/tiles/new"),
+    ("POST", "/tile/tiles/new"),
+    ("GET", "/tile/tiles/edit/999999"),
+    ("POST", "/tile/tiles/edit/999999"),
+    ("POST", "/tile/tiles/board-position/999999"),
+    ("POST", "/tile/tiles/board-position-json/999999"),
+    ("POST", "/tile/tiles/delete/999999"),
+])
+def test_tile_management_denies_non_organiser_roles(client, role, method, path):
+    create_admin_user()
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE users SET account_role = %s WHERE username = %s",
+                (role, "Bingo Setup Admin")
+            )
+    login_admin(client)
+    response = client.open(path, method=method)
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize("path", [
+    "/tile/tiles",
+    "/tile/tiles/new",
+])
+def test_tile_management_get_pages_allow_organisers(client, path):
+    create_admin_user()
+    login_admin(client)
+    response = client.get(path)
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize("role,show_tiles", [
+    ("ORGANISER", True),
+    ("ADMIN", False),
+])
+def test_admin_dashboard_tile_link_visibility(client, role, show_tiles):
+    create_admin_user()
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE users SET account_role = %s WHERE username = %s",
+                (role, "Bingo Setup Admin")
+            )
+    login_admin(client)
+
+    response = client.get("/admin/")
+    assert response.status_code == 200
+
+    html = response.get_data(as_text=True)
+    assert ('href="/tile/tiles"' in html) is show_tiles
+    assert 'href="/team/teams"' in html
+
+
+@pytest.mark.parametrize("role", ["ADMIN", "PLAYER"])
+@pytest.mark.parametrize("method,action", [
+    ("GET", None),
+    ("POST", "reroll"),
+    ("POST", "apply_to_board"),
+])
+def test_generated_board_preview_denies_non_organisers(
+    client, monkeypatch, role, method, action
+):
+    create_admin_user()
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE users SET account_role = %s WHERE username = %s",
+                (role, "Bingo Setup Admin")
+            )
+    login_admin(client)
+
+    def unexpected_generator_access(*args, **kwargs):
+        pytest.fail("Non-organisers must not execute board generator logic")
+
+    monkeypatch.setattr(
+        admin_routes_module,
+        "get_current_roster_capability_profiles",
+        unexpected_generator_access
+    )
+    monkeypatch.setattr(
+        admin_routes_module,
+        "build_live_tile_payloads_from_generated_board_keys",
+        unexpected_generator_access
+    )
+    monkeypatch.setattr(
+        database,
+        "replace_bingo_board_tiles",
+        unexpected_generator_access
+    )
+
+    response = client.open(
+        "/admin/bingo_setup/generated_board_preview",
+        method=method,
+        data={"action": action} if action else None
+    )
+    assert response.status_code == 403
+
+
+
+@pytest.mark.parametrize("role,can_see_generator", [
+    ("ORGANISER", True),
+    ("ADMIN", False),
+])
+def test_bingo_setup_generator_visibility(client, role, can_see_generator):
+    create_admin_user()
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE users SET account_role = %s WHERE username = %s",
+                (role, "Bingo Setup Admin")
+            )
+    login_admin(client)
+
+    response = client.get("/admin/bingo_setup")
+    assert response.status_code == 200
+
+    html = response.get_data(as_text=True)
+    assert ("Bingo Board Generator" in html) is can_see_generator
+    assert (
+        'href="/admin/bingo_setup/generated_board_preview"' in html
+    ) is can_see_generator
+
+
+
+@pytest.mark.parametrize("role", ["ADMIN", "PLAYER"])
+@pytest.mark.parametrize("path,protected_call", [
+    ("/admin/bingo_setup/tile_catalogue_preview",
+     "get_current_roster_capability_profiles"),
+    ("/admin/bingo_setup/drop_tile_effort_preview",
+     "build_drop_tile_effort_preview_rows"),
+])
+def test_bingo_preview_pages_deny_non_organisers(
+    client, monkeypatch, role, path, protected_call
+):
+    create_admin_user()
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE users SET account_role = %s WHERE username = %s",
+                (role, "Bingo Setup Admin")
+            )
+    login_admin(client)
+
+    def unexpected_preview(*args, **kwargs):
+        pytest.fail("Non-organisers must not execute preview logic")
+
+    monkeypatch.setattr(
+        admin_routes_module, protected_call, unexpected_preview
+    )
+    response = client.get(path)
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize("path", [
+    "/admin/bingo_setup/tile_catalogue_preview",
+    "/admin/bingo_setup/drop_tile_effort_preview",
+])
+def test_bingo_preview_pages_allow_organisers(client, monkeypatch, path):
+    create_admin_user()
+    login_admin(client)
+
+    class FakeCapabilities:
+        profile_set = ()
+
+    monkeypatch.setattr(
+        admin_routes_module, "get_current_roster_capability_profiles",
+        lambda: FakeCapabilities()
+    )
+    monkeypatch.setattr(
+        admin_routes_module, "get_curated_tile_catalogue_summary",
+        lambda **kwargs: None
+    )
+    monkeypatch.setattr(
+        admin_routes_module, "build_drop_tile_effort_preview_rows",
+        lambda: []
+    )
+    monkeypatch.setattr(
+        admin_routes_module, "render_template",
+        lambda *args, **kwargs: "Preview rendered"
+    )
+
+    response = client.get(path)
+    assert response.status_code == 200
+    assert response.get_data(as_text=True) == "Preview rendered"

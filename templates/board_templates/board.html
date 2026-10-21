@@ -507,13 +507,17 @@
                                     color: #f4f0e5;
                                 "
                             {% endif %}
+                            data-hidden="{{ (tile.is_hidden | default(false)) | tojson }}"
+                            data-teaser="{{ ((tile.hidden_teaser or "") if (tile.is_hidden | default(false)) else "") | e }}"
                             data-tile="{{ tile_name }}"
-                            data-completions="{{ panelData[tile_name].completions }}"
-                            data-rules="{{ panelData[tile_name].rules }}"
+                            data-completions="{{ panelData[tile.tile_id].completions }}"
+                            data-rules="{{ panelData[tile.tile_id].rules }}"
                             onclick="openPanel(
                                 this.dataset.tile,
                                 this.dataset.completions,
-                                this.dataset.rules
+                                this.dataset.rules,
+                                this.dataset.hidden,
+                                this.dataset.teaser
                             )"
                         >
                             <span
@@ -566,19 +570,25 @@
     function openPanel(
         tileName,
         completions,
-        rules
+        rules,
+        isHidden,
+        teaser
     ) {
         openPanelHelper(
             tileName,
             completions,
-            rules
+            rules,
+            isHidden,
+            teaser
         );
     }
 
     function openPanelHelper(
         tileName,
         completions,
-        rules
+        rules,
+        isHidden,
+        teaser
     ) {
         const modal = document.getElementById(
             "tileModal"
@@ -598,9 +608,21 @@
             "rules"
         ).innerText = rules;
 
+        const rulesElement = document.getElementById("rules");
+        let teaserElement = document.getElementById("tileTeaser");
+        if (!teaserElement) {
+            teaserElement = document.createElement("p");
+            teaserElement.id = "tileTeaser";
+            teaserElement.className = "osrs-form-help";
+            rulesElement.insertAdjacentElement("afterend", teaserElement);
+        }
+        const showTeaser = isHidden === "true" && Boolean(teaser);
+        teaserElement.hidden = !showTeaser;
+        teaserElement.textContent = showTeaser ? teaser : "";
+
         document.getElementById(
             "progress"
-        ).innerText = "Processing...";
+        ).innerText = isHidden === "true" ? "" : "Processing...";
 
         modal.classList.add("is-open");
         modal.setAttribute(
@@ -615,6 +637,10 @@
         document.getElementById(
             "tileModalClose"
         ).focus();
+
+        if (isHidden === "true") {
+            return;
+        }
 
         $.ajax({
             url: '/board/get_progress',

@@ -76,6 +76,9 @@ class Tile:
             if len(tile_tuple) > 10
             else None
         )
+        self.prestart_revealed = tile_tuple[11] if len(tile_tuple) > 11 else False
+        self.hidden_message = tile_tuple[12] if len(tile_tuple) > 12 else None
+        self.hidden_teaser = tile_tuple[13] if len(tile_tuple) > 13 else None
 
 
 

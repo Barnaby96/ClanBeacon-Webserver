@@ -455,3 +455,108 @@ def test_generated_board_preview_apply_failure_preserves_preview(monkeypatch):
     ]
     assert captured["kept_tile_keys"] == submitted_keys
     assert captured["banned_tile_keys"] == ()
+
+
+
+def test_generated_board_preview_reroll_failure_is_handled(monkeypatch):
+    from utils.board_generation import BoardAssemblyError
+
+    captured = {
+        "flashes": [],
+        "replacements": 0,
+    }
+
+    class RerollRequest:
+        method = "POST"
+
+        class form:
+            @staticmethod
+            def get(name, default=None):
+                if name == "action":
+                    return "reroll"
+                return default
+
+            @staticmethod
+            def getlist(name):
+                if name == "current_tile_key":
+                    return ("old-tile-one", "old-tile-two")
+                return ()
+
+    class FakeCapabilityResult:
+        failed_players = ()
+        profile_set = "capability-profiles"
+
+    def fail_generation(
+        capability_profiles=None,
+        kept_tile_keys=(),
+        banned_tile_keys=(),
+    ):
+        assert tuple(banned_tile_keys) == (
+            "old-tile-one",
+            "old-tile-two",
+        )
+        raise BoardAssemblyError(
+            "Generated board secondary pet route count "
+            "must be between 2 and 6."
+        )
+
+    def reject_replacement(*args, **kwargs):
+        captured["replacements"] += 1
+        raise AssertionError(
+            "A failed reroll must not replace the live board."
+        )
+
+    monkeypatch.setattr(
+        admin_routes, "request", RerollRequest()
+    )
+    monkeypatch.setattr(
+        admin_routes,
+        "get_current_roster_capability_profiles",
+        lambda: FakeCapabilityResult()
+    )
+    monkeypatch.setattr(
+        admin_routes,
+        "get_curated_generated_board_preview_summary",
+        fail_generation
+    )
+    monkeypatch.setattr(
+        admin_routes.database,
+        "replace_bingo_board_tiles",
+        reject_replacement
+    )
+    monkeypatch.setattr(
+        admin_routes,
+        "flash",
+        lambda message, category: captured["flashes"].append(
+            (message, category)
+        )
+    )
+    monkeypatch.setattr(
+        admin_routes,
+        "url_for",
+        lambda endpoint: "/" + endpoint
+    )
+    monkeypatch.setattr(
+        admin_routes,
+        "redirect",
+        lambda location: ("redirect", location)
+    )
+
+    route_function = getattr(
+        admin_routes.generated_board_preview,
+        "__wrapped__",
+        admin_routes.generated_board_preview
+    )
+
+    result = route_function()
+
+    assert result == (
+        "redirect",
+        "/admin_routes.bingo_setup",
+    )
+    assert captured["replacements"] == 0
+    assert any(
+        category == "danger"
+        and "secondary pet route" in message.lower()
+        for message, category in captured["flashes"]
+    )

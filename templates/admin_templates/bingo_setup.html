@@ -71,6 +71,7 @@
             </div>
         </section>
 
+        {% if current_user.is_organiser %}
         <section class="osrs-panel">
             <div class="osrs-panel-header">
                 <h2 class="osrs-panel-title">Bingo Board Generator</h2>
@@ -97,6 +98,7 @@
                 </p>
             </div>
         </section>
+        {% endif %}
 
         {% if competition %}
             <section class="osrs-panel">
@@ -432,6 +434,28 @@
                 {% endif %}
             </div>
         </section>
+        {% if current_user.is_organiser %}
+        <section class="osrs-panel">
+            <div class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Hidden Tile Settings</h2>
+                <p class="osrs-panel-description">Set the default message shown for concealed Bingo tiles.</p>
+            </div>
+            <div class="osrs-panel-body">
+                <form action="{{ url_for('admin_routes.bingo_setup') }}" method="POST" class="osrs-form-grid">
+                    <input type="hidden" name="action" value="set_default_hidden_tile_message">
+                    <div class="osrs-form-field">
+                        <label for="default_hidden_tile_message" class="osrs-form-label">Default Hidden Tile Message</label>
+                        <textarea id="default_hidden_tile_message" name="default_hidden_tile_message" rows="4" class="osrs-form-input">{{ default_hidden_tile_message or "This tile is currently hidden! Its requirements will be revealed when Bingo begins. Check back once the competition starts!" }}</textarea>
+                        <p class="osrs-form-help">Leave blank and save to restore the built-in message.</p>
+                    </div>
+                    <div class="osrs-form-actions">
+                        <button type="submit" class="osrs-button">Save Hidden Tile Message</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+        {% endif %}
+
         <section class="osrs-panel">
             <div class="osrs-panel-header">
                 <h2 class="osrs-panel-title">Recent WOM Refreshes</h2>

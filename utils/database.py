@@ -696,6 +696,26 @@ def ensure_schema():
         ''')
 
         cursor.execute('''
+            ALTER TABLE tiles
+            ADD COLUMN IF NOT EXISTS prestart_revealed BOOLEAN NOT NULL DEFAULT FALSE
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE tiles
+            ADD COLUMN IF NOT EXISTS hidden_message TEXT
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE tiles
+            ADD COLUMN IF NOT EXISTS hidden_teaser TEXT
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE bingo_config
+            ADD COLUMN IF NOT EXISTS default_hidden_message TEXT
+        ''')
+
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS dink_identities (
                 dink_account_hash TEXT PRIMARY KEY,
                 player_id INTEGER,
@@ -2005,6 +2025,32 @@ def set_wom_competition_id(competition_id):
         conn.commit()
 
 
+def get_default_hidden_tile_message():
+    with connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT default_hidden_message FROM bingo_config "
+                "WHERE config_id = 1"
+            )
+            row = cursor.fetchone()
+            return row[0] if row is not None else None
+
+
+def set_default_hidden_tile_message(message):
+    clean_message = str(message).strip() if message is not None else None
+    clean_message = clean_message or None
+    with connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO bingo_config (config_id, default_hidden_message) "
+                "VALUES (1, %s) "
+                "ON CONFLICT (config_id) DO UPDATE SET "
+                "default_hidden_message = EXCLUDED.default_hidden_message",
+                (clean_message,)
+            )
+
+
+
 def get_evidence_codeword():
     with connect() as conn:
         cursor = conn.cursor()
@@ -2084,7 +2130,11 @@ def get_wom_last_processed_gain(
 
     return row[0]
 
-def get_player_relevant_boss_kc_summary(player_id):
+def get_player_relevant_boss_kc_summary(player_id, visible_tile_ids=None):
+    allowed_tile_ids = (
+        None if visible_tile_ids is None
+        else [int(tile_id) for tile_id in visible_tile_ids]
+    )
     competition_id = get_wom_competition_id()
 
     if competition_id is None:
@@ -2115,6 +2165,10 @@ def get_player_relevant_boss_kc_summary(player_id):
                  = LOWER(BTRIM(c.condition_trigger))
             WHERE c.condition_type = 'KILLCOUNT'
               AND COALESCE(w.last_processed_gain, 0) > 0
+              AND (
+                  %s::INTEGER[] IS NULL
+                  OR c.tile_id = ANY(%s::INTEGER[])
+              )
             GROUP BY
                 LOWER(BTRIM(c.condition_trigger)),
                 w.last_processed_gain
@@ -2123,7 +2177,9 @@ def get_player_relevant_boss_kc_summary(player_id):
             ''',
             (
                 competition_id,
-                player_id
+                player_id,
+                allowed_tile_ids,
+                allowed_tile_ids
             )
         )
 
@@ -2145,7 +2201,11 @@ def get_player_relevant_boss_kc_summary(player_id):
     }
 
 
-def get_player_relevant_xp_summary(player_id):
+def get_player_relevant_xp_summary(player_id, visible_tile_ids=None):
+    allowed_tile_ids = (
+        None if visible_tile_ids is None
+        else [int(tile_id) for tile_id in visible_tile_ids]
+    )
     competition_id = get_wom_competition_id()
 
     if competition_id is None:
@@ -2176,6 +2236,10 @@ def get_player_relevant_xp_summary(player_id):
                  = LOWER(BTRIM(c.condition_trigger))
             WHERE c.condition_type = 'EXPERIENCE'
               AND COALESCE(w.last_processed_gain, 0) > 0
+              AND (
+                  %s::INTEGER[] IS NULL
+                  OR c.tile_id = ANY(%s::INTEGER[])
+              )
             GROUP BY
                 LOWER(BTRIM(c.condition_trigger)),
                 w.last_processed_gain
@@ -2184,7 +2248,9 @@ def get_player_relevant_xp_summary(player_id):
             ''',
             (
                 competition_id,
-                player_id
+                player_id,
+                allowed_tile_ids,
+                allowed_tile_ids
             )
         )
 
@@ -5782,6 +5848,30 @@ def get_dink_event_by_id(event_id):
 
         return cursor.fetchone()
 
+
+
+def get_evidence_tile_ids(evidence_type, evidence_id):
+    if evidence_type == "dink":
+        query = """
+            SELECT DISTINCT tile_id
+            FROM dink_event_progress
+            WHERE event_id = %s
+              AND tile_id IS NOT NULL
+        """
+    elif evidence_type == "manual":
+        query = """
+            SELECT tile_id
+            FROM manual_evidence
+            WHERE evidence_id = %s
+              AND tile_id IS NOT NULL
+        """
+    else:
+        return []
+
+    with connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query, (evidence_id,))
+            return [int(row[0]) for row in cursor.fetchall()]
 
 
 def get_manual_evidence_by_id(evidence_id):
@@ -13922,6 +14012,35 @@ def get_tile_by_drop(drop_name):
         cursor.execute("SELECT * FROM tiles where tile_id = %s", (tile_id,))
         return cursor.fetchone()
 
+def update_tile_visibility_settings(
+    tile_id, prestart_revealed, hidden_message, hidden_teaser
+):
+    with connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE tiles
+                SET
+                    prestart_revealed = %s,
+                    hidden_message = %s,
+                    hidden_teaser = %s
+                WHERE tile_id = %s
+                RETURNING tile_id
+                """,
+                (
+                    bool(prestart_revealed),
+                    str(hidden_message or "").strip() or None,
+                    str(hidden_teaser or "").strip() or None,
+                    tile_id
+                )
+            )
+            updated = cursor.fetchone() is not None
+
+        conn.commit()
+
+    return updated
+
+
 def get_tile_by_id(tile_id):
     with connect() as conn:
         cursor = conn.cursor()
@@ -14559,7 +14678,11 @@ def get_relevant_drop_by_player_id(player_id):
         cursor.execute("SELECT * FROM relevant_drops WHERE player_id = %s", (player_id,))
         return cursor.fetchall()
 
-def get_player_relevant_drop_summary(player_id):
+def get_player_relevant_drop_summary(player_id, visible_tile_ids=None):
+    allowed_tile_ids = (
+        None if visible_tile_ids is None
+        else [int(tile_id) for tile_id in visible_tile_ids]
+    )
     with connect() as conn:
         cursor = conn.cursor()
 
@@ -14575,6 +14698,10 @@ def get_player_relevant_drop_summary(player_id):
                 WHERE de.player_id = %s
                   AND de.status = 'PROCESSED'
                   AND dep.counted_amount > 0
+                  AND (
+                      %s::INTEGER[] IS NULL
+                      OR dep.tile_id = ANY(%s::INTEGER[])
+                  )
                   AND NOT EXISTS (
                       SELECT 1
                       FROM evidence_invalidations AS invalidation
@@ -14604,6 +14731,10 @@ def get_player_relevant_drop_summary(player_id):
                       BTRIM(snapshot.condition_type)
                   ) = 'DROP'
                   AND progress.counted_amount > 0
+                  AND (
+                      %s::INTEGER[] IS NULL
+                      OR evidence.tile_id = ANY(%s::INTEGER[])
+                  )
                   AND NOT EXISTS (
                       SELECT 1
                       FROM evidence_invalidations AS invalidation
@@ -14624,7 +14755,11 @@ def get_player_relevant_drop_summary(player_id):
             ''',
             (
                 player_id,
-                player_id
+                allowed_tile_ids,
+                allowed_tile_ids,
+                player_id,
+                allowed_tile_ids,
+                allowed_tile_ids
             )
         )
 
@@ -15003,7 +15138,8 @@ def reset_tables():
                 bingo_end_webhook_sent_at TIMESTAMPTZ,
                 bingo_lifecycle_ready BOOLEAN NOT NULL DEFAULT FALSE,
                 bingo_lifecycle_ready_at TIMESTAMPTZ,
-            evidence_codeword TEXT
+            evidence_codeword TEXT,
+            default_hidden_message TEXT
         )
         ''')
 
@@ -15325,6 +15461,9 @@ def reset_tables():
                 tile_points real,
                 tile_rules text,
                 board_coordinate text,
+                prestart_revealed BOOLEAN NOT NULL DEFAULT FALSE,
+                hidden_message TEXT,
+                hidden_teaser TEXT,
                 CONSTRAINT tiles_board_coordinate_check
                 CHECK (
                     board_coordinate IS NULL

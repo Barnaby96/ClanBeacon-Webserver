@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, Blueprint, jsonify
 
 from utils import db_entities
-from utils.auth import admin_required
+from utils.auth import organiser_required
 from utils.osrs_pets import get_osrs_pet_options
 from utils.database import (
     remove_tile,
@@ -145,7 +145,7 @@ def _build_admin_tile_completion_summary(tile_id):
 
 
 @tile_routes.route('/tiles', methods=['GET'])
-@admin_required
+@organiser_required
 def tile_list():
     tiles = [
         db_entities.Tile(tile)
@@ -181,7 +181,7 @@ def tile_list():
     )
 
 @tile_routes.route('/tiles/new', methods=['GET', 'POST'])
-@admin_required
+@organiser_required
 def create_tile():
     if request.method == 'POST':
         tile_name = request.form.get(
@@ -339,7 +339,7 @@ def create_tile():
     '/tiles/edit/<int:tile_id>',
     methods=['GET', 'POST']
 )
-@admin_required
+@organiser_required
 def edit_tile(tile_id):
     tile = get_tile_by_id(tile_id)
 
@@ -537,7 +537,7 @@ def edit_tile(tile_id):
     '/tiles/board-position/<int:tile_id>',
     methods=['POST']
 )
-@admin_required
+@organiser_required
 def update_tile_board_position(tile_id):
     board_coordinate = request.form.get(
         'board_coordinate'
@@ -574,7 +574,7 @@ def update_tile_board_position(tile_id):
     '/tiles/board-position-json/<int:tile_id>',
     methods=['POST']
 )
-@admin_required
+@organiser_required
 def update_tile_board_position_json(tile_id):
     payload = request.get_json(
         silent=True
@@ -604,8 +604,49 @@ def update_tile_board_position_json(tile_id):
     )
 
 
+@tile_routes.route(
+    '/tiles/visibility/<int:tile_id>',
+    methods=['POST']
+)
+@organiser_required
+def update_tile_visibility(tile_id):
+    from flask import abort
+    from utils import database
+
+    prestart_revealed = (
+        request.form.get('prestart_revealed') == 'on'
+    )
+
+    hidden_message = request.form.get(
+        'hidden_message', ''
+    )
+
+    hidden_teaser = request.form.get(
+        'hidden_teaser', ''
+    )
+
+    updated = database.update_tile_visibility_settings(
+        tile_id,
+        prestart_revealed,
+        hidden_message,
+        hidden_teaser
+    )
+
+    if not updated:
+        abort(404)
+
+    flash('Tile visibility settings saved.', 'success')
+
+    return redirect(
+        url_for(
+            'tile_management.edit_tile',
+            tile_id=tile_id
+        )
+    )
+
+
 @tile_routes.route('/tiles/delete/<int:tile_id>', methods=['POST'])
-@admin_required
+@organiser_required
 def delete_tile(tile_id):
     try:
         remove_tile(tile_id)

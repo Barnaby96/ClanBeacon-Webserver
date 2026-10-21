@@ -252,6 +252,76 @@
                 </button>
             </div>
         </form>
+
+        <form
+            id="tile_visibility_settings"
+            class="osrs-edit-tile-form"
+            action="{{ url_for('tile_management.update_tile_visibility', tile_id=tile[0]) }}"
+            method="POST"
+        >
+            <section class="osrs-panel">
+                <header class="osrs-panel-header">
+                    <h2 class="osrs-panel-title">Visibility Settings</h2>
+                    <p class="osrs-panel-description">
+                        Control what participants see before Bingo starts.
+                        These settings can be changed without editing tile requirements.
+                    </p>
+                </header>
+
+                <div class="osrs-panel-body">
+                    <div class="osrs-form-field">
+                        <label for="prestart_revealed">
+                            <input
+                                type="checkbox"
+                                id="prestart_revealed"
+                                name="prestart_revealed"
+                                value="on"
+                                {% if tile[11] %}checked{% endif %}
+                            >
+                            Reveal this tile before Bingo starts
+                        </label>
+                        <p>
+                            When unchecked, participants see the hidden
+                            message and optional teaser instead of the
+                            tile objective. All tiles reveal automatically
+                            when Bingo starts.
+                        </p>
+                    </div>
+
+                    <div class="osrs-form-field">
+                        <label class="osrs-form-label" for="hidden_message">
+                            Custom Hidden Message (Optional)
+                        </label>
+                        <textarea
+                            class="osrs-form-input"
+                            id="hidden_message"
+                            name="hidden_message"
+                            rows="3"
+                            placeholder="Leave blank to use the Bingo-wide default"
+                        >{{ tile[12] or '' }}</textarea>
+                    </div>
+
+                    <div class="osrs-form-field">
+                        <label class="osrs-form-label" for="hidden_teaser">
+                            Hidden Tile Teaser (Optional)
+                        </label>
+                        <textarea
+                            class="osrs-form-input"
+                            id="hidden_teaser"
+                            name="hidden_teaser"
+                            rows="2"
+                            placeholder="A small clue without revealing the objective"
+                        >{{ tile[13] or '' }}</textarea>
+                    </div>
+                </div>
+            </section>
+
+            <div class="osrs-form-actions">
+                <button class="osrs-button" type="submit">
+                    Save Visibility Settings
+                </button>
+            </div>
+        </form>
     </main>
 </div>
 

@@ -1307,6 +1307,17 @@ def test_player_data_filters_missing_bingo_evidence_screenshots(
         "Bingo Evidence Filter Tile"
     )
 
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE tiles
+                SET prestart_revealed = TRUE
+                WHERE tile_id = %s
+                """,
+                (tile_id,)
+            )
+
     add_killcount_condition(
         tile_id,
         "bingo_evidence_filter_metric",
@@ -2437,14 +2448,14 @@ def test_locked_tile_delete_route_redirects_with_error(client):
         )
 
     create_dashboard_user(
-        "Tile Delete Route Admin",
+        "Tile Delete Route Organiser",
         "test-password",
-        account_role="ADMIN"
+        account_role="ORGANISER"
     )
 
     login_response = login_dashboard_user(
         client,
-        "Tile Delete Route Admin",
+        "Tile Delete Route Organiser",
         "test-password"
     )
 
@@ -2486,3 +2497,829 @@ def test_locked_tile_delete_route_redirects_with_error(client):
 
     assert remaining_tile is not None
     assert remaining_tile[0] == "Delete Route Lock Tile"
+
+
+@pytest.mark.parametrize("role,expected_status", [
+    ("ORGANISER", 200),
+    ("ADMIN", 404),
+    ("PLAYER", 404),
+])
+def test_hidden_manual_evidence_requires_organiser(
+    client, role, expected_status
+):
+    _, player_id = create_team_and_player(
+        team_name="Hidden Evidence Team",
+        player_name="Hidden Evidence Player"
+    )
+    tile_id = database.add_tile_with_conditions(
+        "Concealed Evidence Objective",
+        1,
+        "Secret evidence requirements",
+        [{"completion_path": 1, "condition_type": "MANUAL",
+          "condition_trigger": None, "target": 1}]
+    )
+
+    saved = manual_evidence_files.save_manual_evidence_file(
+        b"concealed-manual-evidence",
+        "concealed-evidence.png"
+    )
+
+    try:
+        with database.connect() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO manual_evidence (
+                        tile_id, player_id, evidence_path,
+                        evidence_sha256, submission_source,
+                        submitter_id, submitter_name, status
+                    )
+                    VALUES (%s, %s, %s, %s, 'DISCORD', %s, %s, 'ACCEPTED')
+                    RETURNING evidence_id
+                    """,
+                    (
+                        tile_id, player_id,
+                        saved["evidence_path"],
+                        saved["evidence_sha256"],
+                        1001, "Hidden Evidence Submitter"
+                    )
+                )
+                evidence_id = cursor.fetchone()[0]
+
+        create_dashboard_user(
+            "Hidden Evidence Login",
+            "test-password",
+            account_role=role,
+            player_id=player_id if role == "PLAYER" else None
+        )
+        login_response = login_dashboard_user(
+            client, "Hidden Evidence Login", "test-password"
+        )
+        assert login_response.status_code == 302
+
+        response = client.get(
+            f"/user/player/evidence/manual/{evidence_id}"
+        )
+        try:
+            assert response.status_code == expected_status
+            if expected_status == 200:
+                assert response.data == b"concealed-manual-evidence"
+        finally:
+            response.close()
+    finally:
+        manual_evidence_files.delete_manual_evidence_file(
+            saved["evidence_path"]
+        )
+
+
+
+@pytest.mark.parametrize("role,reveal_both,start_has_passed,expected_status", [
+    ("ADMIN", False, False, 404),
+    ("PLAYER", False, False, 404),
+    ("ORGANISER", False, False, 200),
+    ("ADMIN", True, False, 200),
+    ("PLAYER", True, False, 200),
+    ("ADMIN", False, True, 200),
+    ("PLAYER", False, True, 200),
+])
+def test_dink_multi_tile_evidence_respects_concealment(
+    client, role, reveal_both, start_has_passed, expected_status
+):
+    team_id, player_id = create_team_and_player(
+        team_name="Multi Tile Evidence Team",
+        player_name="Multi Tile Evidence Player"
+    )
+
+    tile_ids = []
+    for index, name in enumerate(("Visible Objective", "Concealed Objective")):
+        tile_ids.append(
+            database.add_tile_with_conditions(
+                name,
+                1,
+                "Confidential Dink requirements",
+                [{
+                    "completion_path": 1,
+                    "condition_type": "DROP",
+                    "condition_trigger": f"multi_tile_evidence_drop_{index}",
+                    "target": 1
+                }]
+            )
+        )
+
+    event_id = database.add_dink_event(
+        event_fingerprint="multi-tile-evidence-event",
+        raw_payload={},
+        player_name="Multi Tile Evidence Player",
+        player_id=player_id,
+        event_type="LOOT",
+        status="PROCESSED"
+    )
+
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO bingo_config (
+                    config_id, wom_competition_starts_at
+                )
+                VALUES (1, NOW() + (%s * INTERVAL '1 day'))
+                ON CONFLICT (config_id) DO UPDATE
+                SET wom_competition_starts_at = EXCLUDED.wom_competition_starts_at
+                """,
+                (-1 if start_has_passed else 1,)
+            )
+            revealed_ids = (
+                tile_ids if reveal_both else tile_ids[:1]
+            )
+            for tile_id in revealed_ids:
+                cursor.execute(
+                    """
+                    UPDATE tiles
+                    SET prestart_revealed = TRUE
+                    WHERE tile_id = %s
+                    """,
+                    (tile_id,)
+                )
+
+            for index, tile_id in enumerate(tile_ids):
+                cursor.execute(
+                    """
+                    SELECT condition_id
+                    FROM tile_conditions
+                    WHERE tile_id = %s
+                    LIMIT 1
+                    """,
+                    (tile_id,)
+                )
+                condition_id = cursor.fetchone()[0]
+
+                cursor.execute(
+                    """
+                    INSERT INTO dink_event_progress (
+                        event_id, team_id, condition_id, tile_id,
+                        completion_path, trigger, amount,
+                        raw_progress, route_progress, credited,
+                        banked_total, ready, completed
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, 1, %s, 1,
+                        1, 1, 1, 1, FALSE, FALSE
+                    )
+                    """,
+                    (
+                        event_id, team_id, condition_id, tile_id,
+                        f"multi_tile_evidence_drop_{index}"
+                    )
+                )
+
+    lifecycle = database.get_bingo_lifecycle_status()
+    assert lifecycle["start_webhook_sent_at"] is None
+
+    evidence_directory = (
+        PROJECT_ROOT / "uploads" / "dink_evidence"
+    )
+    evidence_directory.mkdir(parents=True, exist_ok=True)
+
+    screenshot_path = (
+        evidence_directory / f"dink_event_{event_id}.png"
+    )
+    screenshot_path.write_bytes(b"multi-tile-screenshot")
+
+    database.update_dink_event_screenshot(
+        event_id,
+        (
+            Path("uploads")
+            / "dink_evidence"
+            / screenshot_path.name
+        ).as_posix(),
+        "multi-tile-test-sha"
+    )
+
+    try:
+        create_dashboard_user(
+            "Multi Tile Evidence Login",
+            "test-password",
+            account_role=role,
+            player_id=player_id if role == "PLAYER" else None
+        )
+        login_response = login_dashboard_user(
+            client, "Multi Tile Evidence Login", "test-password"
+        )
+        assert login_response.status_code == 302
+
+        response = client.get(
+            f"/user/player/evidence/dink/{event_id}"
+        )
+        try:
+            assert response.status_code == expected_status
+            if expected_status == 200:
+                assert response.data == b"multi-tile-screenshot"
+        finally:
+            response.close()
+    finally:
+        screenshot_path.unlink(missing_ok=True)
+
+
+
+@pytest.mark.parametrize("role", [
+    "ORGANISER",
+    "ADMIN",
+    "PLAYER",
+])
+def test_player_profile_conceals_dink_evidence(
+    client, monkeypatch, role
+):
+    team_id, player_id = create_team_and_player(
+        team_name="Concealed Profile Team",
+        player_name="Concealed Profile Player"
+    )
+
+    tile_id = database.add_tile_with_conditions(
+        "Secret Profile Objective",
+        1,
+        "Confidential objective requirements",
+        [{
+            "completion_path": 1,
+            "condition_type": "DROP",
+            "condition_trigger": "secret_profile_drop",
+            "target": 1
+        }]
+    )
+
+    event_id = database.add_dink_event(
+        event_fingerprint="concealed-profile-event",
+        raw_payload={},
+        player_name="Concealed Profile Player",
+        player_id=player_id,
+        event_type="LOOT",
+        status="PROCESSED"
+    )
+
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT condition_id
+                FROM tile_conditions
+                WHERE tile_id = %s
+                """,
+                (tile_id,)
+            )
+            condition_id = cursor.fetchone()[0]
+
+            cursor.execute(
+                """
+                INSERT INTO dink_event_progress (
+                    event_id, team_id, condition_id, tile_id,
+                    completion_path, trigger, amount,
+                    counted_amount, raw_progress, route_progress,
+                    credited, banked_total, ready, completed
+                )
+                VALUES (
+                    %s, %s, %s, %s, 1, %s, 1,
+                    1, 1, 1, 1, 1, FALSE, FALSE
+                )
+                """,
+                (
+                    event_id, team_id, condition_id, tile_id,
+                    "secret_profile_drop"
+                )
+            )
+
+            cursor.execute(
+                """
+                INSERT INTO bingo_config (
+                    config_id, wom_competition_starts_at
+                )
+                VALUES (1, NOW() + INTERVAL '1 day')
+                ON CONFLICT (config_id) DO UPDATE
+                SET wom_competition_starts_at =
+                    EXCLUDED.wom_competition_starts_at
+                """
+            )
+
+    evidence_directory = (
+        PROJECT_ROOT / "uploads" / "dink_evidence"
+    )
+    evidence_directory.mkdir(parents=True, exist_ok=True)
+
+    screenshot_path = (
+        evidence_directory / f"dink_event_{event_id}.png"
+    )
+    screenshot_path.write_bytes(b"secret-profile-evidence")
+
+    database.update_dink_event_screenshot(
+        event_id,
+        (
+            Path("uploads")
+            / "dink_evidence"
+            / screenshot_path.name
+        ).as_posix(),
+        "secret-profile-test-sha"
+    )
+
+    try:
+        create_dashboard_user(
+            "Concealed Profile Login",
+            "test-password",
+            account_role=role,
+            player_id=player_id if role == "PLAYER" else None
+        )
+
+        login_response = login_dashboard_user(
+            client,
+            "Concealed Profile Login",
+            "test-password"
+        )
+        assert login_response.status_code == 302
+
+        captured = {}
+
+        def capture_render_template(template_name, **context):
+            captured["template_name"] = template_name
+            captured["context"] = context
+            return "rendered"
+
+        monkeypatch.setattr(
+            "routes.user_routes.render_template",
+            capture_render_template
+        )
+
+        response = client.get(
+            "/user/player/Concealed Profile Player"
+        )
+
+        assert response.status_code == 200
+        assert captured["template_name"] == (
+            "user_templates/player.html"
+        )
+
+        evidence = captured["context"]["bingo_evidence"]
+
+        if role == "ORGANISER":
+            assert len(evidence) == 1
+            assert evidence[0]["evidence_id"] == event_id
+            assert evidence[0]["tile_name"] == (
+                "Secret Profile Objective"
+            )
+        else:
+            assert evidence == []
+    finally:
+        screenshot_path.unlink(missing_ok=True)
+
+
+
+@pytest.mark.parametrize("role,revealed,expected_visible", [
+    ("ORGANISER", False, True),
+    ("ADMIN", False, False),
+    ("PLAYER", False, False),
+    ("ADMIN", True, True),
+    ("PLAYER", True, True),
+])
+def test_player_profile_conceals_relevant_drops(
+    client, monkeypatch, role, revealed, expected_visible
+):
+    team_id, player_id = create_team_and_player(
+        team_name="Hidden Drop Profile Team",
+        player_name="Hidden Drop Profile Player"
+    )
+
+    tile_id = database.add_tile_with_conditions(
+        "Secret Drop Objective",
+        1,
+        "Confidential drop requirements",
+        [{
+            "completion_path": 1,
+            "condition_type": "DROP",
+            "condition_trigger": "secret_profile_relic",
+            "target": 1
+        }]
+    )
+
+    event_id = database.add_dink_event(
+        event_fingerprint="hidden-drop-profile-event",
+        raw_payload={},
+        player_name="Hidden Drop Profile Player",
+        player_id=player_id,
+        event_type="LOOT",
+        status="PROCESSED"
+    )
+
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT condition_id FROM tile_conditions WHERE tile_id = %s",
+                (tile_id,)
+            )
+            condition_id = cursor.fetchone()[0]
+
+            cursor.execute(
+                """
+                INSERT INTO dink_event_progress (
+                    event_id, team_id, condition_id, tile_id,
+                    completion_path, trigger, amount,
+                    counted_amount, raw_progress, route_progress,
+                    credited, banked_total, ready, completed
+                )
+                VALUES (
+                    %s, %s, %s, %s, 1, %s, 1,
+                    1, 1, 1, 1, 1, FALSE, FALSE
+                )
+                """,
+                (
+                    event_id, team_id, condition_id, tile_id,
+                    "secret_profile_relic"
+                )
+            )
+
+            cursor.execute(
+                """
+                INSERT INTO bingo_config (
+                    config_id, wom_competition_starts_at
+                )
+                VALUES (1, NOW() + INTERVAL '1 day')
+                ON CONFLICT (config_id) DO UPDATE
+                SET wom_competition_starts_at =
+                    EXCLUDED.wom_competition_starts_at
+                """
+            )
+
+            if revealed:
+                cursor.execute(
+                    """
+                    UPDATE tiles
+                    SET prestart_revealed = TRUE
+                    WHERE tile_id = %s
+                    """,
+                    (tile_id,)
+                )
+
+    raw_summary = database.get_player_relevant_drop_summary(
+        player_id
+    )
+    assert raw_summary["drops"] == [
+        {"drop_name": "secret_profile_relic", "quantity": 1}
+    ]
+
+    create_dashboard_user(
+        "Hidden Drop Profile Login",
+        "test-password",
+        account_role=role,
+        player_id=player_id if role == "PLAYER" else None
+    )
+
+    login_response = login_dashboard_user(
+        client, "Hidden Drop Profile Login", "test-password"
+    )
+    assert login_response.status_code == 302
+
+    captured = {}
+
+    def capture_render_template(template_name, **context):
+        captured.update(context)
+        return "rendered"
+
+    monkeypatch.setattr(
+        "routes.user_routes.render_template",
+        capture_render_template
+    )
+
+    response = client.get(
+        "/user/player/Hidden Drop Profile Player"
+    )
+    assert response.status_code == 200
+
+    summary = captured["relevant_drop_summary"]
+
+    if expected_visible:
+        assert summary["drops"] == [
+            {"drop_name": "secret_profile_relic", "quantity": 1}
+        ]
+        assert summary["total_quantity"] == 1
+    else:
+        assert summary["drops"] == []
+        assert summary["total_quantity"] == 0
+
+
+
+@pytest.mark.parametrize(
+    "condition_type,metric,gain,summary_key,list_key,total_key,gain_key",
+    [
+        (
+            "KILLCOUNT", "brutus", 108,
+            "relevant_boss_kc_summary", "bosses",
+            "total_kc", "kc_gained"
+        ),
+        (
+            "EXPERIENCE", "mining", 250000,
+            "relevant_xp_summary", "skills",
+            "total_xp", "xp_gained"
+        ),
+    ]
+)
+@pytest.mark.parametrize("role,revealed,expected_visible", [
+    ("ORGANISER", False, True),
+    ("ADMIN", False, False),
+    ("PLAYER", False, False),
+    ("ADMIN", True, True),
+    ("PLAYER", True, True),
+])
+def test_player_profile_conceals_wom_summaries(
+    client, monkeypatch, condition_type, metric, gain,
+    summary_key, list_key, total_key, gain_key,
+    role, revealed, expected_visible
+):
+    _, player_id = create_team_and_player(
+        team_name="Hidden WOM Profile Team",
+        player_name="Hidden WOM Profile Player"
+    )
+
+    tile_name = "Secret WOM Profile Objective"
+
+    tile_id = database.add_tile_with_conditions(
+        tile_name,
+        1,
+        "Confidential WOM requirements",
+        [{
+            "completion_path": 1,
+            "condition_type": condition_type,
+            "condition_trigger": metric,
+            "target": gain * 10
+        }]
+    )
+
+    competition_id = 987654
+    database.set_wom_competition_id(competition_id)
+
+    set_wom_metric_gain(
+        competition_id,
+        player_id,
+        metric,
+        gain
+    )
+
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO bingo_config (
+                    config_id, wom_competition_starts_at
+                )
+                VALUES (1, NOW() + INTERVAL '1 day')
+                ON CONFLICT (config_id) DO UPDATE
+                SET wom_competition_starts_at =
+                    EXCLUDED.wom_competition_starts_at
+                """
+            )
+
+            if revealed:
+                cursor.execute(
+                    """
+                    UPDATE tiles
+                    SET prestart_revealed = TRUE
+                    WHERE tile_id = %s
+                    """,
+                    (tile_id,)
+                )
+
+    create_dashboard_user(
+        "Hidden WOM Profile Login",
+        "test-password",
+        account_role=role,
+        player_id=player_id if role == "PLAYER" else None
+    )
+
+    login_response = login_dashboard_user(
+        client,
+        "Hidden WOM Profile Login",
+        "test-password"
+    )
+    assert login_response.status_code == 302
+
+    captured = {}
+
+    def capture_render_template(template_name, **context):
+        captured.update(context)
+        return "rendered"
+
+    monkeypatch.setattr(
+        "routes.user_routes.render_template",
+        capture_render_template
+    )
+
+    response = client.get(
+        "/user/player/Hidden WOM Profile Player"
+    )
+    assert response.status_code == 200
+
+    summary = captured[summary_key]
+
+    if expected_visible:
+        assert summary[total_key] == gain
+        assert summary[list_key] == [{
+            "metric": metric,
+            gain_key: gain,
+            "related_tiles": [tile_name]
+        }]
+    else:
+        assert summary[total_key] == 0
+        assert summary[list_key] == []
+
+
+
+@pytest.mark.parametrize("role,expected_status", [
+    ("ORGANISER", 302),
+    ("ADMIN", 403),
+    ("PLAYER", 403),
+])
+def test_tile_visibility_settings_permissions_and_locked_progress(
+    client, role, expected_status
+):
+    team_id, _ = create_team_and_player(
+        team_name="Visibility Settings Team",
+        player_name="Visibility Settings Player"
+    )
+
+    tile_id = create_test_tile(
+        "Visibility Settings Objective"
+    )
+
+    add_killcount_condition(
+        tile_id,
+        "visibility_settings_lock_metric",
+        target=100
+    )
+
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT condition_id
+                FROM tile_conditions
+                WHERE tile_id = %s
+                """,
+                (tile_id,)
+            )
+            condition_id = cursor.fetchone()[0]
+
+            cursor.execute(
+                """
+                INSERT INTO tile_condition_progress (
+                    team_id, condition_id, progress
+                )
+                VALUES (%s, %s, 1)
+                """,
+                (team_id, condition_id)
+            )
+
+            cursor.execute(
+                """
+                SELECT
+                    tile_name, tile_rules,
+                    prestart_revealed, hidden_message, hidden_teaser
+                FROM tiles
+                WHERE tile_id = %s
+                """,
+                (tile_id,)
+            )
+            original = cursor.fetchone()
+
+    create_dashboard_user(
+        "Visibility Settings Login",
+        "test-password",
+        account_role=role
+    )
+
+    login_response = login_dashboard_user(
+        client,
+        "Visibility Settings Login",
+        "test-password"
+    )
+    assert login_response.status_code == 302
+
+    response = client.post(
+        f"/tile/tiles/visibility/{tile_id}",
+        data={
+            "prestart_revealed": "on",
+            "hidden_message": "A mysterious challenge awaits.",
+            "hidden_teaser": "Somewhere in Morytania"
+        }
+    )
+
+    assert response.status_code == expected_status
+
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    tile_name, tile_rules,
+                    prestart_revealed, hidden_message, hidden_teaser
+                FROM tiles
+                WHERE tile_id = %s
+                """,
+                (tile_id,)
+            )
+            updated = cursor.fetchone()
+
+            cursor.execute(
+                """
+                SELECT progress
+                FROM tile_condition_progress
+                WHERE team_id = %s AND condition_id = %s
+                """,
+                (team_id, condition_id)
+            )
+            progress = cursor.fetchone()[0]
+
+    assert progress == 1
+    assert updated[:2] == original[:2]
+
+    if role == "ORGANISER":
+        assert updated[2:] == (
+            True,
+            "A mysterious challenge awaits.",
+            "Somewhere in Morytania"
+        )
+    else:
+        assert updated == original
+
+
+
+def test_edit_tile_visibility_form_roundtrip(client):
+    tile_id = create_test_tile(
+        "Visibility Form Test Tile"
+    )
+
+    create_dashboard_user(
+        "Visibility Form Organiser",
+        "test-password",
+        account_role="ORGANISER"
+    )
+
+    login_response = login_dashboard_user(
+        client,
+        "Visibility Form Organiser",
+        "test-password"
+    )
+    assert login_response.status_code == 302
+
+    edit_url = f"/tile/tiles/edit/{tile_id}"
+    visibility_url = f"/tile/tiles/visibility/{tile_id}"
+
+    response = client.get(edit_url)
+    assert response.status_code == 200
+
+    html = response.get_data(as_text=True)
+    assert 'id="tile_visibility_settings"' in html
+    assert 'name="prestart_revealed"' in html
+    assert 'name="hidden_message"' in html
+    assert 'name="hidden_teaser"' in html
+
+    response = client.post(
+        visibility_url,
+        data={
+            "prestart_revealed": "on",
+            "hidden_message": "The objective remains hidden.",
+            "hidden_teaser": "An ancient forest awaits."
+        }
+    )
+    assert response.status_code == 302
+
+    response = client.get(edit_url)
+    assert response.status_code == 200
+
+    html = response.get_data(as_text=True)
+    visibility_form = html.split(
+        'id="tile_visibility_settings"', 1
+    )[1].split("</form>", 1)[0]
+
+    assert ' checked' in visibility_form
+    assert "The objective remains hidden." in visibility_form
+    assert "An ancient forest awaits." in visibility_form
+
+    response = client.post(
+        visibility_url,
+        data={
+            "hidden_message": "",
+            "hidden_teaser": ""
+        }
+    )
+    assert response.status_code == 302
+
+    tile = database.get_tile_by_id(tile_id)
+    assert tile[11] is False
+    assert tile[12] is None
+    assert tile[13] is None
+
+    response = client.get(edit_url)
+    assert response.status_code == 200
+
+    html = response.get_data(as_text=True)
+    visibility_form = html.split(
+        'id="tile_visibility_settings"', 1
+    )[1].split("</form>", 1)[0]
+
+    assert "The objective remains hidden." not in visibility_form
+    assert "An ancient forest awaits." not in visibility_form
+    assert " checked" not in visibility_form
