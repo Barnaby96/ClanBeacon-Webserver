@@ -385,3 +385,125 @@ def test_reroll_summary_keeps_selected_tile_and_excludes_unkept_exact_tile():
 
     assert kept_row.tile_key in rerolled_keys
     assert banned_row.tile_key not in rerolled_keys
+
+def test_preview_accepts_procedural_candidate_pool(monkeypatch):
+    from utils import osrs_generated_board_preview as preview
+    supplied = ("procedural",)
+    monkeypatch.setattr(preview, "get_curated_tile_generation_candidates", lambda: ("curated",))
+    monkeypatch.setattr(preview, "get_preselected_generation_candidates", lambda pool, **kw: (pool, kw["kept_tile_keys"]))
+    monkeypatch.setattr(preview, "build_filtered_generation_candidates", lambda pool, **kw: (pool, kw["banned_tile_keys"]))
+    monkeypatch.setattr(preview, "assemble_preview_board", lambda pool, **kw: (pool, kw["preselected_candidates"]))
+    monkeypatch.setattr(preview, "build_generated_board_preview_summary", lambda board, **kw: board)
+    result = preview.get_curated_generated_board_preview_summary(generation_candidates=supplied, kept_tile_keys=("keep",), banned_tile_keys=("ban",))
+    assert result == ((supplied, ("ban",)), (supplied, ("keep",)))
+
+def test_seeded_randomised_board_varies_and_reproduces():
+    from utils.osrs_generated_board_preview import assemble_randomised_preview_board
+    from utils.osrs_tile_catalogue import get_procedural_tile_generation_candidates
+    candidates = get_procedural_tile_generation_candidates()
+    first = assemble_randomised_preview_board(candidates, seed=42)
+    repeated = assemble_randomised_preview_board(candidates, seed=42)
+    alternate = assemble_randomised_preview_board(candidates, seed=43)
+    titles = lambda board: tuple(t.title for t in board.candidates)
+    assert titles(first) == titles(repeated)
+    assert titles(first) != titles(alternate)
+    for board in (first, repeated, alternate):
+        assert len(board.candidates) == 25
+        assert sorted(t.point_value for t in board.candidates) == [tier for tier in range(1, 6) for _ in range(5)]
+
+def test_randomised_preview_retries_with_new_order(monkeypatch):
+    import utils.osrs_generated_board_preview as preview
+    from utils.board_generation import BoardAssemblyError
+    attempts = []
+    completed = object()
+    def fake_assemble(candidates, preselected_candidates=()):
+        attempts.append((tuple(candidates), preselected_candidates))
+        if len(attempts) == 1:
+            raise BoardAssemblyError("First attempt rejected")
+        return completed
+    monkeypatch.setattr(preview, "assemble_preview_board", fake_assemble)
+    result = preview.assemble_randomised_preview_board(range(12), seed=42, max_attempts=2, preselected_candidates=("kept",))
+    assert result is completed
+    assert len(attempts) == 2
+    assert attempts[0][0] != attempts[1][0]
+    assert all(kept == ("kept",) for _, kept in attempts)
+
+def test_randomised_preview_preserves_actual_kept_tile():
+    from utils.osrs_tile_catalogue import get_procedural_tile_generation_candidates
+    from utils.osrs_generated_board_preview import assemble_randomised_preview_board
+    candidates = get_procedural_tile_generation_candidates()
+    kept = next(t for t in candidates if t.title == "Gain 500,000 Cooking XP")
+    for seed in (42, 43):
+        board = assemble_randomised_preview_board(candidates, seed=seed, preselected_candidates=(kept,))
+        assert board.candidates[0] == kept
+        assert board.candidates.count(kept) == 1
+        assert len(board.candidates) == 25
+
+def test_randomised_preview_rejects_exhausted_pool():
+    import pytest
+    from utils.board_generation import BoardAssemblyError
+    from utils.osrs_tile_catalogue import get_procedural_tile_generation_candidates
+    from utils.osrs_generated_board_preview import assemble_randomised_preview_board
+    candidate = get_procedural_tile_generation_candidates()[0]
+    with pytest.raises(BoardAssemblyError, match="after 3 attempts"):
+        assemble_randomised_preview_board((candidate,), seed=42, max_attempts=3)
+
+def test_missing_kept_reroll_tile_raises():
+    import pytest
+    from utils.board_generation import BoardAssemblyError
+    from utils.osrs_generated_board_preview import get_preselected_generation_candidates
+    with pytest.raises(BoardAssemblyError, match="Kept tile"):
+        get_preselected_generation_candidates((), kept_tile_keys=("missing-kept-tile",))
+
+def test_randomised_preview_reroll_preserves_kept_and_banned(monkeypatch):
+    import utils.osrs_generated_board_preview as preview
+    from utils.osrs_tile_catalogue import get_curated_tile_generation_candidates
+    candidates = get_curated_tile_generation_candidates()
+    kept = next(t for t in candidates if t.title == "Gain 500,000 Cooking XP")
+    banned = next(t for t in candidates if t.title == "Complete 25 Calvar'ion KC")
+    kept_key = preview.build_generated_board_candidate_key(kept)
+    banned_key = preview.build_generated_board_candidate_key(banned)
+    monkeypatch.setattr(preview, "build_generated_board_preview_summary", lambda board, **kwargs: board)
+    def generate(seed):
+        return preview.get_curated_generated_board_preview_summary(generation_candidates=candidates, kept_tile_keys=(kept_key,), banned_tile_keys=(banned_key,), random_seed=seed)
+    first, repeated, alternate = generate(42), generate(42), generate(43)
+    titles = lambda board: tuple(t.title for t in board.candidates)
+    assert titles(first) == titles(repeated)
+    assert titles(first) != titles(alternate)
+    for board in (first, repeated, alternate):
+        assert sum(t == kept for t in board.candidates) == 1
+        assert banned not in board.candidates
+        assert len(board.candidates) == 25
+
+def test_seeded_randomisation_with_capability_profiles(monkeypatch):
+    import utils.osrs_generated_board_preview as preview
+    from utils.osrs_tile_catalogue import get_curated_tile_generation_candidates
+    monkeypatch.setattr(preview, "build_capability_candidate_order_key", lambda profiles: lambda tile: (0, 0, 0, len(tile.title)))
+    monkeypatch.setattr(preview, "build_generated_board_preview_summary", lambda board, **kwargs: board)
+    candidates = get_curated_tile_generation_candidates()
+    def titles(seed):
+        result = preview.get_curated_generated_board_preview_summary(capability_profiles=object(), generation_candidates=candidates, random_seed=seed)
+        return tuple(tile.title for tile in result.candidates)
+    assert titles(42) == titles(42)
+    assert titles(42) != titles(43)
+
+def test_capability_randomised_fallback_stays_randomised(monkeypatch):
+    import utils.osrs_generated_board_preview as preview
+    from utils.board_generation import BoardAssemblyError
+    calls = []
+    completed = object()
+    def fake_random(candidates, seed=None, max_attempts=50, preselected_candidates=(), balance_band_order_key=None):
+        calls.append((seed, balance_band_order_key is not None))
+        if balance_band_order_key is not None:
+            raise BoardAssemblyError("Capability-ranked attempts failed")
+        return completed
+    def reject_deterministic(*args, **kwargs):
+        raise AssertionError("Deterministic fallback was used")
+    monkeypatch.setattr(preview, "build_capability_candidate_order_key", lambda profiles: lambda tile: (0,))
+    monkeypatch.setattr(preview, "assemble_randomised_preview_board", fake_random)
+    monkeypatch.setattr(preview, "assemble_preview_board", reject_deterministic)
+    monkeypatch.setattr(preview, "build_generated_board_preview_summary", lambda board, **kwargs: (board, kwargs))
+    board, metadata = preview.get_curated_generated_board_preview_summary(capability_profiles=object(), random_seed=42)
+    assert board is completed
+    assert calls == [(42, True), (42, False)]
+    assert metadata["capability_ordering_fell_back"] is True

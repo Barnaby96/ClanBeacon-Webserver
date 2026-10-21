@@ -1063,3 +1063,62 @@ def test_assemble_board_candidates_rejects_conflicting_preselected_candidates():
             ),
         )
 
+
+
+
+@pytest.mark.parametrize("keep_first_tile", [False, True])
+def test_assembly_selects_secondary_pet_route_when_required(
+    keep_first_tile
+):
+    rules = BoardGenerationRules(
+        board_size=2,
+        points_distribution={1: 2},
+        required_categories_by_point={
+            1: (TileCategory.SKILL,),
+        },
+        flex_slots_by_point={1: 1},
+        primary_pet_tiles_min=0,
+        primary_pet_tiles_target=0,
+        primary_pet_tiles_max=0,
+        secondary_pet_routes_min=1,
+        secondary_pet_routes_target=1,
+        secondary_pet_routes_max=1,
+    )
+
+    first_ordinary = make_assembly_candidate(
+        1,
+        TileCategory.SKILL,
+        "pet_minimum_first_ordinary",
+    )
+    second_ordinary = make_assembly_candidate(
+        1,
+        TileCategory.SKILL,
+        "pet_minimum_second_ordinary",
+    )
+    secondary_pet = make_assembly_candidate(
+        1,
+        TileCategory.SKILL,
+        "pet_minimum_alternative",
+        pet_role=PetRole.SECONDARY,
+        secondary_pet=True,
+    )
+
+    kept_candidates = (
+        (first_ordinary,)
+        if keep_first_tile
+        else ()
+    )
+
+    board = assemble_board_candidates(
+        (
+            first_ordinary,
+            second_ordinary,
+            secondary_pet,
+        ),
+        rules=rules,
+        preselected_candidates=kept_candidates,
+    )
+
+    assert len(board.candidates) == 2
+    assert first_ordinary in board.candidates
+    assert secondary_pet in board.candidates

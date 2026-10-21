@@ -253,6 +253,11 @@ def get_preselected_generation_candidates(
         candidates
     )
 
+    kept_tile_keys = tuple(kept_tile_keys or ())
+    missing = [key for key in kept_tile_keys if key not in candidate_by_key]
+    if missing:
+        raise BoardAssemblyError("Kept tile not found: " + ", ".join(map(str, missing)))
+
     return tuple(
         candidate_by_key[tile_key]
         for tile_key in kept_tile_keys or ()
@@ -282,6 +287,8 @@ def get_curated_generated_board_preview_summary(
     capability_profiles=None,
     kept_tile_keys=(),
     banned_tile_keys=(),
+    generation_candidates=None,
+    random_seed=None,
 ):
     candidate_order_key = None
     capability_ordering_applied = False
@@ -294,7 +301,8 @@ def get_curated_generated_board_preview_summary(
         )
         capability_ordering_applied = True
 
-    generation_candidates = get_curated_tile_generation_candidates()
+    if generation_candidates is None:
+        generation_candidates = get_curated_tile_generation_candidates()
     preselected_candidates = get_preselected_generation_candidates(
         generation_candidates,
         kept_tile_keys=kept_tile_keys,
@@ -306,11 +314,19 @@ def get_curated_generated_board_preview_summary(
     )
 
     try:
-        board = assemble_preview_board(
-            generation_candidates,
-            candidate_order_key=candidate_order_key,
-            preselected_candidates=preselected_candidates,
-        )
+        if random_seed is not None:
+            board = assemble_randomised_preview_board(
+                generation_candidates,
+                seed=random_seed,
+                preselected_candidates=preselected_candidates,
+                balance_band_order_key=(None if candidate_order_key is None else lambda tile: candidate_order_key(tile)[0]),
+            )
+        else:
+            board = assemble_preview_board(
+                generation_candidates,
+                candidate_order_key=candidate_order_key,
+                preselected_candidates=preselected_candidates,
+            )
     except BoardAssemblyError as error:
         if candidate_order_key is None:
             raise
@@ -318,10 +334,17 @@ def get_curated_generated_board_preview_summary(
         capability_ordering_fell_back = True
         capability_ordering_fallback_reason = str(error)
 
-        board = assemble_preview_board(
-            generation_candidates,
-            preselected_candidates=preselected_candidates,
-        )
+        if random_seed is not None:
+            board = assemble_randomised_preview_board(
+                generation_candidates,
+                seed=random_seed,
+                preselected_candidates=preselected_candidates,
+            )
+        else:
+            board = assemble_preview_board(
+                generation_candidates,
+                preselected_candidates=preselected_candidates,
+            )
 
     return build_generated_board_preview_summary(
         board,
@@ -331,3 +354,26 @@ def get_curated_generated_board_preview_summary(
         capability_ordering_fallback_reason=capability_ordering_fallback_reason,
     )
 
+
+def assemble_randomised_preview_board(generation_candidates, seed=None, max_attempts=50, preselected_candidates=(), balance_band_order_key=None):
+    """Assemble a valid board using reproducibly shuffled candidate orders."""
+    from random import Random
+    from utils.board_generation import BoardAssemblyError
+
+    if isinstance(max_attempts, bool) or not isinstance(max_attempts, int) or max_attempts < 1:
+        raise ValueError("max_attempts must be a positive integer")
+
+    rng = Random(seed)
+    candidates = tuple(generation_candidates)
+    last_error = None
+    for _ in range(max_attempts):
+        shuffled = list(candidates)
+        rng.shuffle(shuffled)
+        if balance_band_order_key is not None:
+            shuffled.sort(key=balance_band_order_key)
+        try:
+            return assemble_preview_board(shuffled, preselected_candidates=preselected_candidates)
+        except BoardAssemblyError as exc:
+            last_error = exc
+
+    raise BoardAssemblyError(f"Could not assemble a valid randomised board after {max_attempts} attempts.") from last_error
