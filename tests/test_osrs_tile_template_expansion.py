@@ -1101,3 +1101,46 @@ def test_zulrah_single_unique_route_uses_any_unique_expected_rolls():
         "512"
     )
 
+
+def test_skill_xp_expansion_uses_calculated_target_model():
+    from utils.osrs_generation_recipes import CalculatedPointTargetModel
+    template = STATIC_SKILL_XP_TEMPLATES[0]
+    model = CalculatedPointTargetModel(f"{template.skill_id}_static_experience", lambda tier: tier * 12000)
+    tiles = expand_skill_xp_template(template, target_model=model)
+    assert [tile.routes[0].target for tile in tiles] == [12000, 24000, 36000, 48000, 60000]
+
+def test_skill_xp_effort_model_uses_allocated_hours():
+    from utils.osrs_tile_template_expansion import build_skill_xp_effort_target_model
+    template = STATIC_SKILL_XP_TEMPLATES[0]
+    hours = {1: 1, 2: 3, 3: 5, 4: 8, 5: 12}
+    model = build_skill_xp_effort_target_model(template, xp_per_hour=12000, allocated_hours_by_point_value=hours)
+    tiles = expand_skill_xp_template(template, target_model=model)
+    assert [tile.routes[0].target for tile in tiles] == [12000, 36000, 60000, 96000, 144000]
+
+def test_skill_xp_methods_use_confirmed_rate():
+    from utils.board_generation import AccessFlag, AccessProfile
+    from utils.osrs_tile_template_expansion import build_skill_xp_effort_target_model_from_methods
+    template = STATIC_SKILL_XP_TEMPLATES[0]
+    basic = ("basic", 12000, AccessProfile(effective_skill_requirements={"cooking": 10}))
+    locked = ("locked", 48000, AccessProfile(effective_skill_requirements={"cooking": 30}, access_flags={AccessFlag.QUEST_LOCKED}))
+    model, unknown = build_skill_xp_effort_target_model_from_methods(template, (basic, locked), {"cooking": 50}, {tier: tier for tier in range(1, 6)})
+    assert unknown == ("locked",)
+    assert [tile.routes[0].target for tile in expand_skill_xp_template(template, target_model=model)] == [12000, 24000, 36000, 48000, 60000]
+
+def test_skill_xp_rejects_unconfirmed_only_method():
+    from utils.board_generation import AccessFlag, AccessProfile
+    from utils.osrs_tile_template_expansion import build_skill_xp_effort_target_model_from_methods
+    template = STATIC_SKILL_XP_TEMPLATES[0]
+    locked = ("locked", 48000, AccessProfile(effective_skill_requirements={"cooking": 30}, access_flags={AccessFlag.QUEST_LOCKED}))
+    with pytest.raises(ValueError, match="No confirmed accessible training method"):
+        build_skill_xp_effort_target_model_from_methods(template, (locked,), {"cooking": 50}, {tier: tier for tier in range(1, 6)})
+
+def test_skill_xp_from_sourced_catalogue():
+    from utils.osrs_procedural_training_methods import FLY_FISHING_METHOD
+    from utils.osrs_tile_template_expansion import build_skill_xp_effort_target_model_from_catalogue
+    template = next(t for t in STATIC_SKILL_XP_TEMPLATES if t.skill_id == "fishing")
+    hours = {tier: tier for tier in range(1, 6)}
+    model, unknown = build_skill_xp_effort_target_model_from_catalogue(template, (FLY_FISHING_METHOD,), {"fishing": 80}, hours)
+    assert unknown == ()
+    tiles = expand_skill_xp_template(template, target_model=model)
+    assert [tile.routes[0].target for tile in tiles] == [44000, 88000, 132000, 176000, 220000]

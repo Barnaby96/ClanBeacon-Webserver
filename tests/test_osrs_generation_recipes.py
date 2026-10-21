@@ -52,6 +52,76 @@ def test_static_point_target_model_rejects_missing_point_value():
         )
 
 
+def test_calculated_target_model_works_with_existing_single_tile_recipe():
+    from utils.osrs_generation_recipes import CalculatedPointTargetModel
+
+    component = TileComponent(
+        component_id="Adaptive Callisto KC",
+        component_type=TileComponentType.KILLCOUNT,
+        display_name="Callisto",
+        tracking_source=TrackingSource.WOM,
+        target_model_id="Adaptive Callisto KC",
+        source_id="Callisto",
+        boss_id="Callisto",
+    )
+
+    target_model = CalculatedPointTargetModel(
+        target_model_id="Adaptive Callisto KC",
+        target_calculator=lambda point_value: point_value * 10,
+    )
+
+    candidate = build_single_tile_candidate(
+        component,
+        3,
+        target_model,
+    )
+
+    assert candidate.point_value == 3
+    assert candidate.routes[0].target == 30
+    assert candidate.routes[0].tracking_source == TrackingSource.WOM
+
+
+@pytest.mark.parametrize(
+    "point_value",
+    [0, 6, True, 1.5, "2"],
+)
+def test_calculated_target_model_rejects_invalid_point_values(
+    point_value
+):
+    from utils.osrs_generation_recipes import CalculatedPointTargetModel
+
+    model = CalculatedPointTargetModel(
+        target_model_id="Validation Test",
+        target_calculator=lambda tier: tier * 100,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Target model point values must be between 1 and 5",
+    ):
+        model.target_for_point_value(point_value)
+
+
+@pytest.mark.parametrize(
+    "calculated_target",
+    [0, -1, 3.5, True, "500"],
+)
+def test_calculated_target_model_rejects_invalid_targets(
+    calculated_target
+):
+    from utils.osrs_generation_recipes import CalculatedPointTargetModel
+
+    model = CalculatedPointTargetModel(
+        target_model_id="Validation Test",
+        target_calculator=lambda tier: calculated_target,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Calculated targets must be positive integers",
+    ):
+        model.target_for_point_value(3)
+
 def test_build_single_killcount_candidate_from_component():
     access_profile = AccessProfile(
         effective_skill_requirements={

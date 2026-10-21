@@ -429,13 +429,14 @@ def build_skill_xp_target_model_from_template(template):
     )
 
 
-def expand_skill_xp_template(template):
+def expand_skill_xp_template(template, target_model=None):
     component = build_skill_xp_component_from_template(
         template
     )
-    target_model = build_skill_xp_target_model_from_template(
-        template
-    )
+    if target_model is None:
+        target_model = build_skill_xp_target_model_from_template(
+            template
+        )
 
     return expand_single_component(
         component=component,
@@ -1474,3 +1475,28 @@ def get_static_metric_candidates():
         candidates
     )
 
+
+def build_skill_xp_effort_target_model(template, xp_per_hour, allocated_hours_by_point_value):
+    from decimal import ROUND_CEILING
+    from utils.osrs_generation_recipes import CalculatedPointTargetModel
+    from utils.osrs_procedural_effort_budget import estimate_activity_progress
+    def calculate_target(tier):
+        progress = estimate_activity_progress(xp_per_hour, allocated_hours_by_point_value[tier])
+        return int(progress.to_integral_value(rounding=ROUND_CEILING))
+    return CalculatedPointTargetModel(f"{template.skill_id}_static_experience", calculate_target)
+
+def build_skill_xp_effort_target_model_from_methods(template, methods, skill_levels, allocated_hours_by_point_value, confirmed_method_ids=()):
+    from utils.osrs_procedural_skill_rates import select_training_method_rate
+    selected, unknown = select_training_method_rate(methods, skill_levels, confirmed_method_ids=confirmed_method_ids)
+    if selected is None:
+        raise ValueError("No confirmed accessible training method.")
+    model = build_skill_xp_effort_target_model(template, selected[1], allocated_hours_by_point_value)
+    return model, unknown
+
+def build_skill_xp_effort_target_model_from_catalogue(template, methods, skill_levels, allocated_hours_by_point_value, confirmed_method_ids=()):
+    from utils.osrs_procedural_skill_rates import select_training_method_rate_from_catalogue
+    selected, unknown = select_training_method_rate_from_catalogue(methods, skill_levels, confirmed_method_ids=confirmed_method_ids)
+    if selected is None:
+        raise ValueError("No confirmed accessible training method.")
+    model = build_skill_xp_effort_target_model(template, selected[1], allocated_hours_by_point_value)
+    return model, unknown

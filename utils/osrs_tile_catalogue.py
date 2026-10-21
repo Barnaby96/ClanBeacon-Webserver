@@ -302,3 +302,26 @@ def get_curated_tile_generation_candidates():
     )
 
 
+
+def get_procedural_tile_generation_candidates(skill_xp_candidates=(), skill_xp_or_pet_candidates=()):
+    """Replace selected static XP tiles with procedural candidates."""
+    pet_replacements = tuple(skill_xp_or_pet_candidates)
+    replacements = tuple((*skill_xp_candidates, *pet_replacements))
+    skills = {route.skill_id for tile in replacements for route in tile.routes if route.skill_id}
+    retained = (tile for tile in get_curated_tile_generation_candidates() if not (tile.primary_category == TileCategory.SKILL and len(tile.routes) == 1 and tile.routes[0].skill_id in skills and tile.routes[0].tracking_source.value == "WOM"))
+    pet_ids = {route.pet_id for tile in pet_replacements for route in tile.routes if route.pet_id}
+    retained = (tile for tile in retained if not any(route.pet_id in pet_ids for route in tile.routes))
+    return assert_valid_tile_candidate_pool((*retained, *replacements))
+
+def build_procedural_skill_xp_or_pet_candidates(targets_by_skill):
+    from utils.osrs_pets import OSRS_PET_OPTIONS
+    allowed = {"hunter", "woodcutting", "agility", "fishing", "runecraft", "mining", "thieving", "sailing", "farming"}
+    pets = {p["label"].split(" - ", 1)[0].lower(): p["value"] for p in OSRS_PET_OPTIONS if p["label"].split(" - ", 1)[0].lower() in allowed}
+    generated = []
+    for skill_id, targets in targets_by_skill.items():
+        if skill_id not in pets:
+            raise ValueError("No validated skilling-pet pairing: " + str(skill_id))
+        for tier, xp_target in targets.items():
+            title = "Gain " + format(xp_target, ",") + " " + skill_id.title() + " XP OR obtain " + pets[skill_id]
+            generated.append(make_skill_xp_or_pet_candidate(title, tier, skill_id, xp_target, pets[skill_id]))
+    return tuple(generated)

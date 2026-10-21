@@ -669,3 +669,47 @@ def test_curated_tile_generation_board_uses_one_primary_pet_tile_by_default():
 
     assert len(primary_pet_tiles) == 1
 
+
+def test_procedural_pool_replaces_static_skill_targets():
+    from utils.osrs_tile_catalogue import get_procedural_tile_generation_candidates
+    from utils.osrs_generation_recipes import CalculatedPointTargetModel
+    from utils.osrs_tile_template_expansion import STATIC_SKILL_XP_TEMPLATES, expand_skill_xp_template
+    template = next(t for t in STATIC_SKILL_XP_TEMPLATES if t.skill_id == "cooking")
+    model = CalculatedPointTargetModel("cooking_static_experience", lambda tier: tier * 12345)
+    generated = expand_skill_xp_template(template, target_model=model)
+    pool = get_procedural_tile_generation_candidates(skill_xp_candidates=generated)
+    titles = {candidate.title for candidate in pool}
+    assert {tile.title for tile in generated} <= titles
+    assert "Gain 250,000 Cooking XP" not in titles
+    assert "Gain 500,000 Cooking XP" not in titles
+    assert "Gain 250,000 Hunter XP" in titles
+
+def test_procedural_pool_replaces_renamed_static_skill(monkeypatch):
+    from dataclasses import replace
+    from utils import osrs_tile_catalogue as catalogue
+    from utils.osrs_generation_recipes import CalculatedPointTargetModel
+    from utils.osrs_tile_template_expansion import STATIC_SKILL_XP_TEMPLATES, expand_skill_xp_template
+    original = next(t for t in catalogue.get_static_skill_xp_candidates() if t.title == "Gain 250,000 Cooking XP")
+    renamed = replace(original, title="Legacy Cooking XP label")
+    monkeypatch.setattr(catalogue, "get_curated_tile_generation_candidates", lambda: (renamed,))
+    template = next(t for t in STATIC_SKILL_XP_TEMPLATES if t.skill_id == "cooking")
+    model = CalculatedPointTargetModel("cooking_static_experience", lambda tier: tier * 12345)
+    pool = catalogue.get_procedural_tile_generation_candidates(expand_skill_xp_template(template, target_model=model))
+    assert renamed not in pool
+
+def test_procedural_skilling_pet_pairs():
+    from utils.osrs_tile_catalogue import build_procedural_skill_xp_or_pet_candidates
+    from utils.board_generation import PetRole, RouteMode
+    tiles = build_procedural_skill_xp_or_pet_candidates({"woodcutting": {2: 120000}, "hunter": {3: 180000}})
+    assert {(t.routes[0].skill_id, t.routes[1].pet_id) for t in tiles} == {("woodcutting", "beaver"), ("hunter", "baby_chinchompa")}
+    assert {(t.point_value, t.routes[0].target) for t in tiles} == {(2, 120000), (3, 180000)}
+    assert all(t.pet_role == PetRole.SECONDARY and t.route_mode == RouteMode.OR and t.has_fallback for t in tiles)
+
+def test_procedural_pool_integrates_pet_alternatives():
+    from utils.osrs_tile_catalogue import build_procedural_skill_xp_or_pet_candidates, get_procedural_tile_generation_candidates
+    generated = build_procedural_skill_xp_or_pet_candidates({"woodcutting": {2: 120000}, "fishing": {3: 180000}})
+    pool = get_procedural_tile_generation_candidates(skill_xp_or_pet_candidates=generated)
+    assert all(tile in pool for tile in generated)
+    heron = [t for t in pool if any(r.pet_id == "heron" for r in t.routes)]
+    assert len(heron) == 1 and heron[0].routes[0].target == 180000
+    assert any(any(r.pet_id == "rocky" for r in t.routes) for t in pool)

@@ -28,6 +28,62 @@ class GenerationRecipeId(str, Enum):
 
 
 @dataclass(frozen=True)
+class CalculatedPointTargetModel:
+    target_model_id: str
+    target_calculator: object
+
+    def __post_init__(self):
+        target_model_id = canonical_id(
+            self.target_model_id
+        )
+
+        if not target_model_id:
+            raise ValueError(
+                "Target models require a target_model_id."
+            )
+
+        if not callable(self.target_calculator):
+            raise ValueError(
+                "Calculated target models require a callable calculator."
+            )
+
+        object.__setattr__(
+            self,
+            "target_model_id",
+            target_model_id,
+        )
+
+    @property
+    def target_by_point_value(self):
+        return tuple((tier, self.target_for_point_value(tier)) for tier in range(1, 6))
+
+    def target_for_point_value(self, point_value):
+        if (
+            not isinstance(point_value, int)
+            or isinstance(point_value, bool)
+            or not 1 <= point_value <= 5
+        ):
+            raise ValueError(
+                "Target model point values must be between 1 and 5."
+            )
+
+        target = self.target_calculator(
+            point_value
+        )
+
+        if (
+            not isinstance(target, int)
+            or isinstance(target, bool)
+            or target <= 0
+        ):
+            raise ValueError(
+                "Calculated targets must be positive integers."
+            )
+
+        return target
+
+
+@dataclass(frozen=True)
 class StaticPointTargetModel:
     target_model_id: str
     target_by_point_value: tuple

@@ -172,3 +172,75 @@ def suggest_drop_tile_point_value(
             return point_value
 
     return thresholds[-1][0]
+
+def estimate_raid_reward_expected_completions(purple_probability, target, conditional_reward_probability=1.0):
+    """Expected raid completions for repeatable qualifying rewards."""
+    from math import isfinite
+    for name, probability in (("purple_probability", purple_probability), ("conditional_reward_probability", conditional_reward_probability)):
+        if isinstance(probability, bool) or not isinstance(probability, (int, float)) or not isfinite(probability) or not 0 < probability <= 1:
+            raise ValueError(f"{name} must be a probability greater than zero and at most one")
+    if isinstance(target, bool) or not isinstance(target, int) or target < 1:
+        raise ValueError("target must be a positive integer")
+    return target / (purple_probability * conditional_reward_probability)
+
+def estimate_raid_reward_completion_probability(purple_probability, target, raid_completions, conditional_reward_probability=1.0):
+    """Probability of meeting a repeatable reward target within N raids."""
+    from math import exp, fsum, isfinite, lgamma, log, log1p
+    for name, value in (("purple_probability", purple_probability), ("conditional_reward_probability", conditional_reward_probability)):
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not isfinite(value) or not 0 < value <= 1:
+            raise ValueError(f"{name} must be a probability greater than zero and at most one")
+    if isinstance(target, bool) or not isinstance(target, int) or target < 1:
+        raise ValueError("target must be a positive integer")
+    if isinstance(raid_completions, bool) or not isinstance(raid_completions, int) or raid_completions < 0:
+        raise ValueError("raid_completions must be a non-negative integer")
+    if target > raid_completions:
+        return 0.0
+    p = purple_probability * conditional_reward_probability
+    if p == 1:
+        return 1.0
+    if p == 0:
+        return 0.0
+    n = raid_completions
+    def mass(k):
+        return exp(lgamma(n + 1) - lgamma(k + 1) - lgamma(n - k + 1) + k * log(p) + (n - k) * log1p(-p))
+    if target <= n - target + 1:
+        result = 1.0 - fsum(mass(k) for k in range(target))
+    else:
+        result = fsum(mass(k) for k in range(target, n + 1))
+    return max(0.0, min(1.0, result))
+
+def estimate_raid_reward_probability_from_playtime(purple_probability, target, raids_per_hour, allocated_hours, conditional_reward_probability=1.0):
+    """Estimate reward completion probability using available raiding time."""
+    from decimal import ROUND_FLOOR
+    from utils.osrs_procedural_effort_budget import estimate_activity_progress
+
+    progress = estimate_activity_progress(raids_per_hour, allocated_hours)
+    completions = int(progress.to_integral_value(rounding=ROUND_FLOOR))
+    return estimate_raid_reward_completion_probability(
+        purple_probability,
+        target,
+        completions,
+        conditional_reward_probability=conditional_reward_probability,
+    )
+
+def estimate_raid_reward_probability_with_character_budgets(purple_probability, target, raids_per_hour, allocated_hours, budgets, previous_allocations_by_tile, participants, conditional_reward_probability=1.0):
+    """Validate shared character-hours before estimating raid reward probability."""
+    from utils.osrs_procedural_effort_budget import remaining_board_character_hours
+
+    participant_ids = tuple(participants)
+    if not participant_ids or len(set(participant_ids)) != len(participant_ids):
+        raise ValueError("Raid participants must be non-empty and unique.")
+
+    remaining = remaining_board_character_hours(budgets, previous_allocations_by_tile)
+    remaining_board_character_hours(
+        remaining,
+        {"proposed_raid": {player: allocated_hours for player in participant_ids}},
+    )
+
+    return estimate_raid_reward_probability_from_playtime(
+        purple_probability,
+        target,
+        raids_per_hour,
+        allocated_hours,
+        conditional_reward_probability=conditional_reward_probability,
+    )
