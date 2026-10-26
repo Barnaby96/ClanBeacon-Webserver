@@ -456,6 +456,38 @@
         </section>
         {% endif %}
 
+        {% if current_user.is_organiser %}
+        <section class="osrs-panel">
+            <div class="osrs-panel-header">
+                <h2 class="osrs-panel-title">Manual WOM Refresh</h2>
+                <p class="osrs-panel-description">
+                    Fetch the latest WOM competition progress manually.
+                    Each refresh uses the WOM API allowance.
+                    Automatic polling follows the configured Bingo schedule.
+                </p>
+            </div>
+            <div class="osrs-panel-body">
+                <form
+                    action="{{ url_for('admin_routes.bingo_setup') }}"
+                    method="POST"
+                    class="osrs-form-actions"
+                >
+                    <input
+                        type="hidden"
+                        name="action"
+                        value="refresh_wom_progress"
+                    >
+                    <button
+                        type="submit"
+                        class="osrs-button"
+                    >
+                        Refresh WOM Progress
+                    </button>
+                </form>
+            </div>
+        </section>
+        {% endif %}
+
         <section class="osrs-panel">
             <div class="osrs-panel-header">
                 <h2 class="osrs-panel-title">Recent WOM Refreshes</h2>

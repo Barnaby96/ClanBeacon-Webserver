@@ -162,3 +162,23 @@ def process_wom_competition():
                     )
 
     return result
+
+
+def try_process_wom_competition(*, scheduled_slot=None):
+    """Run WOM processing only when no refresh is active.
+
+    Returns the normal processing result when successful.
+    Returns None when another process holds the refresh lock.
+
+    Database connection and lock lifetime cover the entire
+    competition-processing operation.
+    """
+    with database.wom_refresh_lock() as acquired:
+        if not acquired:
+            return None
+
+        if scheduled_slot is not None:
+            if not database.claim_wom_poll_slot(*scheduled_slot):
+                return None
+
+        return process_wom_competition()

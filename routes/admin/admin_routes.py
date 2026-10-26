@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 from routes import dink
 from utils.auth import admin_required, organiser_required
 from utils.branding import BOT_NAME
-from utils import completion_notifications, database, db_entities, wom
+from utils import completion_notifications, database, db_entities, wom, wom_tracking
 from utils.dink_evidence import resolve_dink_evidence_path
 from utils.database import get_player_names, get_tile_names, get_tiles
 from utils.spoofed_jsons.spoof_chat import spoof_chat
@@ -1286,6 +1286,54 @@ def bingo_setup():
         ).strip()
 
         action = request.form.get('action', 'preview')
+
+        if action == 'refresh_wom_progress':
+            if not current_user.is_organiser:
+                abort(403)
+
+            result = wom_tracking.try_process_wom_competition()
+
+            if result is None:
+                flash(
+                    'A Wise Old Man refresh is already in progress. '
+                    'Please try again shortly.',
+                    'warning'
+                )
+                return redirect(
+                    url_for('admin_routes.bingo_setup')
+                )
+
+            database.record_wom_refresh_audit(
+                requested_by_user_id=current_user.id,
+                requested_by_username=current_user.username,
+                result=result
+            )
+
+            if result["competition_id"] is None:
+                flash(
+                    'No Wise Old Man competition has been configured yet.',
+                    'warning'
+                )
+            else:
+                flash(
+                    'Wise Old Man competition progress refreshed: '
+                    f'{result["metrics_processed"]} metric(s), '
+                    f'{result["players_processed"]} player update(s), '
+                    f'{len(result["tiles_completed"])} tile completion(s).',
+                    'success'
+                )
+
+            if result["errors"]:
+                flash(
+                    'Wise Old Man refresh finished with '
+                    f'{len(result["errors"])} warning(s).',
+                    'warning'
+                )
+
+            return redirect(
+                url_for('admin_routes.bingo_setup')
+            )
+
         evidence_codeword = request.form.get(
             'evidence_codeword',
             evidence_codeword

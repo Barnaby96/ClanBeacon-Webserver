@@ -313,71 +313,30 @@ def test_manage_players_page_requires_login(client):
     assert "/login" in response.headers["Location"]
 
 
-def test_admin_can_force_wom_updates_for_all_event_players(
+def test_removed_wom_player_update_route_returns_404(
     client,
-    monkeypatch
+    monkeypatch,
 ):
-    database.add_team(
-        "First WOM Update Team",
-        0,
-        ""
-    )
-    database.add_team(
-        "Second WOM Update Team",
-        0,
-        ""
-    )
+    """The removed admin route must never contact WOM."""
+    from utils import wom
 
-    first_team = database.get_team_by_name(
-        "First WOM Update Team"
-    )
-    second_team = database.get_team_by_name(
-        "Second WOM Update Team"
-    )
-
-    create_player(
-        "All Wom Alpha",
-        first_team[3]
-    )
-    create_player(
-        "All Wom Beta",
-        second_team[3]
-    )
-
-    captured_player_names = []
-
-    def fake_update_players(player_names):
-        captured_player_names.extend(
-            player_names
+    def unexpected_wom_update(*args, **kwargs):
+        raise AssertionError(
+            "Removed WOM endpoint attempted an API update."
         )
 
-        return {
-            "updated": [
-                "All Wom Alpha",
-                "All Wom Beta"
-            ],
-            "failed": []
-        }
-
     monkeypatch.setattr(
-        "routes.admin.player_routes.wom.update_players",
-        fake_update_players
+        wom,
+        "update_players",
+        unexpected_wom_update,
     )
 
-    login_admin(
-        client
-    )
+    # This helper creates and logs in an administrator.
+    login_admin(client)
 
     response = client.post(
         "/player/players/wom/update"
     )
 
-    assert response.status_code == 302
-    assert response.headers["Location"].endswith(
-        "/player/players"
-    )
-
-    assert sorted(captured_player_names) == [
-        "All Wom Alpha",
-        "All Wom Beta"
-    ]
+    assert response.status_code == 404
+    assert database.get_recent_wom_refresh_audit_rows() == []

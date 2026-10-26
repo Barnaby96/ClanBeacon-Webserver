@@ -2370,284 +2370,57 @@ def test_team_photo_route_rejects_invalid_stored_path(
     assert response.status_code == 404
 
 
-def test_admin_can_force_wom_updates_for_team_players(
+@pytest.mark.parametrize(
+    ("role", "endpoint"),
+    [
+        ("PLAYER", "/user/team/OwnTeamWomUpdateTeam/wom/update"),
+        ("ADMIN", "/user/team/TeamWomUpdateTeam/wom/update"),
+        ("ORGANISER", "/user/team/TeamWomUpdateTeam/wom/update"),
+        ("PLAYER", "/user/team/OtherBlockedWomUpdateTeam/wom/update"),
+        ("PLAYER", "/user/wom/competition/refresh"),
+        ("ADMIN", "/user/wom/competition/refresh"),
+        ("ORGANISER", "/user/wom/competition/refresh"),
+    ],
+)
+def test_removed_user_wom_endpoints_return_404(
     client,
-    monkeypatch
+    monkeypatch,
+    role,
+    endpoint,
 ):
-    team_id = create_team(
-        "TeamWomUpdateTeam"
-    )
-    other_team_id = create_team(
-        "OtherWomUpdateTeam"
-    )
+    """Removed endpoints must never consume WOM API allowance."""
 
-    create_player(
-        "Team Wom Alpha",
-        team_id
-    )
-    create_player(
-        "Team Wom Beta",
-        team_id
-    )
-    create_player(
-        "Other Wom Player",
-        other_team_id
-    )
-
-    captured_player_names = []
-
-    def fake_update_players(player_names):
-        captured_player_names.extend(
-            player_names
-        )
-
-        return {
-            "updated": [
-                "Team Wom Alpha",
-                "Team Wom Beta"
-            ],
-            "failed": []
-        }
-
-    monkeypatch.setattr(
-        "routes.user_routes.wom.update_players",
-        fake_update_players
-    )
-
-    create_dashboard_user(
-        "TeamWomUpdateAdmin",
-        "test-password",
-        account_role="ADMIN"
-    )
-
-    login_response = login_dashboard_user(
-        client,
-        "TeamWomUpdateAdmin",
-        "test-password"
-    )
-
-    assert login_response.status_code == 302
-
-    response = client.post(
-        "/user/team/TeamWomUpdateTeam/wom/update"
-    )
-
-    assert response.status_code == 302
-    assert response.headers["Location"].endswith(
-        "/user/team/TeamWomUpdateTeam"
-    )
-
-    assert sorted(captured_player_names) == [
-        "Team Wom Alpha",
-        "Team Wom Beta"
-    ]
-
-
-def test_team_player_can_force_wom_updates_for_own_team_players(
-    client,
-    monkeypatch
-):
-    team_id = create_team(
-        "OwnTeamWomUpdateTeam"
-    )
-
-    linked_player = create_player(
-        "Own Team Wom Alpha",
-        team_id
-    )
-    create_player(
-        "Own Team Wom Beta",
-        team_id
-    )
-
-    captured_player_names = []
-
-    def fake_update_players(player_names):
-        captured_player_names.extend(
-            player_names
-        )
-
-        return {
-            "updated": [
-                "Own Team Wom Alpha",
-                "Own Team Wom Beta"
-            ],
-            "failed": []
-        }
-
-    monkeypatch.setattr(
-        "routes.user_routes.wom.update_players",
-        fake_update_players
-    )
-
-    create_dashboard_user(
-        "OwnTeamWomUpdateUser",
-        "test-password",
-        account_role="PLAYER",
-        player_id=linked_player
-    )
-
-    login_response = login_dashboard_user(
-        client,
-        "OwnTeamWomUpdateUser",
-        "test-password"
-    )
-
-    assert login_response.status_code == 302
-
-    response = client.post(
-        "/user/team/OwnTeamWomUpdateTeam/wom/update"
-    )
-
-    assert response.status_code == 302
-    assert response.headers["Location"].endswith(
-        "/user/team/OwnTeamWomUpdateTeam"
-    )
-
-    assert sorted(captured_player_names) == [
-        "Own Team Wom Alpha",
-        "Own Team Wom Beta"
-    ]
-
-
-def test_team_player_cannot_force_wom_updates_for_other_team(
-    client,
-    monkeypatch
-):
-    own_team_id = create_team(
-        "OwnBlockedWomUpdateTeam"
-    )
-    other_team_id = create_team(
-        "OtherBlockedWomUpdateTeam"
-    )
-
-    linked_player = create_player(
-        "Own Blocked Wom Player",
-        own_team_id
-    )
-    create_player(
-        "Other Blocked Wom Player",
-        other_team_id
-    )
-
-    def fake_update_players(player_names):
+    def unexpected_wom_request(*args, **kwargs):
         pytest.fail(
-            "A player should not be able to update another team's WOM data."
+            "Removed WOM endpoint must not contact WOM."
         )
 
     monkeypatch.setattr(
-        "routes.user_routes.wom.update_players",
-        fake_update_players
+        "utils.wom.update_players",
+        unexpected_wom_request,
+    )
+
+    monkeypatch.setattr(
+        "utils.wom_tracking.process_wom_competition",
+        unexpected_wom_request,
     )
 
     create_dashboard_user(
-        "BlockedTeamWomUpdateUser",
+        "RemovedWomRouteUser",
         "test-password",
-        account_role="PLAYER",
-        player_id=linked_player
+        account_role=role,
     )
 
     login_response = login_dashboard_user(
         client,
-        "BlockedTeamWomUpdateUser",
-        "test-password"
+        "RemovedWomRouteUser",
+        "test-password",
     )
 
     assert login_response.status_code == 302
 
-    response = client.post(
-        "/user/team/OtherBlockedWomUpdateTeam/wom/update"
-    )
+    response = client.post(endpoint)
 
     assert response.status_code == 404
 
-
-def test_logged_in_user_can_refresh_wom_competition_progress(
-    client,
-    monkeypatch
-):
-    calls = []
-
-    def fake_process_wom_competition():
-        calls.append(True)
-
-        return {
-            "competition_id": 123456,
-            "metrics_processed": 2,
-            "players_processed": 4,
-            "tiles_completed": [
-                {
-                    "tile_id": 1,
-                    "team_id": 1,
-                    "metric": "agility"
-                }
-            ],
-            "errors": []
-        }
-
-    monkeypatch.setattr(
-        "routes.user_routes.wom_tracking.process_wom_competition",
-        fake_process_wom_competition
-    )
-
-    create_dashboard_user(
-        "WomRefreshUser",
-        "test-password"
-    )
-
-    login_response = login_dashboard_user(
-        client,
-        "WomRefreshUser",
-        "test-password"
-    )
-
-    assert login_response.status_code == 302
-
-    response = client.post(
-        "/user/wom/competition/refresh",
-        headers={
-            "Referer": "/user/leaderboard"
-        }
-    )
-
-    assert response.status_code == 302
-    assert response.headers["Location"].endswith(
-        "/user/leaderboard"
-    )
-    assert calls == [
-        True
-    ]
-
-
-    with database.connect() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            '''
-            SELECT
-                requested_by_user_id,
-                requested_by_username,
-                competition_id,
-                metrics_processed,
-                players_processed,
-                tiles_completed,
-                warning_count,
-                no_competition
-            FROM wom_refresh_audit
-            '''
-        )
-        audit_rows = cursor.fetchall()
-
-    assert len(audit_rows) == 1
-
-    audit_row = audit_rows[0]
-
-    assert audit_row[0] is not None
-    assert audit_row[1:] == (
-        "WomRefreshUser",
-        123456,
-        2,
-        4,
-        1,
-        0,
-        False
-    )
+    assert database.get_recent_wom_refresh_audit_rows() == []

@@ -13,6 +13,7 @@ from routes import dink
 from utils.branding import BOT_NAME
 from utils.db_entities import Player, Tile
 from utils.spoofed_jsons import spoof_drop
+from contextlib import closing, contextmanager
 
 bcrypt = Bcrypt()
 
@@ -24,6 +25,42 @@ def connect():
         host=os.getenv('PGHOST'),
         port=os.getenv('PGPORT')
     )
+
+
+@contextmanager
+def wom_refresh_lock():
+    """Reserve exclusive WOM competition refresh access.
+
+    Uses a PostgreSQL session-level advisory lock so separate
+    Flask and Discord processes cannot refresh simultaneously.
+
+    Yields True only if the lock was acquired immediately.
+    The dedicated connection is always closed on exit.
+    """
+    lock_key = 0x434C414E574F4D  # Stable CLANWOM lock ID.
+
+    with closing(connect()) as connection:
+        connection.autocommit = True
+
+        with closing(connection.cursor()) as cursor:
+            cursor.execute(
+                "SELECT pg_try_advisory_lock(%s)",
+                (lock_key,),
+            )
+
+            acquired = cursor.fetchone()[0] is True
+
+            if not acquired:
+                yield False
+                return
+
+            try:
+                yield True
+            finally:
+                cursor.execute(
+                    "SELECT pg_advisory_unlock(%s)",
+                    (lock_key,),
+                )
 
 def ensure_schema():
     with connect() as conn:
@@ -623,6 +660,30 @@ def ensure_schema():
                 bingo_lifecycle_ready BOOLEAN NOT NULL DEFAULT FALSE,
                 bingo_lifecycle_ready_at TIMESTAMPTZ,
                 evidence_codeword TEXT
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS wom_poll_slots (
+                competition_id BIGINT NOT NULL,
+                competition_starts_at TIMESTAMPTZ NOT NULL,
+                competition_ends_at TIMESTAMPTZ NOT NULL,
+                scheduled_for TIMESTAMPTZ NOT NULL,
+                claimed_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (
+                    competition_id,
+                    competition_starts_at,
+                    competition_ends_at,
+                    scheduled_for
+                ),
+                CHECK (
+                    competition_ends_at > competition_starts_at
+                ),
+                CHECK (
+                    scheduled_for >= competition_starts_at
+                    AND scheduled_for <= competition_ends_at
+                )
             )
         ''')
 
@@ -1507,6 +1568,93 @@ def get_wom_competition_timing():
         "starts_at": row[0],
         "ends_at": row[1]
     }
+
+
+def claim_wom_poll_slot(
+    competition_id,
+    starts_at,
+    ends_at,
+    scheduled_for,
+):
+    """Atomically reserve one automatic WOM refresh slot.
+
+    Returns True only when this caller creates the slot.
+    Returns False for invalid inputs, changed competition
+    configuration, or a previously claimed slot.
+
+    This reserves an attempt; it does not indicate that
+    WOM processing subsequently succeeded.
+    """
+    from datetime import datetime, timezone
+
+    if (
+        type(competition_id) is not int
+        or competition_id <= 0
+    ):
+        return False
+
+    timestamps = (starts_at, ends_at, scheduled_for)
+
+    if any(
+        not isinstance(value, datetime)
+        or value.tzinfo is None
+        or value.utcoffset() is None
+        for value in timestamps
+    ):
+        return False
+
+    start, end, slot = (
+        value.astimezone(timezone.utc)
+        for value in timestamps
+    )
+
+    if end <= start or not start <= slot <= end:
+        return False
+
+    with connect() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            INSERT INTO wom_poll_slots (
+                competition_id,
+                competition_starts_at,
+                competition_ends_at,
+                scheduled_for
+            )
+            SELECT %s, %s, %s, %s
+            WHERE EXISTS (
+                SELECT 1
+                FROM bingo_config
+                WHERE config_id = 1
+                  AND wom_competition_id = %s
+                  AND wom_competition_starts_at = %s
+                  AND wom_competition_ends_at = %s
+            )
+            ON CONFLICT (
+                competition_id,
+                competition_starts_at,
+                competition_ends_at,
+                scheduled_for
+            )
+            DO NOTHING
+            RETURNING scheduled_for
+            """,
+            (
+                competition_id,
+                start,
+                end,
+                slot,
+                competition_id,
+                start,
+                end,
+            ),
+        )
+
+        claimed = cursor.fetchone() is not None
+        conn.commit()
+
+    return claimed
 
 
 def record_wom_refresh_audit(
@@ -15143,6 +15291,30 @@ def reset_tables():
         )
         ''')
 
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS wom_poll_slots (
+            competition_id BIGINT NOT NULL,
+            competition_starts_at TIMESTAMPTZ NOT NULL,
+            competition_ends_at TIMESTAMPTZ NOT NULL,
+            scheduled_for TIMESTAMPTZ NOT NULL,
+            claimed_at TIMESTAMPTZ NOT NULL
+                DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (
+                competition_id,
+                competition_starts_at,
+                competition_ends_at,
+                scheduled_for
+            ),
+            CHECK (
+                competition_ends_at > competition_starts_at
+            ),
+            CHECK (
+                scheduled_for >= competition_starts_at
+                AND scheduled_for <= competition_ends_at
+            )
+        )
+    ''')
 
     cursor.execute('''
         CREATE TABLE wom_refresh_audit (

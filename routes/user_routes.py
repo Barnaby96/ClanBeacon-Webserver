@@ -18,8 +18,6 @@ from utils import (
     db_entities,
     final_results,
     scapify,
-    wom,
-    wom_tracking
 )
 from utils.branding import BOT_NAME
 from utils.dink_evidence import resolve_dink_evidence_path
@@ -326,149 +324,8 @@ def team(team_name):
     )
 
 
-@user_routes.route('/team/<team_name>/wom/update', methods=['POST'])
-@login_required
-def update_team_wom_players(team_name):
-
-    team_data = database.get_team_by_name(
-        team_name
-    )
-
-    if team_data is None:
-        abort(404)
-
-    team = db_entities.Team(
-        team_data
-    )
-
-    if not current_user.is_admin:
-        if current_user.player_id is None:
-            abort(404)
-
-        viewer_player_data = database.get_player_by_id(
-            current_user.player_id
-        )
-
-        if viewer_player_data is None:
-            abort(404)
-
-        viewer_player = db_entities.Player(
-            viewer_player_data
-        )
-
-        if viewer_player.team_id != team.team_id:
-            abort(404)
 
 
-    players = database.get_players_by_team_id(
-        team.team_id
-    )
-
-    player_names = [
-        player[1]
-        for player in players
-    ]
-
-    if not player_names:
-        flash(
-            f'{team.team_name} does not have any players to update.',
-            'warning'
-        )
-        return redirect(
-            url_for(
-                'user_routes.team',
-                team_name=team.team_name
-            )
-        )
-
-    results = wom.update_players(
-        player_names
-    )
-
-    updated_count = len(
-        results["updated"]
-    )
-    failed_count = len(
-        results["failed"]
-    )
-
-    if updated_count:
-        flash(
-            f'Forced Wise Old Man updates for {updated_count} '
-            f'{team.team_name} player(s).',
-            'success'
-        )
-
-    if failed_count:
-        failed_players = ', '.join(
-            failure["player_name"]
-            for failure in results["failed"]
-        )
-
-        flash(
-            f'Wise Old Man could not update {failed_count} '
-            f'{team.team_name} player(s): {failed_players}.',
-            'warning'
-        )
-
-    if not updated_count and not failed_count:
-        flash(
-            f'{team.team_name} does not have any valid player names to update.',
-            'warning'
-        )
-
-    return redirect(
-        url_for(
-            'user_routes.team',
-            team_name=team.team_name
-        )
-    )
-
-
-@user_routes.route('/wom/competition/refresh', methods=['POST'])
-@login_required
-def refresh_wom_competition():
-    result = wom_tracking.process_wom_competition()
-
-    database.record_wom_refresh_audit(
-        requested_by_user_id=current_user.id,
-        requested_by_username=current_user.username,
-        result=result
-    )
-
-    competition_id = result["competition_id"]
-    metrics_processed = result["metrics_processed"]
-    players_processed = result["players_processed"]
-    tiles_completed = len(
-        result["tiles_completed"]
-    )
-    errors = len(
-        result["errors"]
-    )
-
-    if competition_id is None:
-        flash(
-            'No Wise Old Man competition has been configured yet.',
-            'warning'
-        )
-    else:
-        flash(
-            'Fetched latest Wise Old Man competition data: '
-            f'{metrics_processed} metric(s), '
-            f'{players_processed} player progress update(s), '
-            f'{tiles_completed} tile completion(s).',
-            'success'
-        )
-
-        if errors:
-            flash(
-                f'Wise Old Man refresh finished with {errors} warning(s).',
-                'warning'
-            )
-
-    return redirect(
-        request.referrer or url_for('user_routes.leaderboard')
-    )
 
 
 @user_routes.route('/team/<int:team_id>/photo')

@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timedelta, timezone
 import os
 import sys
 from pathlib import Path
@@ -29,8 +30,55 @@ def wom_cog_test_database():
     yield
 
 
+@pytest.fixture
+def scheduled_poll(monkeypatch):
+    """Simulate an eligible automatic WOM refresh.
+
+    Audit tests should verify processing outcomes, while
+    the separate scheduler tests verify polling eligibility.
+    """
+    start = (
+        datetime.now(timezone.utc)
+        - timedelta(seconds=10)
+    )
+    end = start + timedelta(hours=5)
+
+    monkeypatch.setattr(
+        database,
+        "get_wom_competition_timing",
+        lambda: {
+            "starts_at": start,
+            "ends_at": end,
+        },
+    )
+
+    monkeypatch.setattr(
+        database,
+        "get_wom_competition_id",
+        lambda: 151069,
+    )
+
+    def fake_claim(
+        competition_id,
+        starts_at,
+        ends_at,
+        scheduled_for,
+    ):
+        assert competition_id == 151069
+        assert starts_at == start
+        assert ends_at == end
+        assert scheduled_for == start
+        return True
+
+    monkeypatch.setattr(
+        database,
+        "claim_wom_poll_slot",
+        fake_claim,
+    )
+
+
 def test_background_wom_poll_records_refresh_audit(
-    monkeypatch
+    monkeypatch, scheduled_poll
 ):
     def fake_process_wom_competition():
         return {
@@ -72,8 +120,8 @@ def test_background_wom_poll_records_refresh_audit(
     assert row["no_competition"] is False
 
 
-def test_background_wom_poll_skips_audit_without_competition(
-    monkeypatch
+def test_background_wom_poll_skips_audit_when_processing_returns_no_competition(
+    monkeypatch, scheduled_poll
 ):
     def fake_process_wom_competition():
         return {

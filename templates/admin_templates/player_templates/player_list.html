@@ -26,32 +26,6 @@
                 <span class="osrs-summary-value">{{ player_count }}</span>
             </div>
         </section>
-        <section class="osrs-panel">
-            <header class="osrs-panel-header">
-                <h2 class="osrs-panel-title">Roster Actions</h2>
-
-                <p class="osrs-panel-description">
-                    Refresh Wise Old Man details for all linked players.
-                </p>
-            </header>
-
-            <div class="osrs-panel-body">
-                <form
-                    action="{{ url_for(
-                        'player_management.update_all_wom_players'
-                    ) }}"
-                    method="post"
-                    class="osrs-form-actions"
-                >
-                    <button
-                        class="osrs-button"
-                        type="submit"
-                    >
-                        Update All WOM Players
-                    </button>
-                </form>
-            </div>
-        </section>
 
         {% for team in teams %}
             <section class="osrs-panel">

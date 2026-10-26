@@ -1374,3 +1374,178 @@ def test_bingo_preview_pages_allow_organisers(client, monkeypatch, path):
     response = client.get(path)
     assert response.status_code == 200
     assert response.get_data(as_text=True) == "Preview rendered"
+
+@pytest.mark.parametrize(
+    ("role", "expected_get", "expected_post"),
+    [
+        ("PLAYER", 403, 403),
+        ("ADMIN", 200, 403),
+        ("ORGANISER", 200, 302),
+    ],
+)
+def test_bingo_setup_wom_manual_refresh_permissions(
+    client,
+    monkeypatch,
+    role,
+    expected_get,
+    expected_post,
+):
+    create_admin_user()
+
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE users
+                SET account_role = %s
+                WHERE username = %s
+                """,
+                (role, "Bingo Setup Admin"),
+            )
+
+    login_admin(client)
+
+    requests = []
+
+    def fake_process_wom_competition():
+        requests.append("refresh")
+        return {
+            "competition_id": 151069,
+            "metrics_processed": 2,
+            "players_processed": 5,
+            "tiles_completed": [],
+            "errors": [],
+        }
+
+    monkeypatch.setattr(
+        admin_routes_module.wom_tracking,
+        "try_process_wom_competition",
+        fake_process_wom_competition,
+    )
+
+    page = client.get("/admin/bingo_setup")
+    assert page.status_code == expected_get
+
+    if expected_get == 200:
+        html = page.get_data(as_text=True)
+        assert (
+            'value="refresh_wom_progress"' in html
+        ) is (role == "ORGANISER")
+
+    response = client.post(
+        "/admin/bingo_setup",
+        data={"action": "refresh_wom_progress"},
+    )
+
+    assert response.status_code == expected_post
+
+    audit_rows = database.get_recent_wom_refresh_audit_rows()
+
+    if role == "ORGANISER":
+        assert requests == ["refresh"]
+        assert response.headers["Location"].endswith(
+            "/admin/bingo_setup"
+        )
+
+        assert len(audit_rows) == 1
+        assert audit_rows[0]["competition_id"] == 151069
+        assert (
+            audit_rows[0]["requested_by_username"]
+            == "Bingo Setup Admin"
+        )
+        assert audit_rows[0]["metrics_processed"] == 2
+        assert audit_rows[0]["players_processed"] == 5
+
+    else:
+        assert requests == []
+        assert audit_rows == []
+
+
+def test_bingo_setup_wom_manual_refresh_requires_login(
+    client,
+    monkeypatch,
+):
+    def unexpected_wom_request():
+        pytest.fail(
+            "Unauthenticated request must not contact WOM."
+        )
+
+    monkeypatch.setattr(
+        admin_routes_module.wom_tracking,
+        "try_process_wom_competition",
+        unexpected_wom_request,
+    )
+
+    response = client.post(
+        "/admin/bingo_setup",
+        data={"action": "refresh_wom_progress"},
+    )
+
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
+
+    assert database.get_recent_wom_refresh_audit_rows() == []
+
+
+def test_bingo_setup_wom_manual_refresh_busy_does_not_audit(
+    client,
+    monkeypatch,
+):
+    """A concurrent refresh must not use WOM or record success."""
+    from contextlib import contextmanager
+
+    create_admin_user()
+
+    with database.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE users
+                SET account_role = %s
+                WHERE username = %s
+                """,
+                ("ORGANISER", "Bingo Setup Admin"),
+            )
+
+    login_admin(client)
+
+    @contextmanager
+    def busy_lock():
+        yield False
+
+    def unexpected_wom_request():
+        pytest.fail(
+            "Manual refresh contacted WOM while locked."
+        )
+
+    monkeypatch.setattr(
+        admin_routes_module.database,
+        "wom_refresh_lock",
+        busy_lock,
+    )
+    monkeypatch.setattr(
+        admin_routes_module.wom_tracking,
+        "process_wom_competition",
+        unexpected_wom_request,
+    )
+
+    response = client.post(
+        "/admin/bingo_setup",
+        data={"action": "refresh_wom_progress"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith(
+        "/admin/bingo_setup"
+    )
+
+    with client.session_transaction() as session:
+        messages = session.get("_flashes", [])
+
+    assert any(
+        category == "warning"
+        and "already in progress" in message.lower()
+        for category, message in messages
+    )
+
+    assert database.get_recent_wom_refresh_audit_rows() == []

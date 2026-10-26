@@ -212,65 +212,6 @@ def balance_players():
     )
 
 
-@player_routes.route('/players/wom/update', methods=['POST'])
-@admin_required
-def update_all_wom_players():
-    teams = get_manage_players_roster()
-
-    player_names = [
-        player["player_name"]
-        for team in teams
-        for player in team["players"]
-    ]
-
-    if not player_names:
-        flash(
-            'There are no event players to update on Wise Old Man.',
-            'warning'
-        )
-        return redirect(
-            url_for('player_management.player_list')
-        )
-
-    results = wom.update_players(
-        player_names
-    )
-
-    updated_count = len(
-        results["updated"]
-    )
-    failed_count = len(
-        results["failed"]
-    )
-
-    if updated_count:
-        flash(
-            f'Forced Wise Old Man updates for {updated_count} '
-            'event player(s).',
-            'success'
-        )
-
-    if failed_count:
-        failed_players = ', '.join(
-            failure["player_name"]
-            for failure in results["failed"]
-        )
-
-        flash(
-            f'Wise Old Man could not update {failed_count} '
-            f'event player(s): {failed_players}.',
-            'warning'
-        )
-
-    if not updated_count and not failed_count:
-        flash(
-            'There are no valid event player names to update on Wise Old Man.',
-            'warning'
-        )
-
-    return redirect(
-        url_for('player_management.player_list')
-    )
 
 
 API_KEY = os.getenv('WOM_KEY')
