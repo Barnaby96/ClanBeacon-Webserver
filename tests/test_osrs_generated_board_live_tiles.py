@@ -399,6 +399,78 @@ def test_build_live_tile_payload_for_drop_group_route():
     }
 
 
+def test_build_live_tile_payload_for_repeatable_vorkath_drop_group():
+    candidate = TileCandidate(
+        title="Obtain 2 Vorkath unique drops (duplicates allowed)",
+        point_value=4,
+        primary_category=TileCategory.DROP,
+        route_mode=RouteMode.SINGLE,
+        routes=(
+            Route(
+                route_type=TileCategory.DROP,
+                display_text="Obtain 2 Vorkath unique drops (duplicates allowed)",
+                target=2,
+                tracking_source=TrackingSource.DINK,
+                contribution_mode=ContributionMode.TEAM_SUM,
+                drop_group_id="vorkath_uniques",
+            ),
+        ),
+    )
+
+    payload = build_live_tile_payload_from_candidate(candidate)
+
+    assert payload["completion_paths"] == [
+        {
+            "completion_path": 1,
+            "route_mode": "N_OF",
+            "route_target": 2,
+            "require_unique": False,
+        },
+    ]
+
+    assert {
+        condition["condition_trigger"]
+        for condition in payload["conditions"]
+    } == {
+        "Skeletal visage",
+        "Dragonbone necklace",
+        "Jar of decay",
+    }
+
+    assert all(
+        condition["target"] == 2
+        for condition in payload["conditions"]
+    )
+
+
+def test_existing_generated_vorkath_group_remains_distinct():
+    from utils.osrs_tile_catalogue import (
+        get_curated_tile_generation_candidates,
+    )
+
+    candidate = next(
+        candidate
+        for candidate in get_curated_tile_generation_candidates()
+        if candidate.title == "Obtain 2 Vorkath Uniques"
+    )
+
+    payload = build_live_tile_payload_from_candidate(candidate)
+
+    assert payload["completion_paths"] == [
+        {
+            "completion_path": 1,
+            "route_mode": "N_OF",
+            "route_target": 2,
+            "require_unique": True,
+        },
+    ]
+
+    assert all(
+        condition["target"] == 1
+        for condition in payload["conditions"]
+    )
+
+
 def test_build_live_tile_payload_for_specific_drop_route():
     candidate = TileCandidate(
         title="Obtain Bludgeon axon",
@@ -555,3 +627,88 @@ def test_build_live_tile_payloads_from_exact_generated_board_keys():
         candidate.point_value
         for candidate in expected_candidates
     ]
+
+
+def test_vorki_or_vorkath_unique_group_live_conversion():
+    from dataclasses import replace
+
+    from utils.board_generation import (
+        PetRole,
+        RouteMode,
+        TileCategory,
+    )
+    from utils.osrs_tile_catalogue import (
+        get_curated_tile_generation_candidates,
+    )
+
+    catalogue = get_curated_tile_generation_candidates()
+
+    unique_candidate = next(
+        candidate
+        for candidate in catalogue
+        if candidate.title == "Obtain 1 Vorkath Unique"
+    )
+
+    pet_candidate = next(
+        candidate
+        for candidate in catalogue
+        if candidate.title == "Obtain Vorki"
+    )
+
+    assert (
+        unique_candidate.access_profile
+        == pet_candidate.access_profile
+    )
+
+    candidate = replace(
+        unique_candidate,
+        title="Obtain 1 Vorkath Unique OR obtain Vorki",
+        route_mode=RouteMode.OR,
+        routes=(
+            unique_candidate.routes[0],
+            pet_candidate.routes[0],
+        ),
+        primary_category=TileCategory.DROP,
+        secondary_categories=frozenset({
+            TileCategory.PET,
+        }),
+        pet_role=PetRole.SECONDARY,
+        rng_level=max(
+            unique_candidate.rng_level,
+            pet_candidate.rng_level,
+        ),
+    )
+
+    assert "source:vorkath" in candidate.all_hard_unique_tags
+
+    payload = build_live_tile_payload_from_candidate(candidate)
+
+    assert payload["completion_paths"] == [
+        {
+            "completion_path": 1,
+            "route_mode": "N_OF",
+            "route_target": 1,
+            "require_unique": True,
+        },
+        {
+            "completion_path": 2,
+            "route_mode": "ALL",
+            "route_target": None,
+            "require_unique": False,
+        },
+    ]
+
+    assert {
+        (
+            condition["completion_path"],
+            condition["condition_type"],
+            condition["condition_trigger"],
+            condition["target"],
+        )
+        for condition in payload["conditions"]
+    } == {
+        (1, "DROP", "Skeletal visage", 1),
+        (1, "DROP", "Dragonbone necklace", 1),
+        (1, "DROP", "Jar of decay", 1),
+        (2, "PET", "Vorki", 1),
+    }

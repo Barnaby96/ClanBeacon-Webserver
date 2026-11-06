@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "source": {
+    "wiki_page": "Quests/List",
+    "wiki_revision": 15366661,
+    "retrieved_at_utc": "2026-10-29T21:54:15.839487+00:00"
+  },
+  "miniquest_count": 20,
+  "miniquest_entries": [
+    {
+      "quest_id": "miniquest_alfred_grimhands_barcrawl",
+      "display_name": "Alfred Grimhand's Barcrawl",
+      "wiki_path": "/w/Alfred_Grimhand's_Barcrawl",
+      "wiki_page_title": "Alfred Grimhand's Barcrawl",
+      "record_type": "MINIQUEST",
+      "source_list_position": 1
+    },
+    {
+      "quest_id": "miniquest_enter_the_abyss",
+      "display_name": "Enter the Abyss",
+      "wiki_path": "/w/Enter_the_Abyss",
+      "wiki_page_title": "Enter the Abyss",
+      "record_type": "MINIQUEST",
+      "source_list_position": 2
+    },
+    {
+      "quest_id": "miniquest_the_generals_shadow",
+      "display_name": "The General's Shadow",
+      "wiki_path": "/w/The_General's_Shadow",
+      "wiki_page_title": "The General's Shadow",
+      "record_type": "MINIQUEST",
+      "source_list_position": 3
+    },
+    {
+      "quest_id": "miniquest_barbarian_training",
+      "display_name": "Barbarian Training",
+      "wiki_path": "/w/Barbarian_Training",
+      "wiki_page_title": "Barbarian Training",
+      "record_type": "MINIQUEST",
+      "source_list_position": 4
+    },
+    {
+      "quest_id": "miniquest_skippy_and_the_mogres",
+      "display_name": "Skippy and the Mogres",
+      "wiki_path": "/w/Skippy_and_the_Mogres",
+      "wiki_page_title": "Skippy and the Mogres",
+      "record_type": "MINIQUEST",
+      "source_list_position": 5
+    },
+    {
+      "quest_id": "miniquest_curse_of_the_empty_lord",
+      "display_name": "Curse of the Empty Lord",
+      "wiki_path": "/w/Curse_of_the_Empty_Lord",
+      "wiki_page_title": "Curse of the Empty Lord",
+      "record_type": "MINIQUEST",
+      "source_list_position": 6
+    },
+    {
+      "quest_id": "miniquest_lair_of_tarn_razorlor",
+      "display_name": "Lair of Tarn Razorlor",
+      "wiki_path": "/w/Lair_of_Tarn_Razorlor",
+      "wiki_page_title": "Lair of Tarn Razorlor",
+      "record_type": "MINIQUEST",
+      "source_list_position": 7
+    },
+    {
+      "quest_id": "miniquest_bear_your_soul",
+      "display_name": "Bear Your Soul",
+      "wiki_path": "/w/Bear_Your_Soul",
+      "wiki_page_title": "Bear Your Soul",
+      "record_type": "MINIQUEST",
+      "source_list_position": 8
+    },
+    {
+      "quest_id": "miniquest_the_enchanted_key",
+      "display_name": "The Enchanted Key",
+      "wiki_path": "/w/The_Enchanted_Key",
+      "wiki_page_title": "The Enchanted Key",
+      "record_type": "MINIQUEST",
+      "source_list_position": 9
+    },
+    {
+      "quest_id": "miniquest_mage_arena_i",
+      "display_name": "Mage Arena I",
+      "wiki_path": "/w/Mage_Arena_I",
+      "wiki_page_title": "Mage Arena I",
+      "record_type": "MINIQUEST",
+      "source_list_position": 10
+    },
+    {
+      "quest_id": "miniquest_family_pest",
+      "display_name": "Family Pest",
+      "wiki_path": "/w/Family_Pest",
+      "wiki_page_title": "Family Pest",
+      "record_type": "MINIQUEST",
+      "source_list_position": 11
+    },
+    {
+      "quest_id": "miniquest_mage_arena_ii",
+      "display_name": "Mage Arena II",
+      "wiki_path": "/w/Mage_Arena_II",
+      "wiki_page_title": "Mage Arena II",
+      "record_type": "MINIQUEST",
+      "source_list_position": 12
+    },
+    {
+      "quest_id": "miniquest_in_search_of_knowledge",
+      "display_name": "In Search of Knowledge",
+      "wiki_path": "/w/In_Search_of_Knowledge",
+      "wiki_page_title": "In Search of Knowledge",
+      "record_type": "MINIQUEST",
+      "source_list_position": 13
+    },
+    {
+      "quest_id": "miniquest_daddys_home",
+      "display_name": "Daddy's Home",
+      "wiki_path": "/w/Daddy's_Home",
+      "wiki_page_title": "Daddy's Home",
+      "record_type": "MINIQUEST",
+      "source_list_position": 14
+    },
+    {
+      "quest_id": "miniquest_the_frozen_door",
+      "display_name": "The Frozen Door",
+      "wiki_path": "/w/The_Frozen_Door",
+      "wiki_page_title": "The Frozen Door",
+      "record_type": "MINIQUEST",
+      "source_list_position": 15
+    },
+    {
+      "quest_id": "miniquest_hopespears_will",
+      "display_name": "Hopespear's Will",
+      "wiki_path": "/w/Hopespear's_Will",
+      "wiki_page_title": "Hopespear's Will",
+      "record_type": "MINIQUEST",
+      "source_list_position": 16
+    },
+    {
+      "quest_id": "miniquest_into_the_tombs",
+      "display_name": "Into the Tombs",
+      "wiki_path": "/w/Into_the_Tombs",
+      "wiki_page_title": "Into the Tombs",
+      "record_type": "MINIQUEST",
+      "source_list_position": 17
+    },
+    {
+      "quest_id": "miniquest_his_faithful_servants",
+      "display_name": "His Faithful Servants",
+      "wiki_path": "/w/His_Faithful_Servants",
+      "wiki_page_title": "His Faithful Servants",
+      "record_type": "MINIQUEST",
+      "source_list_position": 18
+    },
+    {
+      "quest_id": "miniquest_vale_totems",
+      "display_name": "Vale Totems",
+      "wiki_path": "/w/Vale_Totems_(miniquest)",
+      "wiki_page_title": "Vale Totems (miniquest)",
+      "record_type": "MINIQUEST",
+      "source_list_position": 19
+    },
+    {
+      "quest_id": "miniquest_the_fractured_archive",
+      "display_name": "The Fractured Archive",
+      "wiki_path": "/w/The_Fractured_Archive_(miniquest)",
+      "wiki_page_title": "The Fractured Archive (miniquest)",
+      "record_type": "MINIQUEST",
+      "source_list_position": 20
+    }
+  ]
+}

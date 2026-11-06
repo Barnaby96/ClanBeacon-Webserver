@@ -37,8 +37,33 @@ def build_drop_group_data_records(database):
     )
 
 
+def build_drop_row_data_records(database):
+    """Preserve all imported rows, regardless of unique-group inclusion."""
+    return tuple(
+        {
+            "source_ids": row.source_ids,
+            "source_names": row.source_names,
+            "group_ids": row.group_ids,
+            "group_names": row.group_names,
+            "drop_id": row.drop_id,
+            "drop_name": row.drop_name,
+            "drop_rates": row.drop_rates,
+            "drop_counting_mode": row.drop_counting_mode,
+            "drop_quantity": row.drop_quantity,
+            "include_in_unique_group": row.include_in_unique_group,
+            "include_pet": row.include_pet,
+            "access_notes": row.access_notes,
+            "notes": row.notes,
+        }
+        for row in database.rows
+    )
+
+
 def format_drop_group_data_module(database):
-    records = build_drop_group_data_records(
+    group_records = build_drop_group_data_records(
+        database
+    )
+    drop_rows = build_drop_row_data_records(
         database
     )
 
@@ -47,7 +72,14 @@ def format_drop_group_data_module(database):
         + "\n\n"
         + "DROP_GROUP_DATA = "
         + pformat(
-            records,
+            group_records,
+            sort_dicts=False,
+            width=88,
+        )
+        + "\n\n"
+        + "DROP_ROW_DATA = "
+        + pformat(
+            drop_rows,
             sort_dicts=False,
             width=88,
         )

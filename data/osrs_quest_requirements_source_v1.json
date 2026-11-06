@@ -1,0 +1,1763 @@
+{
+  "schema_version": 1,
+  "catalogue_source": {
+    "wiki_page": "Quests/List",
+    "wiki_revision": 15366661,
+    "wiki_api": "https://oldschool.runescape.wiki/api.php"
+  },
+  "requirements_source": "individual_osrs_wiki_quest_pages",
+  "requirements_status_counts": {
+    "FIELD_PRESENT": 172,
+    "IGNORED_TUTORIAL": 1,
+    "FIELD_ABSENT": 18,
+    "FIELD_EMPTY": 3
+  },
+  "requirements_records": [
+    {
+      "quest_id": "the_ides_of_milk",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Ides of Milk",
+      "wiki_revision": 15338668,
+      "wiki_revision_timestamp": "2026-09-10T07:55:10Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "None"
+    },
+    {
+      "quest_id": "learning_the_ropes",
+      "record_type": "QUEST",
+      "wiki_page_title": "Learning the Ropes",
+      "wiki_revision": 15381258,
+      "wiki_revision_timestamp": "2026-10-24T17:18:13Z",
+      "requirements_status": "IGNORED_TUTORIAL",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "below_ice_mountain",
+      "record_type": "QUEST",
+      "wiki_page_title": "Below Ice Mountain",
+      "wiki_revision": 15355831,
+      "wiki_revision_timestamp": "2026-09-25T08:01:21Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Quest|16|link=yes}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "x_marks_the_spot",
+      "record_type": "QUEST",
+      "wiki_page_title": "X Marks the Spot",
+      "wiki_revision": 15367156,
+      "wiki_revision_timestamp": "2026-10-06T20:40:05Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "the_corsair_curse",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Corsair Curse",
+      "wiki_revision": 15373740,
+      "wiki_revision_timestamp": "2026-10-16T03:03:05Z",
+      "requirements_status": "FIELD_EMPTY",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "misthalin_mystery",
+      "record_type": "QUEST",
+      "wiki_page_title": "Misthalin Mystery",
+      "wiki_revision": 15367068,
+      "wiki_revision_timestamp": "2026-10-06T19:26:15Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "rune_mysteries",
+      "record_type": "QUEST",
+      "wiki_page_title": "Rune Mysteries",
+      "wiki_revision": 15374658,
+      "wiki_revision_timestamp": "2026-10-17T16:59:04Z",
+      "requirements_status": "FIELD_EMPTY",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "dragon_slayer_i",
+      "record_type": "QUEST",
+      "wiki_page_title": "Dragon Slayer I",
+      "wiki_revision": 15370020,
+      "wiki_revision_timestamp": "2026-10-10T14:20:59Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Quest|32}} [[Quest points]] to enter the Champions' Guild  {{Questreqstart|yes}}\n* The ability to defeat a level 83 [[Elvarg|dragon]]"
+    },
+    {
+      "quest_id": "pirates_treasure",
+      "record_type": "QUEST",
+      "wiki_page_title": "Pirate's Treasure",
+      "wiki_revision": 15367065,
+      "wiki_revision_timestamp": "2026-10-06T19:25:56Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "Able to defeat or run away from a [[Combat level]] 4 [[gardener]]."
+    },
+    {
+      "quest_id": "goblin_diplomacy",
+      "record_type": "QUEST",
+      "wiki_page_title": "Goblin Diplomacy",
+      "wiki_revision": 15379720,
+      "wiki_revision_timestamp": "2026-10-23T00:45:49Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "the_knights_sword",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Knight's Sword",
+      "wiki_revision": 15367063,
+      "wiki_revision_timestamp": "2026-10-06T19:25:46Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Mining|10|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* The ability to run from [[combat level|level]] 57 [[ice warrior]]s and level 53 [[ice giant]]s could help."
+    },
+    {
+      "quest_id": "witchs_potion",
+      "record_type": "QUEST",
+      "wiki_page_title": "Witch's Potion",
+      "wiki_revision": 15367062,
+      "wiki_revision_timestamp": "2026-10-06T19:25:36Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "black_knights_fortress",
+      "record_type": "QUEST",
+      "wiki_page_title": "Black Knights' Fortress",
+      "wiki_revision": 15380575,
+      "wiki_revision_timestamp": "2026-10-23T19:33:32Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Quest|12}} [[Quest points]] {{Questreqstart|yes}}\n* The ability to evade level 33 [[Black Knight]]s"
+    },
+    {
+      "quest_id": "dorics_quest",
+      "record_type": "QUEST",
+      "wiki_page_title": "Doric's Quest",
+      "wiki_revision": 15367060,
+      "wiki_revision_timestamp": "2026-10-06T19:25:23Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "None"
+    },
+    {
+      "quest_id": "prince_ali_rescue",
+      "record_type": "QUEST",
+      "wiki_page_title": "Prince Ali Rescue",
+      "wiki_revision": 15375277,
+      "wiki_revision_timestamp": "2026-10-18T19:17:36Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "The ability to get past [[aggressive]] [[combat level]] 26 [[jail guard]]s."
+    },
+    {
+      "quest_id": "imp_catcher",
+      "record_type": "QUEST",
+      "wiki_page_title": "Imp Catcher",
+      "wiki_revision": 15375330,
+      "wiki_revision_timestamp": "2026-10-18T21:26:48Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "vampyre_slayer",
+      "record_type": "QUEST",
+      "wiki_page_title": "Vampyre Slayer",
+      "wiki_revision": 15367056,
+      "wiki_revision_timestamp": "2026-10-06T19:25:06Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "Able to defeat a [[combat level]] 34 [[Count Draynor|vampyre]] with a very high health recovery rate."
+    },
+    {
+      "quest_id": "ernest_the_chicken",
+      "record_type": "QUEST",
+      "wiki_page_title": "Ernest the Chicken",
+      "wiki_revision": 15367055,
+      "wiki_revision_timestamp": "2026-10-06T19:24:57Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*The ability to defend from a level 22 [[Skeleton]]."
+    },
+    {
+      "quest_id": "the_restless_ghost",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Restless Ghost",
+      "wiki_revision": 15367047,
+      "wiki_revision_timestamp": "2026-10-06T19:23:26Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "Capable of killing or running away from a [[combat level]] 13 [[skeleton]]."
+    },
+    {
+      "quest_id": "sheep_shearer",
+      "record_type": "QUEST",
+      "wiki_page_title": "Sheep Shearer",
+      "wiki_revision": 15367050,
+      "wiki_revision_timestamp": "2026-10-06T19:23:54Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "shield_of_arrav",
+      "record_type": "QUEST",
+      "wiki_page_title": "Shield of Arrav",
+      "wiki_revision": 15367052,
+      "wiki_revision_timestamp": "2026-10-06T19:24:08Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* A trustworthy friend or partner. Players can join the official [[chat-channel]] \"OSRS SOA\" to look for a partner."
+    },
+    {
+      "quest_id": "demon_slayer",
+      "record_type": "QUEST",
+      "wiki_page_title": "Demon Slayer",
+      "wiki_revision": 15380486,
+      "wiki_revision_timestamp": "2026-10-23T18:15:58Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "The ability to defeat a level 27 [[Delrith|demon]] aided by three level 20 [[Dark wizard]]s and two level 7 Dark wizards using the [[Silverlight]] in melee."
+    },
+    {
+      "quest_id": "romeo_and_juliet",
+      "record_type": "QUEST",
+      "wiki_page_title": "Romeo & Juliet",
+      "wiki_revision": 15375169,
+      "wiki_revision_timestamp": "2026-10-18T16:14:02Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "cooks_assistant",
+      "record_type": "QUEST",
+      "wiki_page_title": "Cook's Assistant",
+      "wiki_revision": 15375073,
+      "wiki_revision_timestamp": "2026-10-18T14:57:31Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "druidic_ritual",
+      "record_type": "QUEST",
+      "wiki_page_title": "Druidic Ritual",
+      "wiki_revision": 15322674,
+      "wiki_revision_timestamp": "2026-08-28T07:09:49Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "lost_city",
+      "record_type": "QUEST",
+      "wiki_page_title": "Lost City",
+      "wiki_revision": 15326723,
+      "wiki_revision_timestamp": "2026-08-31T23:25:06Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Crafting|31|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Woodcutting|36|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*Ability to kill a level 101 [[Tree spirit (Lost City)|Tree spirit]] with limited [[armour]] and [[weapons]]."
+    },
+    {
+      "quest_id": "witchs_house",
+      "record_type": "QUEST",
+      "wiki_page_title": "Witch's House",
+      "wiki_revision": 15168391,
+      "wiki_revision_timestamp": "2026-04-07T05:02:46Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* The ability to defeat 4 monsters from level 19 to 53 without a break."
+    },
+    {
+      "quest_id": "merlins_crystal",
+      "record_type": "QUEST",
+      "wiki_page_title": "Merlin's Crystal",
+      "wiki_revision": 15336338,
+      "wiki_revision_timestamp": "2026-09-09T03:46:19Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "Must be able to defeat a level 39 enemy.\nYou do not need to have an Attack level of 20 to free Merlin, you can 'Use' Excalibur on the crystal to free him."
+    },
+    {
+      "quest_id": "heroes_quest",
+      "record_type": "QUEST",
+      "wiki_page_title": "Heroes' Quest",
+      "wiki_revision": 15374803,
+      "wiki_revision_timestamp": "2026-10-17T23:00:42Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* A partner\n* {{SCP|Quest|55|link=yes}} {{Questreqstart|yes}}\n* {{SCP|Cooking|53|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Fishing|53|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Herblore|25|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Mining|50|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* Completion of the following quests:\n** [[Shield of Arrav]]\n** [[Lost City]]\n** [[Merlin's Crystal]]\n** [[Dragon Slayer I]]"
+    },
+    {
+      "quest_id": "scorpion_catcher",
+      "record_type": "QUEST",
+      "wiki_page_title": "Scorpion Catcher",
+      "wiki_revision": 15363122,
+      "wiki_revision_timestamp": "2026-10-03T17:50:13Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Prayer|31|link=yes}} {{Boostable|no}} {{Questreqstart|no}}\n* Completion of [[Alfred Grimhand's Barcrawl]] {{Questreqstart|yes}}\n* The ability to run past level 172 [[black demon]]s and level 64 [[poison spider]]s"
+    },
+    {
+      "quest_id": "family_crest",
+      "record_type": "QUEST",
+      "wiki_page_title": "Family Crest",
+      "wiki_revision": 15366119,
+      "wiki_revision_timestamp": "2026-10-05T21:13:22Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Mining|40|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Smithing|40|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Magic|59|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Crafting|40|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* The ability to defeat a level 170 [[Demons|demon]] (can be [[safespot]]ted)"
+    },
+    {
+      "quest_id": "fishing_contest",
+      "record_type": "QUEST",
+      "wiki_page_title": "Fishing Contest",
+      "wiki_revision": 15302643,
+      "wiki_revision_timestamp": "2026-08-16T05:37:49Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Fishing|10|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "tribal_totem",
+      "record_type": "QUEST",
+      "wiki_page_title": "Tribal Totem",
+      "wiki_revision": 15240951,
+      "wiki_revision_timestamp": "2026-06-27T13:15:18Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Thieving|21|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}"
+    },
+    {
+      "quest_id": "monks_friend",
+      "record_type": "QUEST",
+      "wiki_page_title": "Monk's Friend",
+      "wiki_revision": 15240952,
+      "wiki_revision_timestamp": "2026-06-27T13:15:31Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "The ability to run past two level 14 thieves, and one level 26."
+    },
+    {
+      "quest_id": "temple_of_ikov",
+      "record_type": "QUEST",
+      "wiki_page_title": "Temple of Ikov",
+      "wiki_revision": 15363124,
+      "wiki_revision_timestamp": "2026-10-03T17:50:47Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Thieving|42|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Ranged|40|link=yes}} {{Boostable|no}} {{Questreqstart|no}} - bypassable <ref>This requirement can be bypassed - [[Temple_of_Ikov#Fire_Warrior_of_Lesarkus|see below]]</ref>\n* The ability to defeat a level 84 enemy with Ranged"
+    },
+    {
+      "quest_id": "clock_tower",
+      "record_type": "QUEST",
+      "wiki_page_title": "Clock Tower",
+      "wiki_revision": 15166584,
+      "wiki_revision_timestamp": "2026-04-06T15:38:47Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "The ability to run past level 53 [[Ogre]]s"
+    },
+    {
+      "quest_id": "holy_grail",
+      "record_type": "QUEST",
+      "wiki_page_title": "Holy Grail",
+      "wiki_revision": 15359857,
+      "wiki_revision_timestamp": "2026-10-01T19:49:47Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Merlin's Crystal]]\n*{{SCP|Attack|20|link=yes}} {{Boostable|No}} {{Questreqstart|no}}\n*Must be able to defeat a level 120 [[Black Knight Titan]] (can be [[safespot]]ted or [[flinch]]ed)"
+    },
+    {
+      "quest_id": "tree_gnome_village",
+      "record_type": "QUEST",
+      "wiki_page_title": "Tree Gnome Village",
+      "wiki_revision": 15351851,
+      "wiki_revision_timestamp": "2026-09-20T03:38:28Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* The ability to defeat a level 112 [[Khazard warlord]]"
+    },
+    {
+      "quest_id": "fight_arena",
+      "record_type": "QUEST",
+      "wiki_page_title": "Fight Arena",
+      "wiki_revision": 15367399,
+      "wiki_revision_timestamp": "2026-10-07T06:21:43Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "The ability to defeat level 44, 63 and 137 enemies (all can be [[safespot]]ted)"
+    },
+    {
+      "quest_id": "hazeel_cult",
+      "record_type": "QUEST",
+      "wiki_page_title": "Hazeel Cult",
+      "wiki_revision": 15328196,
+      "wiki_revision_timestamp": "2026-09-02T11:47:50Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "Able to defeat a level 13 cultist (this applies only if you're taking Ceril's side)"
+    },
+    {
+      "quest_id": "sheep_herder",
+      "record_type": "QUEST",
+      "wiki_page_title": "Sheep Herder",
+      "wiki_revision": 15282409,
+      "wiki_revision_timestamp": "2026-07-30T02:36:59Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "plague_city",
+      "record_type": "QUEST",
+      "wiki_page_title": "Plague City",
+      "wiki_revision": 15343824,
+      "wiki_revision_timestamp": "2026-09-15T01:02:05Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "sea_slug",
+      "record_type": "QUEST",
+      "wiki_page_title": "Sea Slug",
+      "wiki_revision": 15364120,
+      "wiki_revision_timestamp": "2026-10-04T10:36:51Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Firemaking|30|link=yes}} {{Boostable|Yes}} {{Questreqstart|no}}"
+    },
+    {
+      "quest_id": "waterfall_quest",
+      "record_type": "QUEST",
+      "wiki_page_title": "Waterfall Quest",
+      "wiki_revision": 15357907,
+      "wiki_revision_timestamp": "2026-09-28T21:23:30Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "The ability to withstand and evade attacks from level 86 [[Fire Giant]]s and level 84 [[Moss Guardian]] without any equipment."
+    },
+    {
+      "quest_id": "jungle_potion",
+      "record_type": "QUEST",
+      "wiki_page_title": "Jungle Potion",
+      "wiki_revision": 15281195,
+      "wiki_revision_timestamp": "2026-07-29T18:59:16Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of [[Druidic Ritual]]\n* {{SCP|Herblore|3|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* The ability to defend against level 53 [[Jogre]]s and level 46 [[Harpie Bug Swarm]]s."
+    },
+    {
+      "quest_id": "the_grand_tree",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Grand Tree",
+      "wiki_revision": 15343831,
+      "wiki_revision_timestamp": "2026-09-15T01:35:41Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Agility|25|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* The ability to defeat a level 172 [[Black demon (The Grand Tree)|Black demon]] (safespottable for Ranged and Magic or melee using a [[halberd]])."
+    },
+    {
+      "quest_id": "underground_pass",
+      "record_type": "QUEST",
+      "wiki_page_title": "Underground Pass",
+      "wiki_revision": 15371489,
+      "wiki_revision_timestamp": "2026-10-12T20:48:59Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Ranged|25|link=yes}} {{Boostable|yes}}\n* Completion of the following quests:\n** [[Biohazard]]\n*** [[Plague City]]"
+    },
+    {
+      "quest_id": "observatory_quest",
+      "record_type": "QUEST",
+      "wiki_page_title": "Observatory Quest",
+      "wiki_revision": 15326719,
+      "wiki_revision_timestamp": "2026-08-31T23:24:41Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "None"
+    },
+    {
+      "quest_id": "the_tourist_trap",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Tourist Trap",
+      "wiki_revision": 15373730,
+      "wiki_revision_timestamp": "2026-10-16T02:59:56Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Fletching|10|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Smithing|20|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* The ability to defeat a level 47 enemy"
+    },
+    {
+      "quest_id": "watchtower",
+      "record_type": "QUEST",
+      "wiki_page_title": "Watchtower",
+      "wiki_revision": 15367228,
+      "wiki_revision_timestamp": "2026-10-06T22:51:06Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Magic|14|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Thieving|15|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Agility|25|link=yes}} {{Boostable|yes}} {{Questreqstart|no}} <ref name=\"Note\">Climbing the trellis to begin the quest requires 18 Agility.</ref>\n* {{SCP|Herblore|14|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Mining|40|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* The ability to defeat a level 68 [[Ogre]] and run past level 111 [[Blue dragons]]"
+    },
+    {
+      "quest_id": "dwarf_cannon",
+      "record_type": "QUEST",
+      "wiki_page_title": "Dwarf Cannon",
+      "wiki_revision": 15313000,
+      "wiki_revision_timestamp": "2026-08-20T06:38:36Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "murder_mystery",
+      "record_type": "QUEST",
+      "wiki_page_title": "Murder Mystery",
+      "wiki_revision": 15365419,
+      "wiki_revision_timestamp": "2026-10-05T15:56:39Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "the_dig_site",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Dig Site",
+      "wiki_revision": 15368226,
+      "wiki_revision_timestamp": "2026-10-07T23:33:36Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Agility|10|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Herblore|10|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Thieving|25|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}"
+    },
+    {
+      "quest_id": "gertrudes_cat",
+      "record_type": "QUEST",
+      "wiki_page_title": "Gertrude's Cat",
+      "wiki_revision": 15374007,
+      "wiki_revision_timestamp": "2026-10-16T09:33:59Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "legends_quest",
+      "record_type": "QUEST",
+      "wiki_page_title": "Legends' Quest",
+      "wiki_revision": 15369874,
+      "wiki_revision_timestamp": "2026-10-10T03:37:07Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Quest|107|link=yes}} {{Questreqstart|yes}}\n* {{SCP|Agility|50|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Crafting|50|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Herblore|45|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Magic|56|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Mining|52|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Prayer|42|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Smithing|50|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Strength|50|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Thieving|50|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Woodcutting|50|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* Completion of the following quests:\n** [[Family Crest]]\n** [[Heroes' Quest]]\n*** [[Shield of Arrav]]\n*** [[Lost City]]\n*** [[Merlin's Crystal]]\n*** [[Dragon Slayer I]]\n** [[Shilo Village]]\n*** [[Jungle Potion]]\n**** [[Druidic Ritual]]\n** [[Underground Pass]]\n*** [[Biohazard]]\n**** [[Plague City]]\n** [[Waterfall Quest]]\n* The ability to defeat a level 187 demon"
+    },
+    {
+      "quest_id": "death_plateau",
+      "record_type": "QUEST",
+      "wiki_page_title": "Death Plateau",
+      "wiki_revision": 15382205,
+      "wiki_revision_timestamp": "2026-10-25T23:13:28Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "eadgars_ruse",
+      "record_type": "QUEST",
+      "wiki_page_title": "Eadgar's Ruse",
+      "wiki_revision": 15376618,
+      "wiki_revision_timestamp": "2026-10-20T08:00:31Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of the following quests:\n** [[Druidic Ritual]]\n** [[Troll Stronghold]]\n*** [[Death Plateau]]\n* {{SCP|Herblore|31|link=yes}} {{Boostable|yes}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "big_chompy_bird_hunting",
+      "record_type": "QUEST",
+      "wiki_page_title": "Big Chompy Bird Hunting",
+      "wiki_revision": 15367289,
+      "wiki_revision_timestamp": "2026-10-06T23:35:54Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Fletching|5|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Cooking|30|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Ranged|30|link=yes}} {{Boostable|no}} {{Questreqstart|no}}\n* The ability to defend against level 64 [[wolves]] and level 53 [[ogre]]s"
+    },
+    {
+      "quest_id": "elemental_workshop_i",
+      "record_type": "QUEST",
+      "wiki_page_title": "Elemental Workshop I",
+      "wiki_revision": 15360762,
+      "wiki_revision_timestamp": "2026-10-02T19:41:31Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Mining|20|link=yes}} {{Boostable|yes}} {{Questreqstart|no}} {{Refn|This requirement can be bypassed if another player mines the rock.|group=t}}\n* {{SCP|Smithing|20|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Crafting|20|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}"
+    },
+    {
+      "quest_id": "nature_spirit",
+      "record_type": "QUEST",
+      "wiki_page_title": "Nature Spirit",
+      "wiki_revision": 15372142,
+      "wiki_revision_timestamp": "2026-10-13T20:53:46Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of [[Priest in Peril]]\n* Completion of [[The Restless Ghost]]"
+    },
+    {
+      "quest_id": "priest_in_peril",
+      "record_type": "QUEST",
+      "wiki_page_title": "Priest in Peril",
+      "wiki_revision": 15360755,
+      "wiki_revision_timestamp": "2026-10-02T19:39:08Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "regicide",
+      "record_type": "QUEST",
+      "wiki_page_title": "Regicide",
+      "wiki_revision": 15375411,
+      "wiki_revision_timestamp": "2026-10-19T01:06:36Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of the following quests:\n** [[Underground Pass]]\n*** [[Biohazard]]\n**** [[Plague City]]\n* {{SCP|Crafting|10|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n* {{SCP|Agility|56|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* The ability to defeat a level 110 [[Tyras guard]] (can be [[safespotted]])"
+    },
+    {
+      "quest_id": "tai_bwo_wannai_trio",
+      "record_type": "QUEST",
+      "wiki_page_title": "Tai Bwo Wannai Trio",
+      "wiki_revision": 15376159,
+      "wiki_revision_timestamp": "2026-10-19T18:12:10Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* <!--DO NOT ADD 30 FIREMAKING, IT IS ONLY RECOMMENDED AND ALTERNATIVES ARE MENTIONED ON THIS PAGE-->{{SCP|Agility|15|link=yes}} {{Boostable|Yes}} {{Questreqstart|no}}\n* {{SCP|Cooking|30|link=yes}} {{Boostable|no}} {{Questreqstart|no}}\n* {{SCP|Fishing|5|link=yes}} {{Boostable|Yes}} {{Questreqstart|no}} <ref>Level 65 is required if you wish to catch the [[Raw karambwan]] yourself.</ref><!--Do not add 30 Firemaking-->\n* Completion of the following quests:\n** [[Jungle Potion]]\n*** [[Druidic Ritual]]"
+    },
+    {
+      "quest_id": "troll_stronghold",
+      "record_type": "QUEST",
+      "wiki_page_title": "Troll Stronghold",
+      "wiki_revision": 15326717,
+      "wiki_revision_timestamp": "2026-08-31T23:24:23Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of {{SCP|Quest}} [[Death Plateau]]\n* {{SCP|Agility|15|link=yes}} {{Boostable|yes}} {{Questreqstart|no}} (47 is recommended)\n* The ability to defeat a level 113 [[Troll General]] (can be [[safespot]]ted)"
+    },
+    {
+      "quest_id": "shades_of_mortton",
+      "record_type": "QUEST",
+      "wiki_page_title": "Shades of Mort'ton",
+      "wiki_revision": 15292280,
+      "wiki_revision_timestamp": "2026-08-10T23:19:46Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of the following quests:\n** [[Priest in Peril]]\n* {{SCP|Crafting|20|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Herblore|15|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Firemaking|5|link=yes}} {{Boostable|Yes}}  {{Questreqstart|no}}\n* Must be able to defeat 5 level-40 [[Loar Shade]]s.\n* Must be able to survive an onslaught when rebuilding the Temple (Being surrounded by many players makes this much easier).\n* Access to [[Mort'ton]]"
+    },
+    {
+      "quest_id": "the_fremennik_trials",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Fremennik Trials",
+      "wiki_revision": 15374585,
+      "wiki_revision_timestamp": "2026-10-17T15:26:59Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Ability to defeat a level-69 [[Draugen]]\n* Ability to defeat a [[Koschei|fairly strong warrior]] without [[armour]], [[weapons]], or [[spells]]"
+    },
+    {
+      "quest_id": "horror_from_the_deep",
+      "record_type": "QUEST",
+      "wiki_page_title": "Horror from the Deep",
+      "wiki_revision": 15375082,
+      "wiki_revision_timestamp": "2026-10-18T15:02:38Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Agility|35|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* Completion of {{SCP|Quest}} [[Alfred Grimhand's Barcrawl]] {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "throne_of_miscellania",
+      "record_type": "QUEST",
+      "wiki_page_title": "Throne of Miscellania",
+      "wiki_revision": 15360688,
+      "wiki_revision_timestamp": "2026-10-02T19:13:44Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of the following quests:\n** [[Heroes' Quest]]\n*** [[Shield of Arrav]]\n*** [[Lost City]]\n*** [[Merlin's Crystal]]\n*** [[Dragon Slayer I]]\n** [[The Fremennik Trials]]"
+    },
+    {
+      "quest_id": "monkey_madness_i",
+      "record_type": "QUEST",
+      "wiki_page_title": "Monkey Madness I",
+      "wiki_revision": 15374574,
+      "wiki_revision_timestamp": "2026-10-17T15:11:52Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of the following quests:\n** [[The Grand Tree]]\n** [[Tree Gnome Village]]\n* The ability to defeat a level 195 [[Jungle Demon]]"
+    },
+    {
+      "quest_id": "haunted_mine",
+      "record_type": "QUEST",
+      "wiki_page_title": "Haunted Mine",
+      "wiki_revision": 15366272,
+      "wiki_revision_timestamp": "2026-10-05T22:20:33Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of the following quests:\n** [[Priest in Peril]]\n* {{SCP|Crafting|35||link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* The ability to defeat a level 95 enemy\n* Access to [[Abandoned Mine]]"
+    },
+    {
+      "quest_id": "troll_romance",
+      "record_type": "QUEST",
+      "wiki_page_title": "Troll Romance",
+      "wiki_revision": 15375194,
+      "wiki_revision_timestamp": "2026-10-18T16:37:43Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Agility|28|link=yes}} {{Boostable|yes}} {{Questreqstart|}}\n* Completion of the following quests:\n** [[Troll Stronghold]]\n*** [[Death Plateau]]\n* The ability to defeat a level 113 [[Arrg|troll]]"
+    },
+    {
+      "quest_id": "in_search_of_the_myreque",
+      "record_type": "QUEST",
+      "wiki_page_title": "In Search of the Myreque",
+      "wiki_revision": 15365477,
+      "wiki_revision_timestamp": "2026-10-05T16:13:39Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of the following quests:\n** [[Nature Spirit]]\n*** [[Priest in Peril]]\n*** [[The Restless Ghost]]\n* {{SCP|Agility|25|link=yes}} {{Boostable|yes}} {{Questreqstart|}}\n* The ability to defeat a level 97 foe ([[safespot]]table)"
+    },
+    {
+      "quest_id": "creature_of_fenkenstrain",
+      "record_type": "QUEST",
+      "wiki_page_title": "Creature of Fenkenstrain",
+      "wiki_revision": 15343497,
+      "wiki_revision_timestamp": "2026-09-14T16:14:59Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of [[Priest in Peril]]\n* Partial completion of [[The Restless Ghost]]\n* {{SCP|Crafting|20|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Thieving|25|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* Able to defeat a level 51 monster and run past level 72 monsters"
+    },
+    {
+      "quest_id": "roving_elves",
+      "record_type": "QUEST",
+      "wiki_page_title": "Roving Elves",
+      "wiki_revision": 15374498,
+      "wiki_revision_timestamp": "2026-10-17T09:57:24Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of the following quests:\n** [[Regicide]]\n*** [[Underground Pass]]\n**** [[Biohazard]]\n***** [[Plague City]]\n** [[Waterfall Quest]]\n* The ability to defeat a level 84 enemy unarmed, with [[Glarial's Tomb#Restricted items|heavy restrictions]]\n* {{SCP|Agility|56|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}, unless travelling with a [[charter ship]] to the elven woods"
+    },
+    {
+      "quest_id": "ghosts_ahoy",
+      "record_type": "QUEST",
+      "wiki_page_title": "Ghosts Ahoy",
+      "wiki_revision": 15360836,
+      "wiki_revision_timestamp": "2026-10-02T22:12:30Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completed [[Priest in Peril]]\n* Completed [[The Restless Ghost]]\n* {{SCP|Agility|25|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Cooking|20|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}"
+    },
+    {
+      "quest_id": "one_small_favour",
+      "record_type": "QUEST",
+      "wiki_page_title": "One Small Favour",
+      "wiki_revision": 15364723,
+      "wiki_revision_timestamp": "2026-10-04T21:36:55Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of the following quests:\n** [[Rune Mysteries]]\n** [[Shilo Village]]\n*** [[Jungle Potion]]\n**** [[Druidic Ritual]]\n* {{SCP|Agility|36|link=yes}} {{Boostable|yes}} {{Questreqstart|}}\n* {{SCP|Crafting|25|link=yes}} {{Boostable|yes}} {{Questreqstart|}}\n* {{SCP|Herblore|18|link=yes}} {{Boostable|yes}} {{Questreqstart|}}\n* {{SCP|Smithing|30|link=yes}} {{Boostable|yes}} {{Questreqstart|}}"
+    },
+    {
+      "quest_id": "mountain_daughter",
+      "record_type": "QUEST",
+      "wiki_page_title": "Mountain Daughter",
+      "wiki_revision": 15292291,
+      "wiki_revision_timestamp": "2026-08-10T23:22:07Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Agility|20|link=yes}} {{Boostable|yes}} {{Questreqstart|no}} <ref>Entering the Mountain Camp initially requires 10 Agility.</ref>\n* The ability to defeat a level 70 [[The Kendal|monster]] (can be [[safespot|safespotted]])"
+    },
+    {
+      "quest_id": "between_a_rock",
+      "record_type": "QUEST",
+      "wiki_page_title": "Between a Rock...",
+      "wiki_revision": 15342623,
+      "wiki_revision_timestamp": "2026-09-13T10:13:58Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of the following quests:\n** [[Dwarf Cannon]]\n** [[Fishing Contest]]\n* {{SCP|Defence|30|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Mining|40|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Smithing|50|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* The ability to defeat a level 75-125 enemy ''(depends on how much gold you mine)''"
+    },
+    {
+      "quest_id": "the_feud",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Feud",
+      "wiki_revision": 15376145,
+      "wiki_revision_timestamp": "2026-10-19T17:58:29Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Thieving|30|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* The ability to kill a level 70 [[Bandit champion|bandit]] and a level 75 [[Tough Guy|Menaphite]] (both can be safespotted)."
+    },
+    {
+      "quest_id": "the_golem",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Golem",
+      "wiki_revision": 15321144,
+      "wiki_revision_timestamp": "2026-08-26T16:46:31Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Crafting|20|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Thieving|25|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}"
+    },
+    {
+      "quest_id": "desert_treasure_i",
+      "record_type": "QUEST",
+      "wiki_page_title": "Desert Treasure I",
+      "wiki_revision": 15374595,
+      "wiki_revision_timestamp": "2026-10-17T15:40:00Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of the following quests:\n** [[The Dig Site]]\n** [[Temple of Ikov]]\n** [[The Tourist Trap]]\n** [[Troll Stronghold]]\n*** [[Death Plateau]]\n** [[Priest in Peril]]\n** [[Waterfall Quest]]\n* {{SCP|Thieving|53|link=yes}} {{Boostable|no}} {{Questreqstart|no}}\n* {{SCP|Magic|50|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n* {{SCP|Firemaking|50|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Slayer|10|link=yes}} {{Boostable|no}}  {{Questreqstart|no}} '''or''' the [[gas mask]] from [[Plague City]]\n* Access to [[Morytania Graveyard]]"
+    },
+    {
+      "quest_id": "icthlarins_little_helper",
+      "record_type": "QUEST",
+      "wiki_page_title": "Icthlarin's Little Helper",
+      "wiki_revision": 15365541,
+      "wiki_revision_timestamp": "2026-10-05T16:28:26Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of {{SCP|Quest}} [[Gertrude's Cat]]\n* The ability to defeat a level 91 monster."
+    },
+    {
+      "quest_id": "tears_of_guthix",
+      "record_type": "QUEST",
+      "wiki_page_title": "Tears of Guthix",
+      "wiki_revision": 15292296,
+      "wiki_revision_timestamp": "2026-08-10T23:23:23Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Quest|43|link=yes}} {{Questreqstart|yes}}\n* {{SCP|Firemaking|49|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Crafting|20|link=yes}} {{Boostable|yes}} {{Questreqstart|no}} <ref>Adding the sapphire lens to a [[Bullseye lantern (unf)]] is boostable. Adding it to a [[Bullseye lantern (empty)]] or [[Bullseye lantern]] is not boostable.</ref>\n* {{SCP|Mining|20|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}"
+    },
+    {
+      "quest_id": "the_lost_tribe",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Lost Tribe",
+      "wiki_revision": 15370928,
+      "wiki_revision_timestamp": "2026-10-12T02:06:17Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of the following quests:\n** [[Goblin Diplomacy]]\n** [[Rune Mysteries]]\n* {{SCP|Agility|13|link=yes}} {{Boostable|yes}} {{Questreqstart|}}\n* {{SCP|Thieving|13|link=yes}} {{Boostable|yes}} {{Questreqstart|}}\n* {{SCP|Mining|17|link=yes}} {{Boostable|yes}} {{Questreqstart|}}"
+    },
+    {
+      "quest_id": "the_giant_dwarf",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Giant Dwarf",
+      "wiki_revision": 15375425,
+      "wiki_revision_timestamp": "2026-10-19T01:46:34Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Crafting|12|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Firemaking|16|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Magic|33|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Thieving|14|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}"
+    },
+    {
+      "quest_id": "recruitment_drive",
+      "record_type": "QUEST",
+      "wiki_page_title": "Recruitment Drive",
+      "wiki_revision": 15372696,
+      "wiki_revision_timestamp": "2026-10-14T22:50:13Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Black Knights' Fortress]]\n**[[Druidic Ritual]]"
+    },
+    {
+      "quest_id": "mournings_end_part_i",
+      "record_type": "QUEST",
+      "wiki_page_title": "Mourning's End Part I",
+      "wiki_revision": 15366066,
+      "wiki_revision_timestamp": "2026-10-05T20:49:20Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Ranged|60|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Thieving|50|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*The ability to defeat a level 11 enemy with your combat stats set to 20 each.\n*Completion of the following quests:\n**[[Roving Elves]]\n***[[Regicide]]\n****[[Underground Pass]]\n*****[[Biohazard]]\n******[[Plague City]]\n***[[Waterfall Quest]]\n**[[Big Chompy Bird Hunting]]\n**[[Sheep Herder]]"
+    },
+    {
+      "quest_id": "forgettable_tale",
+      "record_type": "QUEST",
+      "wiki_page_title": "Forgettable Tale...",
+      "wiki_revision": 15374902,
+      "wiki_revision_timestamp": "2026-10-18T04:00:33Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Cooking|22|link=yes}} {{Boostable|yes}} {{Questreqstart|no}} {{Refn|Although the requirement ingame is listed as 20 Cooking, the quest actually requires 22 Cooking to make the kelda stout.|group=q}}\n*{{SCP|Farming|17|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*Completion of the following quests:\n**[[The Giant Dwarf]]\n**[[Fishing Contest]]"
+    },
+    {
+      "quest_id": "garden_of_tranquillity",
+      "record_type": "QUEST",
+      "wiki_page_title": "Garden of Tranquillity",
+      "wiki_revision": 15379032,
+      "wiki_revision_timestamp": "2026-10-22T02:33:43Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Farming|25|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*Completion of the following quests:\n**[[Creature of Fenkenstrain]]\n***[[Priest in Peril]]\n***[[The Restless Ghost]]"
+    },
+    {
+      "quest_id": "a_tail_of_two_cats",
+      "record_type": "QUEST",
+      "wiki_page_title": "A Tail of Two Cats",
+      "wiki_revision": 15364081,
+      "wiki_revision_timestamp": "2026-10-04T10:17:36Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Icthlarin's Little Helper]]\n***[[Gertrude's Cat]]"
+    },
+    {
+      "quest_id": "wanted",
+      "record_type": "QUEST",
+      "wiki_page_title": "Wanted!",
+      "wiki_revision": 15361297,
+      "wiki_revision_timestamp": "2026-10-03T10:53:41Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Quest|32|link=yes}} {{Questreqstart|yes}}\n*Completion of the following quests:\n**[[Recruitment Drive]]\n***[[Black Knights' Fortress]]\n***[[Druidic Ritual]]\n**[[The Lost Tribe]]\n***[[Rune Mysteries]]\n***[[Goblin Diplomacy]]\n**[[Priest in Peril]]\n**[[Enter the Abyss]]\n*The ability to defeat a level 32 [[Black Knight (Wanted!)|Black Knight]]."
+    },
+    {
+      "quest_id": "mournings_end_part_ii",
+      "record_type": "QUEST",
+      "wiki_page_title": "Mourning's End Part II",
+      "wiki_revision": 15351344,
+      "wiki_revision_timestamp": "2026-09-19T18:48:25Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Mourning's End Part I]]\n***[[Roving Elves]]\n****[[Regicide]]\n*****[[Underground Pass]]\n******[[Biohazard]]\n*******[[Plague City]]\n****[[Waterfall Quest]]\n***[[Big Chompy Bird Hunting]]\n***[[Sheep Herder]]"
+    },
+    {
+      "quest_id": "rum_deal",
+      "record_type": "QUEST",
+      "wiki_page_title": "Rum Deal",
+      "wiki_revision": 15375150,
+      "wiki_revision_timestamp": "2026-10-18T15:56:51Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Zogre Flesh Eaters]]\n***[[Big Chompy Bird Hunting]]\n***[[Jungle Potion]]\n****[[Druidic Ritual]]\n**[[Priest in Peril]]\n*{{SCP|Crafting|42|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Farming|40|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Prayer|47|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Slayer|42|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Fishing|50|link=yes}} {{Boostable|yes}} {{Questreqstart|no}} <ref>Fishing requirement can be bypassed if obtaining 5 [[Karamthulhu]]s from [[Zombie swab]]s or [[Zombie pirate (Braindeath Island)|Zombie pirates]]</ref>\n\n*The ability to kill a [[combat level]] 150 [[Evil spirit|monster]] (can be [[safespotted]])"
+    },
+    {
+      "quest_id": "shadow_of_the_storm",
+      "record_type": "QUEST",
+      "wiki_page_title": "Shadow of the Storm",
+      "wiki_revision": 15375058,
+      "wiki_revision_timestamp": "2026-10-18T14:44:08Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Crafting|30|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*Completion of the following quests:\n**[[The Golem]]\n**[[Demon Slayer]]\n*The ability to defeat a level 100 demon"
+    },
+    {
+      "quest_id": "making_history",
+      "record_type": "QUEST",
+      "wiki_page_title": "Making History",
+      "wiki_revision": 15315243,
+      "wiki_revision_timestamp": "2026-08-21T05:23:52Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Priest in Peril]]\n**[[The Restless Ghost]]"
+    },
+    {
+      "quest_id": "ratcatchers",
+      "record_type": "QUEST",
+      "wiki_page_title": "Ratcatchers",
+      "wiki_revision": 15351359,
+      "wiki_revision_timestamp": "2026-09-19T19:34:53Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Icthlarin's Little Helper]]\n***[[Gertrude's Cat]]\n\n*Access to [[Keldagrim]] \n**[[The Giant Dwarf]] started"
+    },
+    {
+      "quest_id": "spirits_of_the_elid",
+      "record_type": "QUEST",
+      "wiki_page_title": "Spirits of the Elid",
+      "wiki_revision": 15375049,
+      "wiki_revision_timestamp": "2026-10-18T14:36:14Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Magic|33|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Ranged|37|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Mining|37|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Thieving|37|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*Ability to defeat three level 75 golems"
+    },
+    {
+      "quest_id": "devious_minds",
+      "record_type": "QUEST",
+      "wiki_page_title": "Devious Minds",
+      "wiki_revision": 15292315,
+      "wiki_revision_timestamp": "2026-08-10T23:32:12Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Smithing|65|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Runecraft|50|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n*{{SCP|Fletching|50|link=yes}} {{Boostable|yes}} {{Questreqstart|}}\n*Completion of the following quests:\n**[[Wanted!]]\n***[[Recruitment Drive]]\n****[[Black Knights' Fortress]]\n****[[Druidic Ritual]]\n***[[The Lost Tribe]]\n****[[Goblin Diplomacy]]\n****[[Rune Mysteries]]\n***[[Priest in Peril]]\n***[[Enter the Abyss]]\n**[[Troll Stronghold]]\n***[[Death Plateau]]\n**[[Doric's Quest]]"
+    },
+    {
+      "quest_id": "the_hand_in_the_sand",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Hand in the Sand",
+      "wiki_revision": 15355846,
+      "wiki_revision_timestamp": "2026-09-25T08:26:09Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Thieving|17|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Crafting|49|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "enakhras_lament",
+      "record_type": "QUEST",
+      "wiki_page_title": "Enakhra's Lament",
+      "wiki_revision": 15365540,
+      "wiki_revision_timestamp": "2026-10-05T16:28:12Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Crafting|50|link=yes}} {{Boostable|no}} {{Questreqstart|no}}\n*{{SCP|Firemaking|45|link=yes}} {{Boostable|yes}} {{Questreqstart|no}} {{Refn|Although Firemaking is listed as a requirement, it is only used during the quest to identify what item needs to go in what brazier. Investigating the braziers is not required, meaning that it is possible to just guess and check which item goes in what brazier, so the Firemaking level is not actually required.|group=q}}\n*{{SCP|Prayer|43|link=yes}} {{Boostable|no}} {{Questreqstart|no}}\n*{{SCP|Magic|39|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*Must be on the [[standard spellbook]]"
+    },
+    {
+      "quest_id": "cabin_fever",
+      "record_type": "QUEST",
+      "wiki_page_title": "Cabin Fever",
+      "wiki_revision": 15365342,
+      "wiki_revision_timestamp": "2026-10-05T14:12:43Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n** [[Pirate's Treasure]]\n** [[Rum Deal]]\n*** [[Zogre Flesh Eaters]]\n**** [[Big Chompy Bird Hunting]]\n**** [[Jungle Potion]]\n***** [[Druidic Ritual]]\n*** [[Priest in Peril]]\n* {{SCP|Agility|42|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n* {{SCP|Crafting|45|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n* {{SCP|Smithing|50|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Ranged|40|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "fairytale_i_growing_pains",
+      "record_type": "QUEST",
+      "wiki_page_title": "Fairytale I - Growing Pains",
+      "wiki_revision": 15352251,
+      "wiki_revision_timestamp": "2026-09-20T17:08:07Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Lost City]]\n**[[Nature Spirit]]\n***[[Priest in Peril]]\n***[[The Restless Ghost]]\n*The ability to defeat a level 111 [[Tanglefoot]] with limited weaponry\n<!--Level 30 Farming is not required - the in game guide only states that 30 Farming is recommended-->"
+    },
+    {
+      "quest_id": "recipe_for_disaster",
+      "record_type": "QUEST",
+      "wiki_page_title": "Recipe for Disaster",
+      "wiki_revision": 15382871,
+      "wiki_revision_timestamp": "2026-10-26T14:43:54Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "'''To start the quest and finish the [[Recipe for Disaster/Another Cook's Quest|first chapter]]:'''\n*{{SCP|Cooking|10|link=yes}} {{Boostable|yes}}\n*Completion of [[Cook's Assistant]]\n'''To complete all chapters of the quest:'''\n*All prerequisite quest requirements\n*{{SCP|Quest|175|link=yes}} (9 are earned for the other parts of the quest, and 79 are gained by completing all required quests)\n*{{SCP|Cooking|70|link=yes}} {{Boostable|yes}}\n*{{SCP|Agility|48|link=yes}} {{Boostable|no}}\n*{{SCP|Mining|50|link=yes}} {{Boostable|yes}}\n*{{SCP|Fishing|53|link=yes}} {{Boostable|yes}}\n*{{SCP|Thieving|53|link=yes}} {{Boostable|no}}\n*{{SCP|Herblore|25|link=yes}} {{Boostable|yes}}<!-- You do not need to complete the Legends' Quest for RfD. -->\n*{{SCP|Magic|59|link=yes}} {{Boostable|yes}}\n*{{SCP|Smithing|40|link=yes}} {{Boostable|yes}}<!-- You do not need to complete the Legends' Quest for RfD. -->\n*{{SCP|Firemaking|50|link=yes}} {{Boostable|yes}}\n*{{SCP|Ranged|40|link=yes}} {{Boostable|no}}\n*{{SCP|Crafting|40|link=yes}} {{Boostable|yes}}<!-- You do not need to complete the Legends' Quest for RfD. -->\n*{{SCP|Fletching|10|link=yes}} {{Boostable|yes}}\n*{{SCP|Woodcutting|36|link=yes}} {{Boostable|yes}}<!-- You do not need to complete the Legends' Quest for RfD. -->\n*The ability to defeat high levelled monsters, several of which have to be defeated without using {{SCP|Prayer|link=yes}} \n*Completion (or partial completion where stated) of the following quests:\n**[[Fishing Contest]]\n**[[Goblin Diplomacy]]\n**[[Big Chompy Bird Hunting]]\n**[[Murder Mystery]]\n**[[Nature Spirit]]\n***[[Priest in Peril]]\n***[[The Restless Ghost]]\n**[[Witch's House]]\n**[[Gertrude's Cat]]\n**[[Shadow of the Storm]]\n***[[Demon Slayer]]\n***[[The Golem]]\n**Started [[Legends' Quest]] up until gaining access to the [[Kharazi Jungle]]\n***[[Family Crest]]\n***[[Heroes' Quest]]\n****[[Shield of Arrav]]\n****[[Lost City]]\n****[[Merlin's Crystal]]\n****[[Dragon Slayer I]]\n***[[Shilo Village]]\n****[[Jungle Potion]]\n*****[[Druidic Ritual]]\n***[[Underground Pass]]\n****[[Biohazard]]\n*****[[Plague City]]\n**[[Monkey Madness I]]\n***[[The Grand Tree]]\n***[[Tree Gnome Village]]\n**[[Desert Treasure I]]\n***[[The Dig Site]]\n***[[The Tourist Trap]]\n***[[Temple of Ikov]]\n***[[Waterfall Quest]]\n***[[Troll Stronghold]]\n****[[Death Plateau]]\n**[[Horror from the Deep]]\n***[[Alfred Grimhand's Barcrawl]]"
+    },
+    {
+      "quest_id": "in_aid_of_the_myreque",
+      "record_type": "QUEST",
+      "wiki_page_title": "In Aid of the Myreque",
+      "wiki_revision": 15381138,
+      "wiki_revision_timestamp": "2026-10-24T14:53:26Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[In Search of the Myreque]]\n***[[Nature Spirit]]\n****[[Priest in Peril]]\n****[[The Restless Ghost]]\n*{{SCP|Agility|25|link=yes}} {{Boostable|Yes}} {{Questreqstart|}}\n*{{SCP|Crafting|25|link=yes}} {{Boostable|No}} {{Questreqstart|}}\n*{{SCP|Mining|15|link=yes}} {{Boostable|No}} {{Questreqstart|}}\n*{{SCP|Magic|7|link=yes}} {{Boostable|Yes}} {{Questreqstart|}}"
+    },
+    {
+      "quest_id": "a_souls_bane",
+      "record_type": "QUEST",
+      "wiki_page_title": "A Soul's Bane",
+      "wiki_revision": 15359515,
+      "wiki_revision_timestamp": "2026-10-01T11:43:13Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "The ability to defeat level 45+ enemies."
+    },
+    {
+      "quest_id": "rag_and_bone_man_i",
+      "record_type": "QUEST",
+      "wiki_page_title": "Rag and Bone Man I",
+      "wiki_revision": 15292348,
+      "wiki_revision_timestamp": "2026-08-10T23:45:33Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "None"
+    },
+    {
+      "quest_id": "swan_song",
+      "record_type": "QUEST",
+      "wiki_page_title": "Swan Song",
+      "wiki_revision": 15377580,
+      "wiki_revision_timestamp": "2026-10-20T14:51:40Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Quest|100|link=yes}} {{Questreqstart|}}\n*{{SCP|Magic|66|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Cooking|62|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Fishing|62|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Smithing|45|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Firemaking|42|link=yes}} {{Boostable|Yes}} {{Questreqstart|no}}\n*{{SCP|Crafting|40|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*Completion of the following quests:\n**[[One Small Favour]]\n***[[Rune Mysteries]]\n***[[Shilo Village]]\n****[[Jungle Potion]]\n*****[[Druidic Ritual]]\n**[[Garden of Tranquillity]]\n***[[Creature of Fenkenstrain]]\n****[[Priest in Peril]]\n****[[The Restless Ghost]]\n*The ability to defeat a [[combat level]] 170 monster, which is able to use [[Magic]], [[Melee]] and can drain [[Prayer]]."
+    },
+    {
+      "quest_id": "royal_trouble",
+      "record_type": "QUEST",
+      "wiki_page_title": "Royal Trouble",
+      "wiki_revision": 15375087,
+      "wiki_revision_timestamp": "2026-10-18T15:09:10Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Agility|40|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Slayer|40|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* Completion of the following quests:\n** [[Throne of Miscellania]]\n*** [[Heroes' Quest]]\n**** [[Shield of Arrav]]\n**** [[Lost City]]\n**** [[Merlin's Crystal]]\n**** [[Dragon Slayer I]]\n*** [[The Fremennik Trials]]"
+    },
+    {
+      "quest_id": "death_to_the_dorgeshuun",
+      "record_type": "QUEST",
+      "wiki_page_title": "Death to the Dorgeshuun",
+      "wiki_revision": 15373692,
+      "wiki_revision_timestamp": "2026-10-16T02:29:43Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[The Lost Tribe]]\n***[[Goblin Diplomacy]]\n***[[Rune Mysteries]]\n*{{SCP|Agility|23|link=yes}} {{Boostable|yes}} {{Questreqstart|no|}}\n*{{SCP|Thieving|23|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*The ability to defeat a level 50 enemy with [[Melee]] or [[Magic]]"
+    },
+    {
+      "quest_id": "fairytale_ii_cure_a_queen",
+      "record_type": "QUEST",
+      "wiki_page_title": "Fairytale II - Cure a Queen",
+      "wiki_revision": 15372454,
+      "wiki_revision_timestamp": "2026-10-14T15:37:24Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Fairytale I - Growing Pains]]\n***[[Lost City]]\n***[[Nature Spirit]]\n****[[The Restless Ghost]]\n****[[Priest in Peril]]\n'''Note:''' The following skill levels are required to complete the quest. These skills are '''not''' required to unlock access to [[fairy rings]], for which you only need to progress the quest up to a [[#Unlocking fairy rings|certain point]]. However, building fairy rings in the [[player-owned house]] requires full quest completion.\n*{{SCP|Thieving|40|link=yes}} {{Boostable|no}} {{Questreqstart|no}}\n*{{SCP|Farming|49|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Herblore|57|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}"
+    },
+    {
+      "quest_id": "lunar_diplomacy",
+      "record_type": "QUEST",
+      "wiki_page_title": "Lunar Diplomacy",
+      "wiki_revision": 15373056,
+      "wiki_revision_timestamp": "2026-10-15T15:33:03Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n** [[The Fremennik Trials]]\n** [[Lost City]]\n** [[Rune Mysteries]]\n** [[Shilo Village]]\n*** [[Jungle Potion]]\n**** [[Druidic Ritual]]\n*{{SCP|Herblore|5|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Crafting|61|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Defence|40|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Firemaking|49|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Magic|65|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Mining|60|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Woodcutting|55|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*The ability to kill multiple level 111 monsters.\n*Access to each of the elemental [[runic altars]] ([[Air Altar|Air]], [[Fire Altar|Fire]], [[Water Altar|Water]], [[Earth Altar|Earth]])"
+    },
+    {
+      "quest_id": "the_eyes_of_glouphrie",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Eyes of Glouphrie",
+      "wiki_revision": 15292355,
+      "wiki_revision_timestamp": "2026-08-10T23:47:39Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completed [[The Grand Tree]] quest\n*{{SCP|Construction|5|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n*{{SCP|Magic|46|link=yes}} {{Boostable|no}} {{Questreqstart|no}}"
+    },
+    {
+      "quest_id": "darkness_of_hallowvale",
+      "record_type": "QUEST",
+      "wiki_page_title": "Darkness of Hallowvale",
+      "wiki_revision": 15355656,
+      "wiki_revision_timestamp": "2026-09-25T06:15:40Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[In Aid of the Myreque]]\n***[[In Search of the Myreque]]\n****[[Nature Spirit]]\n*****[[Priest in Peril]]\n*****[[The Restless Ghost]]\n*{{SCP|Construction|5|link=yes}} {{Boostable|yes}} {{Questreqstart|yes}}\n*{{SCP|Mining|20|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Thieving|22|link=yes}} {{Boostable|No}} {{Questreqstart|yes}} <ref>The level 22 Thieving requirement to begin the quest is boostable, but unhooking the latch in Meiyerditch has an unboostable requirement of 22 Thieving.</ref>\n*{{SCP|Agility|26|link=yes}} {{Boostable|yes}} {{Questreqstart|yes}} <ref>The level 26 Agility requirement to begin the quest is boostable, but the obstacles within Meiyerditch have an unboostable requirement of 25 Agility.</ref>\n*{{SCP|Crafting|32|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Magic|33|link=yes}} {{Boostable|yes}} {{Questreqstart|yes}}\n*{{SCP|Strength|40|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*The ability to withstand several melee attacks from a level 169 enemy."
+    },
+    {
+      "quest_id": "the_slug_menace",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Slug Menace",
+      "wiki_revision": 15373642,
+      "wiki_revision_timestamp": "2026-10-16T02:03:05Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Wanted!]]\n***[[Recruitment Drive]]\n****[[Black Knights' Fortress]]\n****[[Druidic Ritual]]\n***[[The Lost Tribe]]\n****[[Rune Mysteries]]\n****[[Goblin Diplomacy]]\n***[[Enter the Abyss]]\n***[[Priest in Peril]]\n**[[Sea Slug]]\n*{{SCP|Crafting|30|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n*{{SCP|Runecraft|30|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Slayer|30|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Thieving|30|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n*The ability to defeat a level 62 enemy with [[Melee]].\n*You must have the [[Commorb]] in your inventory to start the quest."
+    },
+    {
+      "quest_id": "elemental_workshop_ii",
+      "record_type": "QUEST",
+      "wiki_page_title": "Elemental Workshop II",
+      "wiki_revision": 15271178,
+      "wiki_revision_timestamp": "2026-07-21T05:53:37Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Magic|20|link=yes}} {{Boostable|yes}} {{Questreqstart|}}\n*{{SCP|Smithing|30|link=yes}} {{Boostable|yes}} {{Questreqstart|}}\n*Completion of [[Elemental Workshop I]]"
+    },
+    {
+      "quest_id": "my_arms_big_adventure",
+      "record_type": "QUEST",
+      "wiki_page_title": "My Arm's Big Adventure",
+      "wiki_revision": 15326710,
+      "wiki_revision_timestamp": "2026-08-31T23:23:41Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Farming|29|link=yes}} {{Boostable|yes}} {{Questreqstart|}}\n*{{SCP|Woodcutting|10|link=yes}} {{Boostable|no}}  {{Questreqstart|}} <ref>Needed to cut thatches and repair the fence for Tai Bwo Wannai favour, otherwise you will have to kill monsters spawned by other players (or nearby jungle spiders)</ref>\n*Completion of the following quests:\n**[[Eadgar's Ruse]]\n***[[Druidic Ritual]]\n***[[Troll Stronghold]]\n****[[Death Plateau]]\n**[[The Feud]]\n**[[Jungle Potion]]\n*At least 60% favour in the [[Tai Bwo Wannai Cleanup]] [[minigame]] before starting this quest - this will be subtracted from the total favour\n**Acquiring 100% Tai Bwo Favour rating is a requirement for the [[Medium Karamja Diary]]. If completion of the medium diary is desired, it is recommended to get 100% prior to starting this quest"
+    },
+    {
+      "quest_id": "enlightened_journey",
+      "record_type": "QUEST",
+      "wiki_page_title": "Enlightened Journey",
+      "wiki_revision": 15375125,
+      "wiki_revision_timestamp": "2026-10-18T15:34:29Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Quest|20|link=yes}} {{Questreqstart|}}\n*{{SCP|Firemaking|20|link=yes}} {{Boostable|Yes}} {{Questreqstart|yes}}\n*{{SCP|Farming|30|link=yes}} {{Boostable|Yes}} {{Questreqstart|yes}}\n*{{SCP|Crafting|36|link=yes}} {{Boostable|yes}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "eagles_peak",
+      "record_type": "QUEST",
+      "wiki_page_title": "Eagles' Peak",
+      "wiki_revision": 15314504,
+      "wiki_revision_timestamp": "2026-08-20T22:26:01Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Hunter|27|link=yes}} {{Boostable|yes}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "animal_magnetism",
+      "record_type": "QUEST",
+      "wiki_page_title": "Animal Magnetism",
+      "wiki_revision": 15365722,
+      "wiki_revision_timestamp": "2026-10-05T17:09:17Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[The Restless Ghost]]\n**[[Ernest the Chicken]]\n**[[Priest in Peril]]\n*{{SCP|Slayer|18|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Crafting|19|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Ranged|30|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Woodcutting|35|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "contact",
+      "record_type": "QUEST",
+      "wiki_page_title": "Contact!",
+      "wiki_revision": 15327950,
+      "wiki_revision_timestamp": "2026-09-02T01:19:31Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Prince Ali Rescue]]\n**[[Icthlarin's Little Helper]]\n***[[Gertrude's Cat]]"
+    },
+    {
+      "quest_id": "cold_war",
+      "record_type": "QUEST",
+      "wiki_page_title": "Cold War",
+      "wiki_revision": 15315223,
+      "wiki_revision_timestamp": "2026-08-21T05:18:11Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Hunter|10|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Agility|30|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Crafting|30|link=yes}} {{Boostable|no}} {{Questreqstart|yes}} <ref>30 Crafting can be boosted to start the quest and to make the penguin suit, but crafting the drums requires unboosted 30 Crafting. The agility course can be unlocked before this is required.</ref>\n*{{SCP|Construction|34|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Thieving|15|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*Access to a [[crafting table 3]]"
+    },
+    {
+      "quest_id": "the_fremennik_isles",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Fremennik Isles",
+      "wiki_revision": 15380442,
+      "wiki_revision_timestamp": "2026-10-23T17:31:32Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of [[The Fremennik Trials]]\n*{{SCP|Construction|20|link=yes}} {{Boostable|yes}}  {{Questreqstart|no}} <ref>Only required to fix the bridges later in the quest.</ref>\n*The ability to kill a level 122 [[Ice Troll King|Troll King]] (Damage can be reduced) and, separately, 10 rock throwing [[ice troll]]s in a [[multicombat area]]."
+    },
+    {
+      "quest_id": "the_great_brain_robbery",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Great Brain Robbery",
+      "wiki_revision": 15364806,
+      "wiki_revision_timestamp": "2026-10-04T22:23:57Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Crafting|16|link=yes}} {{Boostable|no}} {{Questreqstart|}} <ref>A prerequisite quest, [[Cabin Fever]], requires 45 [[Crafting]].</ref>\n*{{SCP|Construction|30|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n*{{SCP|Prayer|50|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n\n*Must have completed the following quests:\n**[[Creature of Fenkenstrain]]\n**[[Cabin Fever]]\n***[[Pirate's Treasure]]\n***[[Rum Deal]]\n****[[Priest in Peril]]\n****[[Zogre Flesh Eaters]]\n*****[[Big Chompy Bird Hunting]]\n*****[[Jungle Potion]]\n******[[Druidic Ritual]]\n**[[Recipe for Disaster/Freeing Pirate Pete]]\n***[[Recipe for Disaster/Another Cook's Quest]]\n****[[Cook's Assistant]]\n\n*Access to a [[player-owned house]] [[workshop]] and [[Clockmaking space|crafting table]] '''or''' the [[Grand Exchange]]\n*Be able to kill a level 190 monster that can disable [[Prayer]]s (can be safespotted without taking damage)."
+    },
+    {
+      "quest_id": "what_lies_below",
+      "record_type": "QUEST",
+      "wiki_page_title": "What Lies Below",
+      "wiki_revision": 15373739,
+      "wiki_revision_timestamp": "2026-10-16T03:02:54Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Rune Mysteries]]\n*{{SCP|Runecraft|35|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "olafs_quest",
+      "record_type": "QUEST",
+      "wiki_page_title": "Olaf's Quest",
+      "wiki_revision": 15355207,
+      "wiki_revision_timestamp": "2026-09-24T06:17:16Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of [[The Fremennik Trials]]\n*{{SCP|Firemaking|40|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Woodcutting|50|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*The ability to defeat a level 100 monster"
+    },
+    {
+      "quest_id": "another_slice_of_h_a_m",
+      "record_type": "QUEST",
+      "wiki_page_title": "Another Slice of H.A.M.",
+      "wiki_revision": 15292360,
+      "wiki_revision_timestamp": "2026-08-10T23:51:25Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Attack|15|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n*{{SCP|Prayer|25|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n*Completion of the following quests:\n**[[Death to the Dorgeshuun]]\n***[[The Lost Tribe]]\n****[[Goblin Diplomacy]]\n****[[Rune Mysteries]]\n**[[The Giant Dwarf]]\n**[[The Dig Site]]\n*The ability to defeat a level 64 (using any combat style) and two level 30 enemies using either [[Ranged]] or [[Magic]]."
+    },
+    {
+      "quest_id": "dream_mentor",
+      "record_type": "QUEST",
+      "wiki_page_title": "Dream Mentor",
+      "wiki_revision": 15350904,
+      "wiki_revision_timestamp": "2026-09-19T12:39:46Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Combat|85}} [[Combat level|Combat]] {{Questreqstart|yes}}\n*Completion of the following quests:\n**[[Lunar Diplomacy]]\n***[[The Fremennik Trials]]\n***[[Lost City]]\n***[[Rune Mysteries]]\n***[[Shilo Village]]\n****[[Jungle Potion]]\n**[[Eadgar's Ruse]]\n***[[Druidic Ritual]]\n***[[Troll Stronghold]]\n****[[Death Plateau]]\n*The ability to defeat 4 powerful monsters without the use of prayer"
+    },
+    {
+      "quest_id": "grim_tales",
+      "record_type": "QUEST",
+      "wiki_page_title": "Grim Tales",
+      "wiki_revision": 15363205,
+      "wiki_revision_timestamp": "2026-10-03T18:15:13Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Witch's House]]\n*{{SCP|Farming|45|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Herblore|52|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Thieving|58|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Agility|59|link=yes}} {{Boostable|yes}}  {{Questreqstart|no}} <ref>If boosting, note that there are two skill checks.</ref>\n*{{SCP|Woodcutting|71|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*Ability to defeat a level 138 cloud giant—[[Glod]]"
+    },
+    {
+      "quest_id": "kings_ransom",
+      "record_type": "QUEST",
+      "wiki_page_title": "King's Ransom",
+      "wiki_revision": 15375027,
+      "wiki_revision_timestamp": "2026-10-18T14:06:23Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Magic|45|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n*{{SCP|Defence|65|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*Completion of the following quests:\n**[[Black Knights' Fortress]]\n**[[Holy Grail]]\n***[[Merlin's Crystal]]\n**[[Murder Mystery]]\n**[[One Small Favour]]\n***[[Rune Mysteries]]\n***[[Shilo Village]]\n****[[Jungle Potion]]\n*****[[Druidic Ritual]]"
+    },
+    {
+      "quest_id": "shilo_village",
+      "record_type": "QUEST",
+      "wiki_page_title": "Shilo Village",
+      "wiki_revision": 15350305,
+      "wiki_revision_timestamp": "2026-09-18T11:57:54Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of the following quests:\n** [[Jungle Potion]]\n*** [[Druidic Ritual]]\n* {{SCP|Crafting|20|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Agility|32|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* Must be able to defend from many [[Undead one]]s (level 61-73) and able to defeat three monsters that are about level 90."
+    },
+    {
+      "quest_id": "biohazard",
+      "record_type": "QUEST",
+      "wiki_page_title": "Biohazard",
+      "wiki_revision": 15327977,
+      "wiki_revision_timestamp": "2026-09-02T01:54:07Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of [[Plague City]]"
+    },
+    {
+      "quest_id": "tower_of_life",
+      "record_type": "QUEST",
+      "wiki_page_title": "Tower of Life",
+      "wiki_revision": 15366014,
+      "wiki_revision_timestamp": "2026-10-05T20:27:08Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Construction|10|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "rag_and_bone_man_ii",
+      "record_type": "QUEST",
+      "wiki_page_title": "Rag and Bone Man II",
+      "wiki_revision": 15376448,
+      "wiki_revision_timestamp": "2026-10-20T00:41:53Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Slayer|40|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Defence|20|link=yes}} {{Boostable|no}} {{Questreqstart|no}} to wield a [[mirror shield]] to kill a [[basilisk]] (though not necessary; see below)\n*Completed [[Rag and Bone Man I]] {{Questreqstart|yes}}\n*Completed [[Skippy and the Mogres]] {{Questreqstart|no}}\n*Partial completion of [[Creature of Fenkenstrain]] {{Questreqstart|no}}\n*The ability to kill several high-level monsters"
+    },
+    {
+      "quest_id": "land_of_the_goblins",
+      "record_type": "QUEST",
+      "wiki_page_title": "Land of the Goblins",
+      "wiki_revision": 15363325,
+      "wiki_revision_timestamp": "2026-10-03T20:20:35Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Another Slice of H.A.M.]]\n***[[Death to the Dorgeshuun]]\n****[[The Lost Tribe]]\n*****[[Goblin Diplomacy]]\n*****[[Rune Mysteries]]\n***[[The Giant Dwarf]]\n***[[The Dig Site]]\n**[[Fishing Contest]]\n*{{SCP|Agility|38|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Fishing|40|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Thieving|45|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Herblore|48|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "while_guthix_sleeps",
+      "record_type": "QUEST",
+      "wiki_page_title": "While Guthix Sleeps",
+      "wiki_revision": 15383053,
+      "wiki_revision_timestamp": "2026-10-26T17:28:38Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Quest|180|link=yes}} {{Questreqstart|yes}}\n* {{SCP|Thieving|72|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Magic|67|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Agility|66|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Farming|65|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Herblore|65|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Hunter|62|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Firemaking|49|link=yes}} (To light the [[Sapphire Lantern]])\n* Ability to enter the [[Warriors' Guild]] (the sum of your [[Attack]] and [[Strength]] must be at or above 130; OR {{SCP|Attack|99|link=yes}}, OR {{SCP|Strength|99|link=yes}}) {{Boostable|no}} {{Questreqstart|}}\n*Completion of the following quests:\n**[[Defender of Varrock]]\n***[[Shield of Arrav]]\n***[[Temple of Ikov]]\n***[[Below Ice Mountain]]\n***[[Family Crest]]\n***[[What Lies Below]]\n***[[Romeo & Juliet]]\n***[[Demon Slayer]]\n***[[Garden of Tranquillity]]\n****[[Creature of Fenkenstrain]]\n*****[[Priest in Peril]]\n*****[[The Restless Ghost]]\n**[[The Path of Glouphrie]]\n*** [[The Eyes of Glouphrie]]\n**** [[The Grand Tree]]\n*** [[Waterfall Quest]]\n*** [[Tree Gnome Village]]\n**[[Fight Arena]]\n**[[Dream Mentor]]\n***[[Eadgar's Ruse]]\n****[[Druidic Ritual]]\n****[[Troll Stronghold]]\n*****[[Death Plateau]]\n***[[Lunar Diplomacy]]\n****[[The Fremennik Trials]]\n****[[Lost City]]\n****[[Rune Mysteries]]\n****[[Shilo Village]]\n*****[[Jungle Potion]]\n**[[The Hand in the Sand]]\n**[[Wanted!]]\n***[[Recruitment Drive]]\n****[[Black Knights' Fortress]]\n****[[Druidic Ritual]]\n***[[The Lost Tribe]]\n****[[Goblin Diplomacy]]\n**[[Temple of the Eye]]\n***[[Enter the Abyss]]\n****[[Rune Mysteries]]\n**[[Tears of Guthix]]\n**[[Nature Spirit]]\n***[[Priest in Peril]]\n***[[The Restless Ghost]]\n**[[A Tail of Two Cats]]\n***[[Icthlarin's Little Helper]]\n****[[Gertrude's Cat]]"
+    },
+    {
+      "quest_id": "zogre_flesh_eaters",
+      "record_type": "QUEST",
+      "wiki_page_title": "Zogre Flesh Eaters",
+      "wiki_revision": 15375097,
+      "wiki_revision_timestamp": "2026-10-18T15:19:49Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of the following quests:\n** [[Big Chompy Bird Hunting]]\n** [[Jungle Potion]]\n*** [[Druidic Ritual]]\n* You must be able to defeat a level 111 enemy.\n* {{SCP|Smithing|4|link=yes}} {{Boostable|yes}} {{Questreqstart|}}\n* {{SCP|Herblore|8|link=yes}} {{Boostable|yes}} {{Questreqstart|}}\n* {{SCP|Ranged|30|link=yes}} {{Boostable|no}} {{Questreqstart|}}"
+    },
+    {
+      "quest_id": "monkey_madness_ii",
+      "record_type": "QUEST",
+      "wiki_page_title": "Monkey Madness II",
+      "wiki_revision": 15374569,
+      "wiki_revision_timestamp": "2026-10-17T15:00:14Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Enlightened Journey]]\n***[[Balloon transport system#Grand Tree|Balloon flight route]] to [[Gnome Stronghold]] must be unlocked to start the quest.\n**[[The Eyes of Glouphrie]]\n**[[Recipe for Disaster/Freeing_King_Awowogei|Recipe for Disaster]] (Freeing King [[Awowogei]])\n***[[Monkey Madness I]]\n****[[The Grand Tree]]\n****[[Tree Gnome Village]]\n**[[Troll Stronghold]]\n***[[Death Plateau]]\n**[[Watchtower]]\n*{{SCP|Slayer|69|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Crafting|70|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Hunter|60|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Agility|55|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Thieving|55|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Firemaking|60|link=yes}} {{Boostable|no}} {{Questreqstart|yes}} (for [[Gnome Stronghold]] [[Balloon transport system#Grand Tree|Route]])\nIt is beneficial to have a high [[Combat]] and [[Agility]] level."
+    },
+    {
+      "quest_id": "client_of_kourend",
+      "record_type": "QUEST",
+      "wiki_page_title": "Client of Kourend",
+      "wiki_revision": 15315592,
+      "wiki_revision_timestamp": "2026-08-21T09:01:38Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quest:\n**[[X Marks the Spot]]"
+    },
+    {
+      "quest_id": "the_queen_of_thieves",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Queen of Thieves",
+      "wiki_revision": 15380705,
+      "wiki_revision_timestamp": "2026-10-23T22:40:00Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Client of Kourend]]\n***[[X Marks the Spot]]\n* {{SCP|Thieving|20|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "bone_voyage",
+      "record_type": "QUEST",
+      "wiki_page_title": "Bone Voyage",
+      "wiki_revision": 15364304,
+      "wiki_revision_timestamp": "2026-10-04T11:46:07Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*100 [[Kudos]]\n*Completion of the following quest:\n**[[The Dig Site]]"
+    },
+    {
+      "quest_id": "dragon_slayer_ii",
+      "record_type": "QUEST",
+      "wiki_page_title": "Dragon Slayer II",
+      "wiki_revision": 15380440,
+      "wiki_revision_timestamp": "2026-10-23T17:27:41Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Quest|200|link=yes}} {{Questreqstart|yes}}\n*{{SCP|Magic|75|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Smithing|70|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Mining|68|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Crafting|62|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Agility|60|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Thieving|60|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Construction|50|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Hitpoints|50|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*Completion of the following quests:\n**[[Legends' Quest]]\n***[[Family Crest]]\n***[[Heroes' Quest]]\n****[[Shield of Arrav]]\n****[[Lost City]]\n****[[Merlin's Crystal]]\n****[[Dragon Slayer I]]\n***[[Underground Pass]]\n****[[Biohazard]]\n*****[[Plague City]]\n***[[Waterfall Quest]]\n**[[Dream Mentor]]\n***[[Lunar Diplomacy]]\n****[[The Fremennik Trials]]\n****[[Rune Mysteries]]\n****[[Shilo Village]]\n*****[[Jungle Potion]]\n***[[Eadgar's Ruse]]\n****[[Druidic Ritual]]\n****[[Troll Stronghold]]\n*****[[Death Plateau]]\n**[[A Tail of Two Cats]]\n***[[Icthlarin's Little Helper]]\n****[[Gertrude's Cat]]\n**[[Animal Magnetism]]\n***[[Ernest the Chicken]]\n***[[Priest in Peril]]\n***[[The Restless Ghost]]\n**[[Ghosts Ahoy]]\n**[[Bone Voyage]]\n***[[The Dig Site]]\n***100 [[Kudos]]\n**[[Client of Kourend]]\n***[[X Marks the Spot]]\n*Started the [[Barbarian_Training#Pyre_ships|pyre ship]] portion of the [[Barbarian Training]] [[miniquest]] to gain access to the [[Ancient Cavern]]"
+    },
+    {
+      "quest_id": "the_depths_of_despair",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Depths of Despair",
+      "wiki_revision": 15365598,
+      "wiki_revision_timestamp": "2026-10-05T16:42:23Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Client of Kourend]]\n***[[X Marks the Spot]]\n*{{SCP|Agility|18|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*Ability to kill a level 36 [[Sand Snake]]"
+    },
+    {
+      "quest_id": "recipe_for_disaster_another_cooks_quest",
+      "record_type": "SUBQUEST",
+      "wiki_page_title": "Recipe for Disaster/Another Cook's Quest",
+      "wiki_revision": 15302151,
+      "wiki_revision_timestamp": "2026-08-15T17:32:16Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Cooking|10|link=yes}} {{Boostable|No}} {{Questreqstart|}}\n*Completion of [[Cook's Assistant]]"
+    },
+    {
+      "quest_id": "recipe_for_disaster_freeing_the_goblin_generals",
+      "record_type": "SUBQUEST",
+      "wiki_page_title": "Recipe for Disaster/Freeing the Goblin generals",
+      "wiki_revision": 15361105,
+      "wiki_revision_timestamp": "2026-10-03T10:25:00Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Recipe for Disaster/Another Cook's Quest]]\n***[[Cook's Assistant]]\n**[[Goblin Diplomacy]]"
+    },
+    {
+      "quest_id": "recipe_for_disaster_freeing_the_mountain_dwarf",
+      "record_type": "SUBQUEST",
+      "wiki_page_title": "Recipe for Disaster/Freeing the Mountain Dwarf",
+      "wiki_revision": 15361102,
+      "wiki_revision_timestamp": "2026-10-03T10:24:45Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Recipe for Disaster/Another Cook's Quest]]\n***[[Cook's Assistant]]\n**[[Fishing Contest]]\n*The ability to defeat a level 13 [[icefiend]] if you don't have the [[ice gloves]]."
+    },
+    {
+      "quest_id": "recipe_for_disaster_freeing_evil_dave",
+      "record_type": "SUBQUEST",
+      "wiki_page_title": "Recipe for Disaster/Freeing Evil Dave",
+      "wiki_revision": 15366289,
+      "wiki_revision_timestamp": "2026-10-05T22:28:54Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Gertrude's Cat]]\n**[[Recipe for Disaster/Another Cook's Quest]]\n***[[Cook's Assistant]]\n**[[Shadow of the Storm]]\n***[[Demon Slayer]]\n***[[The Golem]]"
+    },
+    {
+      "quest_id": "recipe_for_disaster_freeing_pirate_pete",
+      "record_type": "SUBQUEST",
+      "wiki_page_title": "Recipe for Disaster/Freeing Pirate Pete",
+      "wiki_revision": 15361148,
+      "wiki_revision_timestamp": "2026-10-03T10:29:10Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Cooking|31|link=yes}} {{Boostable|yes}} {{Questreqstart|}}\n* Completion of the following quests: \n**[[Recipe for Disaster/Another Cook's Quest]]\n***[[Cook's Assistant]]\n*The ability to defeat 5 level 30 monsters."
+    },
+    {
+      "quest_id": "recipe_for_disaster_freeing_the_lumbridge_guide",
+      "record_type": "SUBQUEST",
+      "wiki_page_title": "Recipe for Disaster/Freeing the Lumbridge Guide",
+      "wiki_revision": 15375111,
+      "wiki_revision_timestamp": "2026-10-18T15:27:40Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Cooking|40|link=yes}} {{Boostable|yes}} {{Questreqstart|yes}}\n*Completion of the following quests:\n**[[Big Chompy Bird Hunting]]\n**[[Biohazard]]\n***[[Plague City]]\n**[[Demon Slayer]]\n**[[Murder Mystery]]\n**[[Nature Spirit]]\n***[[Priest in Peril]]\n***[[The Restless Ghost]]\n**[[Recipe for Disaster/Another Cook's Quest]]\n***[[Cook's Assistant]]\n**[[Witch's House]]"
+    },
+    {
+      "quest_id": "recipe_for_disaster_freeing_sir_amik_varze",
+      "record_type": "SUBQUEST",
+      "wiki_page_title": "Recipe for Disaster/Freeing Sir Amik Varze",
+      "wiki_revision": 15382008,
+      "wiki_revision_timestamp": "2026-10-25T19:25:35Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Quest|107|link=yes}} {{Questreqstart|}}\n*Access to the [[Kharazi Jungle]]\n**Started [[Legends' Quest]]\n*Completion of the following quests:\n**[[Family Crest]]\n**[[Heroes' Quest]]\n***[[Shield of Arrav]]\n***[[Lost City]]\n***[[Merlin's Crystal]]\n***[[Dragon Slayer I]]\n**[[Recipe for Disaster/Another Cook's Quest]]\n***[[Cook's Assistant]]\n**[[Shilo Village]]\n***[[Jungle Potion]]\n****[[Druidic Ritual]]\n**[[Underground Pass]]\n***[[Biohazard]]\n****[[Plague City]]\n**[[Waterfall Quest]]\n*The ability to defeat a level 227 [[Black dragon]]"
+    },
+    {
+      "quest_id": "recipe_for_disaster_freeing_king_awowogei",
+      "record_type": "SUBQUEST",
+      "wiki_page_title": "Recipe for Disaster/Freeing King Awowogei",
+      "wiki_revision": 15371864,
+      "wiki_revision_timestamp": "2026-10-13T12:56:30Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Cooking|70|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Agility|48|link=yes}} {{Boostable|no}} {{Questreqstart|no}}\n*Completion of the following quests:\n**[[Monkey Madness I]]\n***[[The Grand Tree]]\n***[[Tree Gnome Village]]\n**[[Recipe for Disaster/Another Cook's Quest]]\n***[[Cook's Assistant]]\n*The ability to defeat a level 84 [[Big Snake]]"
+    },
+    {
+      "quest_id": "recipe_for_disaster_freeing_skrach_uglogwee",
+      "record_type": "SUBQUEST",
+      "wiki_page_title": "Recipe for Disaster/Freeing Skrach Uglogwee",
+      "wiki_revision": 15381314,
+      "wiki_revision_timestamp": "2026-10-24T18:40:27Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Cooking|41|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Firemaking|20|link=yes}} {{Boostable|Yes}} {{Questreqstart|no}}\n*Completion of the following quests:\n**[[Big Chompy Bird Hunting]]\n**[[Recipe for Disaster/Another Cook's Quest]]\n***[[Cook's Assistant]]"
+    },
+    {
+      "quest_id": "a_taste_of_hope",
+      "record_type": "QUEST",
+      "wiki_page_title": "A Taste of Hope",
+      "wiki_revision": 15365042,
+      "wiki_revision_timestamp": "2026-10-05T00:50:50Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Darkness of Hallowvale]]\n***[[In Aid of the Myreque]]\n****[[In Search of the Myreque]]\n*****[[Nature Spirit]]\n******[[Priest in Peril]]\n******[[The Restless Ghost]]\n*{{SCP|Crafting|48|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n*{{SCP|Agility|45|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n*{{SCP|Attack|40|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n*{{SCP|Herblore|40|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n*{{SCP|Slayer|38|link=yes}} {{Boostable|no}} {{Questreqstart|}}"
+    },
+    {
+      "quest_id": "tale_of_the_righteous",
+      "record_type": "QUEST",
+      "wiki_page_title": "Tale of the Righteous",
+      "wiki_revision": 15365017,
+      "wiki_revision_timestamp": "2026-10-05T00:40:29Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Client of Kourend]]\n***[[X Marks the Spot]]\n*{{SCP|Strength|16|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Mining|10|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "making_friends_with_my_arm",
+      "record_type": "QUEST",
+      "wiki_page_title": "Making Friends with My Arm",
+      "wiki_revision": 15375040,
+      "wiki_revision_timestamp": "2026-10-18T14:25:48Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Firemaking|66|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Mining|72|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*{{SCP|Construction|35|link=yes}} {{Boostable|yes}} {{Questreqstart|}}\n*{{SCP|Agility|68|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*It is beneficial to have a higher [[Agility]] level.\n*Completion of the following quests:\n**[[My Arm's Big Adventure]]\n***[[Eadgar's Ruse]]\n****[[Druidic Ritual]]\n****[[Troll Stronghold]]\n*****[[Death Plateau]]\n***[[The Feud]]\n***[[Jungle Potion]]\n**[[Swan Song]]\n***[[One Small Favour]]\n****[[Rune Mysteries]]\n****[[Shilo Village]]\n***[[Garden of Tranquillity]]\n****[[Creature of Fenkenstrain]]\n*****[[Priest in Peril]]\n*****[[The Restless Ghost]]\n**[[Cold War]]\n**[[Romeo & Juliet]]"
+    },
+    {
+      "quest_id": "recipe_for_disaster_defeating_the_culinaromancer",
+      "record_type": "SUBQUEST",
+      "wiki_page_title": "Recipe for Disaster/Defeating the Culinaromancer",
+      "wiki_revision": 15361128,
+      "wiki_revision_timestamp": "2026-10-03T10:27:23Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Quest|175|link=yes}} {{Questreqstart|yes}}\n*Completion of the following quests:\n**[[Desert Treasure I]]\n***[[The Dig Site]]\n***[[Temple of Ikov]]\n***[[The Tourist Trap]]\n***[[Troll Stronghold]]\n****[[Death Plateau]]\n***[[Priest in Peril]]\n***[[Waterfall Quest]]\n**[[Horror from the Deep]]\n***[[Alfred Grimhand's Barcrawl]] miniquest\n**[[Recipe for Disaster/Freeing Evil Dave|Freeing Evil Dave]]\n**[[Recipe for Disaster/Freeing the Goblin generals|Freeing the Goblin generals]]\n**[[Recipe for Disaster/Freeing the Lumbridge Guide|Freeing the Lumbridge Guide]]\n**[[Recipe for Disaster/Freeing the Mountain Dwarf|Freeing the Mountain Dwarf]]\n**[[Recipe for Disaster/Freeing Pirate Pete|Freeing Pirate Pete]]\n**[[Recipe for Disaster/Freeing Sir Amik Varze|Freeing Sir Amik Varze]]\n**[[Recipe for Disaster/Freeing Skrach Uglogwee|Freeing Skrach Uglogwee]]\n**[[Recipe for Disaster/Freeing King Awowogei|Freeing King Awowogei]]\n*The ability to defeat '''all''' enemies without [[Prayer]]"
+    },
+    {
+      "quest_id": "song_of_the_elves",
+      "record_type": "QUEST",
+      "wiki_page_title": "Song of the Elves",
+      "wiki_revision": 15378352,
+      "wiki_revision_timestamp": "2026-10-21T00:38:35Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Agility|70|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Construction|70|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Farming|70|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Herblore|70|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Hunter|70|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Mining|70|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Smithing|70|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Woodcutting|70|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*Completion of the following quests:\n**[[Mourning's End Part II]]\n***[[Mourning's End Part I]]\n****[[Big Chompy Bird Hunting]]\n****[[Sheep Herder]]\n****[[Roving Elves]]\n*****[[Waterfall Quest]]\n*****[[Regicide]]\n******[[Underground Pass]]\n*******[[Biohazard]]\n********[[Plague City]]\n**[[Making History]]\n***[[Priest in Peril]]\n***[[The Restless Ghost]]\n**[[Druidic Ritual]]"
+    },
+    {
+      "quest_id": "the_ascent_of_arceuus",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Ascent of Arceuus",
+      "wiki_revision": 15366179,
+      "wiki_revision_timestamp": "2026-10-05T21:37:12Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Client of Kourend]]\n***[[X Marks the Spot]]\n*{{SCP|Hunter|12|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "the_forsaken_tower",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Forsaken Tower",
+      "wiki_revision": 15316647,
+      "wiki_revision_timestamp": "2026-08-22T17:47:00Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Client of Kourend]]\n***[[X Marks the Spot]]"
+    },
+    {
+      "quest_id": "the_fremennik_exiles",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Fremennik Exiles",
+      "wiki_revision": 15374884,
+      "wiki_revision_timestamp": "2026-10-18T03:27:34Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Crafting|65|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Slayer|60|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Smithing|60|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Fishing|60|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Runecraft|55|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Mining|60|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n*Completion of the following quests:\n**[[The Fremennik Isles]]\n***[[The Fremennik Trials]]\n**[[Lunar Diplomacy]]\n***[[Lost City]]\n***[[Rune Mysteries]]\n***[[Shilo Village]]\n****[[Jungle Potion]]\n*****[[Druidic Ritual]]\n**[[Mountain Daughter]]\n**[[Heroes' Quest]]\n***[[Dragon Slayer I]]\n***[[Lost City]]\n***[[Merlin's Crystal]]\n***[[Shield of Arrav]]"
+    },
+    {
+      "quest_id": "the_curse_of_arrav",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Curse of Arrav",
+      "wiki_revision": 15375033,
+      "wiki_revision_timestamp": "2026-10-18T14:15:35Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Mining|64|link=yes}}{{Boostable|no}}{{Questreqstart|}}\n* {{SCP|Ranged|62|link=yes}}{{Boostable|no}}{{Questreqstart|}}\n* {{SCP|Thieving|62|link=yes}}{{Boostable|no}}{{Questreqstart|}}\n* {{SCP|Agility|61|link=yes}}{{Boostable|no}}{{Questreqstart|}}\n* {{SCP|Strength|58|link=yes}}{{Boostable|no}}{{Questreqstart|}}\n* {{SCP|Slayer|37|link=yes}}{{Boostable|}}{{Questreqstart|}}\n*Completion of the following quests:\n** [[Defender of Varrock]]\n*** [[Shield of Arrav]]\n*** [[Temple of Ikov]]\n*** [[Below Ice Mountain]]\n*** [[Family Crest]]\n*** [[Garden of Tranquillity]]\n**** [[Creature of Fenkenstrain]]\n***** [[Priest in Peril]]\n***** [[The Restless Ghost]]\n*** [[What Lies Below]]\n**** [[Rune Mysteries]]\n*** [[Romeo & Juliet]]\n*** [[Demon Slayer]]\n** [[Troll Romance]]\n*** [[Troll Stronghold]]\n**** [[Death Plateau]]"
+    },
+    {
+      "quest_id": "defender_of_varrock",
+      "record_type": "QUEST",
+      "wiki_page_title": "Defender of Varrock",
+      "wiki_revision": 15372163,
+      "wiki_revision_timestamp": "2026-10-13T21:32:14Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Smithing|55|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Hunter|52|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*Completion of the following quests:\n**[[Shield of Arrav]]\n**[[Temple of Ikov]]\n**[[Below Ice Mountain]]\n**[[Family Crest]]\n**[[Garden of Tranquillity]]\n***[[Creature of Fenkenstrain]]\n****[[Priest in Peril]]\n****[[The Restless Ghost]]\n**[[What Lies Below]]\n***[[Rune Mysteries]]\n**[[Romeo & Juliet]]\n**[[Demon Slayer]]"
+    },
+    {
+      "quest_id": "sins_of_the_father",
+      "record_type": "QUEST",
+      "wiki_page_title": "Sins of the Father",
+      "wiki_revision": 15380480,
+      "wiki_revision_timestamp": "2026-10-23T18:10:02Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Vampyre Slayer]]\n**[[A Taste of Hope]]\n***[[Darkness of Hallowvale]]\n****[[In Aid of the Myreque]]\n*****[[In Search of the Myreque]]\n******[[Nature Spirit]]\n*******[[Priest in Peril]]\n*******[[The Restless Ghost]]\n*{{SCP|Woodcutting|62|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Fletching|60|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Crafting|56|link=yes}} {{Boostable|no}}  {{Questreqstart|yes}}\n*{{SCP|Agility|52|link=yes}} {{Boostable|no}}  {{Questreqstart|yes}}\n*{{SCP|Attack|50|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n*{{SCP|Slayer|50|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n*{{SCP|Magic|49|link=yes}} {{Boostable|no}} {{Questreqstart|}}"
+    },
+    {
+      "quest_id": "a_kingdom_divided",
+      "record_type": "QUEST",
+      "wiki_page_title": "A Kingdom Divided",
+      "wiki_revision": 15380978,
+      "wiki_revision_timestamp": "2026-10-24T07:05:06Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[The Depths of Despair]]\n**[[The Queen of Thieves]]\n**[[The Ascent of Arceuus]]\n**[[The Forsaken Tower]]\n**[[Tale of the Righteous]]\n**The above quests all require the following quests to be completed:\n***[[Client of Kourend]]\n****[[X Marks the Spot]]\n*{{SCP|Agility|54|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Thieving|52|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Woodcutting|52|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Herblore|50|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Mining|42|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Crafting|38|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Magic|35|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "a_porcine_of_interest",
+      "record_type": "QUEST",
+      "wiki_page_title": "A Porcine of Interest",
+      "wiki_revision": 15367468,
+      "wiki_revision_timestamp": "2026-10-07T09:27:06Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "getting_ahead",
+      "record_type": "QUEST",
+      "wiki_page_title": "Getting Ahead",
+      "wiki_revision": 15367125,
+      "wiki_revision_timestamp": "2026-10-06T20:28:08Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Crafting|30|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Construction|26|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "a_night_at_the_theatre",
+      "record_type": "QUEST",
+      "wiki_page_title": "A Night at the Theatre",
+      "wiki_revision": 15367281,
+      "wiki_revision_timestamp": "2026-10-06T23:26:27Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[A Taste of Hope]]\n***[[Darkness of Hallowvale]]\n****[[In Aid of the Myreque]]\n*****[[In Search of the Myreque]]\n******[[Nature Spirit]]\n*******[[Priest in Peril]]\n*******[[The Restless Ghost]]"
+    },
+    {
+      "quest_id": "beneath_cursed_sands",
+      "record_type": "QUEST",
+      "wiki_page_title": "Beneath Cursed Sands",
+      "wiki_revision": 15375048,
+      "wiki_revision_timestamp": "2026-10-18T14:34:47Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Contact!]]\n***[[Prince Ali Rescue]]\n***[[Icthlarin's Little Helper]]\n****[[Gertrude's Cat]]\n*{{SCP|Agility|62|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Crafting|55|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Firemaking|55|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "temple_of_the_eye",
+      "record_type": "QUEST",
+      "wiki_page_title": "Temple of the Eye",
+      "wiki_revision": 15304735,
+      "wiki_revision_timestamp": "2026-08-18T04:09:09Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Enter the Abyss]]\n***[[Rune Mysteries]]\n*{{SCP|Runecraft|10|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "the_path_of_glouphrie",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Path of Glouphrie",
+      "wiki_revision": 15374620,
+      "wiki_revision_timestamp": "2026-10-17T16:11:38Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of the following quests:\n** [[The Eyes of Glouphrie]]\n*** [[The Grand Tree]]\n** [[Waterfall Quest]]\n** [[Tree Gnome Village]]\n* {{SCP|Strength|60|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Slayer|56|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Thieving|56|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Ranged|47|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Agility|45|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "sleeping_giants",
+      "record_type": "QUEST",
+      "wiki_page_title": "Sleeping Giants",
+      "wiki_revision": 15241064,
+      "wiki_revision_timestamp": "2026-06-27T15:20:22Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Smithing|15|link=yes}} {{Boostable|No}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "the_garden_of_death",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Garden of Death",
+      "wiki_revision": 15375335,
+      "wiki_revision_timestamp": "2026-10-18T21:34:38Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Farming|20|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "desert_treasure_ii_the_fallen_empire",
+      "record_type": "QUEST",
+      "wiki_page_title": "Desert Treasure II - The Fallen Empire",
+      "wiki_revision": 15374592,
+      "wiki_revision_timestamp": "2026-10-17T15:34:08Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Firemaking|75|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Magic|75|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Thieving|70|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Herblore|62|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Runecraft|60|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Construction|60|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*Completion of the following quests:\n**[[Desert Treasure I]]\n***[[The Dig Site]]\n***[[Temple of Ikov]]\n***[[The Tourist Trap]]\n***[[Troll Stronghold]]\n****[[Death Plateau]]\n***[[Priest in Peril]]\n***[[Waterfall Quest]]\n**[[Secrets of the North]]\n***[[Making Friends with My Arm]]\n****[[My Arm's Big Adventure]]\n*****[[Eadgar's Ruse]]\n******[[Druidic Ritual]]\n******[[Troll Stronghold]]\n*******[[Death Plateau]]\n*****[[The Feud]]\n*****[[Jungle Potion]]\n****[[Swan Song]]\n*****[[One Small Favour]]\n******[[Rune Mysteries]]\n******[[Shilo Village]]\n*****[[Garden of Tranquillity]]\n******[[Creature of Fenkenstrain]]\n*******[[Priest in Peril]]\n*******[[The Restless Ghost]]\n****[[Cold War]]\n****[[Romeo & Juliet]]\n***[[The General's Shadow]]\n****[[Curse of the Empty Lord]], for full [[ghostly robes]]\n****[[Fight Arena]]\n***[[Devious Minds]]\n****[[Wanted!]]\n*****[[Recruitment Drive]]\n******[[Black Knights' Fortress]]\n******[[Druidic Ritual]]\n*****[[The Lost Tribe]]\n******[[Goblin Diplomacy]]\n******[[Rune Mysteries]]\n*****[[Priest in Peril]]\n****[[Troll Stronghold]]\n*****[[Death Plateau]]\n****[[Doric's Quest]]\n****[[Enter the Abyss]]\n***[[Hazeel Cult]]\n**[[Enakhra's Lament]]\n**[[Temple of the Eye]]\n***[[Enter the Abyss]]\n****[[Rune Mysteries]]\n**[[The Garden of Death]]\n**[[Below Ice Mountain]]\n**[[His Faithful Servants]]\n***[[Priest in Peril]]"
+    },
+    {
+      "quest_id": "secrets_of_the_north",
+      "record_type": "QUEST",
+      "wiki_page_title": "Secrets of the North",
+      "wiki_revision": 15375062,
+      "wiki_revision_timestamp": "2026-10-18T14:44:59Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Agility|69|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Thieving|64|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Hunter|56|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*Completion of the following quests:\n**[[Making Friends with My Arm]]\n***[[My Arm's Big Adventure]]\n****[[Eadgar's Ruse]]\n*****[[Druidic Ritual]]\n*****[[Troll Stronghold]]\n******[[Death Plateau]]\n****[[The Feud]]\n****[[Jungle Potion]]\n***[[Swan Song]]\n****[[One Small Favour]]\n*****[[Rune Mysteries]]\n*****[[Shilo Village]]\n****[[Garden of Tranquillity]]\n*****[[Creature of Fenkenstrain]]\n******[[Priest in Peril]]\n******[[The Restless Ghost]]\n***[[Cold War]]\n***[[Romeo & Juliet]]\n**[[The General's Shadow]]\n***[[Curse of the Empty Lord]], for full [[ghostly robes]]\n****Started [[Desert Treasure I]], for the [[ring of visibility]]\n***[[Fight Arena]]\n**[[Devious Minds]]\n***[[Wanted!]]\n****[[Recruitment Drive]]\n*****[[Black Knights' Fortress]]\n*****[[Druidic Ritual]]\n****[[The Lost Tribe]]\n*****[[Goblin Diplomacy]]\n*****[[Rune Mysteries]]\n****[[Priest in Peril]]\n***[[Doric's Quest]]\n***[[Enter the Abyss]]\n**[[Hazeel Cult]]"
+    },
+    {
+      "quest_id": "children_of_the_sun",
+      "record_type": "QUEST",
+      "wiki_page_title": "Children of the Sun",
+      "wiki_revision": 15241067,
+      "wiki_revision_timestamp": "2026-06-27T15:21:52Z",
+      "requirements_status": "FIELD_ABSENT",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "perilous_moons",
+      "record_type": "QUEST",
+      "wiki_page_title": "Perilous Moons",
+      "wiki_revision": 15380998,
+      "wiki_revision_timestamp": "2026-10-24T07:47:01Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Slayer|48|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Hunter|20|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Fishing|20|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Runecraft|20|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Construction|10|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*Completion of the following quests:\n** [[Twilight's Promise]]\n*** [[Children of the Sun]]"
+    },
+    {
+      "quest_id": "the_ribbiting_tale_of_a_lily_pad_labour_dispute",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Ribbiting Tale of a Lily Pad Labour Dispute",
+      "wiki_revision": 15270097,
+      "wiki_revision_timestamp": "2026-07-20T09:39:24Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Woodcutting|15|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* Completion of the following quests:\n** [[Children of the Sun]]"
+    },
+    {
+      "quest_id": "twilights_promise",
+      "record_type": "QUEST",
+      "wiki_page_title": "Twilight's Promise",
+      "wiki_revision": 15356498,
+      "wiki_revision_timestamp": "2026-09-26T17:42:13Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of the following quests:\n** [[Children of the Sun]]"
+    },
+    {
+      "quest_id": "at_first_light",
+      "record_type": "QUEST",
+      "wiki_page_title": "At First Light",
+      "wiki_revision": 15271675,
+      "wiki_revision_timestamp": "2026-07-22T01:08:01Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Hunter|46|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Herblore|30|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Construction|27|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* Completion of the following quests:\n** [[Children of the Sun]]\n** [[Eagles' Peak]]"
+    },
+    {
+      "quest_id": "the_heart_of_darkness",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Heart of Darkness",
+      "wiki_revision": 15318070,
+      "wiki_revision_timestamp": "2026-08-24T13:29:57Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Mining|55|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Thieving|48|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Slayer|48|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Agility|46|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*Completion of the following quests:\n**[[Twilight's Promise]]\n***[[Children of the Sun]]"
+    },
+    {
+      "quest_id": "death_on_the_isle",
+      "record_type": "QUEST",
+      "wiki_page_title": "Death on the Isle",
+      "wiki_revision": 15375163,
+      "wiki_revision_timestamp": "2026-10-18T16:09:07Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Thieving|34|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*{{SCP|Agility|32|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*Completion of the following quests:\n**[[Children of the Sun]]"
+    },
+    {
+      "quest_id": "meat_and_greet",
+      "record_type": "QUEST",
+      "wiki_page_title": "Meat and Greet",
+      "wiki_revision": 15355341,
+      "wiki_revision_timestamp": "2026-09-24T14:54:32Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of the following quests:\n** [[Children of the Sun]]"
+    },
+    {
+      "quest_id": "ethically_acquired_antiquities",
+      "record_type": "QUEST",
+      "wiki_page_title": "Ethically Acquired Antiquities",
+      "wiki_revision": 15377771,
+      "wiki_revision_timestamp": "2026-10-20T17:18:19Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Thieving|25|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*Completion of the following quests:\n**[[Children of the Sun]]\n**[[Shield of Arrav]]"
+    },
+    {
+      "quest_id": "the_blood_moon_rises",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Blood Moon Rises",
+      "wiki_revision": 15382384,
+      "wiki_revision_timestamp": "2026-10-26T04:14:28Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Slayer|74|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Woodcutting|74|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Smithing|72|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Cooking|72|link=no}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Fletching|70|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Mining|66|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Hunter|65|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Crafting|64|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Herblore|64|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Magic|57|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*Completion of the following quests:\n**[[A Night at the Theatre]]\n**[[Sins of the Father]]\n***[[Vampyre Slayer]]\n***[[A Taste of Hope]]\n****[[Darkness of Hallowvale]]\n*****[[In Aid of the Myreque]]\n******[[In Search of the Myreque]]\n*******[[Nature Spirit]]\n********[[Priest in Peril]]\n********[[The Restless Ghost]]"
+    },
+    {
+      "quest_id": "the_final_dawn",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Final Dawn",
+      "wiki_revision": 15379080,
+      "wiki_revision_timestamp": "2026-10-22T04:05:09Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Thieving|66|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Runecraft|52|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Fletching|52|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*Completion of the following quests:\n** [[The Heart of Darkness]]\n*** [[Twilight's Promise]]\n**** [[Children of the Sun]]\n** [[Perilous Moons]]\n*** [[Twilight's Promise]]\n**** [[Children of the Sun]]"
+    },
+    {
+      "quest_id": "pandemonium",
+      "record_type": "QUEST",
+      "wiki_page_title": "Pandemonium",
+      "wiki_revision": 15373315,
+      "wiki_revision_timestamp": "2026-10-15T20:12:28Z",
+      "requirements_status": "FIELD_EMPTY",
+      "requirements_wikitext": null
+    },
+    {
+      "quest_id": "prying_times",
+      "record_type": "QUEST",
+      "wiki_page_title": "Prying Times",
+      "wiki_revision": 15315235,
+      "wiki_revision_timestamp": "2026-08-21T05:21:01Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Smithing|30|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Sailing|12|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*Completion of the following quests:\n** [[Pandemonium]]\n** [[The Knight's Sword]]\n*One open [[Sailing#Port_tasks|port task]] slot"
+    },
+    {
+      "quest_id": "current_affairs",
+      "record_type": "QUEST",
+      "wiki_page_title": "Current Affairs",
+      "wiki_revision": 15314499,
+      "wiki_revision_timestamp": "2026-08-20T22:22:10Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Sailing|22|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Fishing|10|link=yes}} {{Boostable|?}} {{Questreqstart|yes}}\n*Completion of [[Pandemonium]]"
+    },
+    {
+      "quest_id": "troubled_tortugans",
+      "record_type": "QUEST",
+      "wiki_page_title": "Troubled Tortugans",
+      "wiki_revision": 15273864,
+      "wiki_revision_timestamp": "2026-07-24T08:56:50Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Slayer|51|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Construction|48|link=yes}}{{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Sailing|45|link=yes}}{{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Hunter|45|link=yes}}{{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Woodcutting|40|link=yes}}{{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Crafting|34|link=yes}}{{Boostable|no}} {{Questreqstart|yes}}\n*Completion of [[Pandemonium]]"
+    },
+    {
+      "quest_id": "the_red_reef",
+      "record_type": "QUEST",
+      "wiki_page_title": "The Red Reef",
+      "wiki_revision": 15375145,
+      "wiki_revision_timestamp": "2026-10-18T15:53:38Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Sailing|52|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n* {{SCP|Smithing|48|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n*Completion of the following quests:\n**[[Troubled Tortugans]]\n***[[Pandemonium]]"
+    },
+    {
+      "quest_id": "shadows_of_custodia",
+      "record_type": "QUEST",
+      "wiki_page_title": "Shadows of Custodia",
+      "wiki_revision": 15319376,
+      "wiki_revision_timestamp": "2026-08-25T05:44:18Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n** [[Children of the Sun]]\n* {{SCP|Slayer|54|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Fishing|45|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Construction|41|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Hunter|36|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "scrambled",
+      "record_type": "QUEST",
+      "wiki_page_title": "Scrambled!",
+      "wiki_revision": 15373706,
+      "wiki_revision_timestamp": "2026-10-16T02:49:17Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Construction|38|link=yes}}  {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Cooking|36|link=yes}}  {{Boostable|no}} {{Questreqstart|yes}}\n* {{SCP|Smithing|35|link=yes}}  {{Boostable|no}} {{Questreqstart|yes}}\n* Completion of the following quests:\n** [[Children of the Sun]]"
+    },
+    {
+      "quest_id": "fallen_from_grace",
+      "record_type": "QUEST",
+      "wiki_page_title": "Fallen From Grace",
+      "wiki_revision": 15335348,
+      "wiki_revision_timestamp": "2026-09-08T15:05:20Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Sailing|62|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n* {{SCP|Crafting|60|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n* {{SCP|Runecraft|47|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n* {{SCP|Mining|53|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n*Completion of the following quests:\n**[[Pandemonium]]"
+    },
+    {
+      "quest_id": "a_ruff_situation",
+      "record_type": "QUEST",
+      "wiki_page_title": "A Ruff Situation",
+      "wiki_revision": 15383246,
+      "wiki_revision_timestamp": "2026-10-26T20:14:25Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Crafting|15|link=yes}}"
+    },
+    {
+      "quest_id": "crab_quest",
+      "record_type": "QUEST",
+      "wiki_page_title": "Crab Quest",
+      "wiki_revision": 15381666,
+      "wiki_revision_timestamp": "2026-10-25T10:38:31Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* {{SCP|Sailing|40|link=yes}}\n* {{SCP|Fishing|30|link=yes}}"
+    }
+  ]
+}

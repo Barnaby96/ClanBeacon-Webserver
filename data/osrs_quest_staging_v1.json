@@ -1,0 +1,462 @@
+{
+  "activation_authorised": false,
+  "production_catalogue": false,
+  "purpose": "OFFLINE_CURATED_QUEST_STAGING",
+  "quest_definitions": [
+    {
+      "activation_status": "NOT_ACTIVATED",
+      "approved_review_metadata": {},
+      "direct_skill_boostability": {
+        "defence": "yes",
+        "mining": "yes",
+        "smithing": "yes"
+      },
+      "direct_skill_requirements": {
+        "defence": 30,
+        "mining": 40,
+        "smithing": 50
+      },
+      "display_name": "Between a Rock...",
+      "non_skill_conditions": [],
+      "prerequisite_quest_ids": [
+        "dwarf_cannon",
+        "fishing_contest"
+      ],
+      "quest_id": "between_a_rock",
+      "wiki_revision": 15342623
+    },
+    {
+      "activation_status": "NOT_ACTIVATED",
+      "approved_review_metadata": {
+        "verified_exceptional_requirement": {
+          "authorised_by": "CLANBEACON_ORGANISER_STEP_275_32",
+          "condition_id": "partial_the_restless_ghost",
+          "condition_kind": "PARTIAL_QUEST_PROGRESSION",
+          "evidence_refs": [
+            "https://oldschool.runescape.wiki/w/Creature_of_Fenkenstrain"
+          ],
+          "quest_id": "creature_of_fenkenstrain",
+          "source_line": 2,
+          "source_text": "* Partial completion of [[The Restless Ghost]]",
+          "source_wikitext_sha256": "a8ee8e00a99b23d4d7d1d48dd4987958d43a3879ecbebb927b44d8a598a9697e",
+          "verification_decision": "VERIFIED_EXCEPTIONAL_QUEST_REQUIREMENT",
+          "wiki_revision": 15343497
+        }
+      },
+      "direct_skill_boostability": {
+        "crafting": "yes",
+        "thieving": "yes"
+      },
+      "direct_skill_requirements": {
+        "crafting": 20,
+        "thieving": 25
+      },
+      "display_name": "Creature of Fenkenstrain",
+      "non_skill_conditions": [
+        {
+          "alternative_skill_route": null,
+          "condition_id": "partial_the_restless_ghost",
+          "condition_kind": "PARTIAL_QUEST_PROGRESSION",
+          "detail": "Partial progression through The Restless Ghost is required, including access to a ghostspeak amulet. Full completion is not required.",
+          "evidence_status": "NOT_INDEPENDENTLY_MEASURED",
+          "partial_quest_id": "the_restless_ghost",
+          "planning_policy": "ASSUMED_FOR_PLANNING_ONLY",
+          "quest_id": "creature_of_fenkenstrain",
+          "source_wikitext_sha256": "a8ee8e00a99b23d4d7d1d48dd4987958d43a3879ecbebb927b44d8a598a9697e"
+        }
+      ],
+      "prerequisite_quest_ids": [
+        "priest_in_peril"
+      ],
+      "quest_id": "creature_of_fenkenstrain",
+      "wiki_revision": 15343497
+    },
+    {
+      "activation_status": "NOT_ACTIVATED",
+      "approved_review_metadata": {
+        "verified_exceptional_requirement": {
+          "authorised_by": "CLANBEACON_ORGANISER_STEP_275_32",
+          "condition_id": "gas_mask_from_plague_city",
+          "condition_kind": "ALTERNATIVE_SKILL_OR_NON_SKILL",
+          "evidence_refs": [
+            "https://oldschool.runescape.wiki/w/Desert_Treasure_I"
+          ],
+          "quest_id": "desert_treasure_i",
+          "source_line": 12,
+          "source_text": "* {{SCP|Slayer|10|link=yes}} {{Boostable|no}}  {{Questreqstart|no}} '''or''' the [[gas mask]] from [[Plague City]]",
+          "source_wikitext_sha256": "510786a8d9ddb4658d6ecfce804d93e3047531e43a5f4948ffabefa6f400dd9a",
+          "verification_decision": "VERIFIED_EXCEPTIONAL_QUEST_REQUIREMENT",
+          "wiki_revision": 15374595
+        }
+      },
+      "direct_skill_boostability": {
+        "firemaking": "yes",
+        "magic": "no",
+        "thieving": "no"
+      },
+      "direct_skill_requirements": {
+        "firemaking": 50,
+        "magic": 50,
+        "thieving": 53
+      },
+      "display_name": "Desert Treasure I",
+      "non_skill_conditions": [
+        {
+          "alternative_skill_route": [
+            "slayer",
+            10,
+            "no"
+          ],
+          "condition_id": "gas_mask_from_plague_city",
+          "condition_kind": "ALTERNATIVE_SKILL_OR_NON_SKILL",
+          "detail": "A gas mask obtained through Plague City is an alternative to unboostable 10 Slayer. Gas-mask possession is not verified by WOM. Plague City is not automatically added as a completed-quest prerequisite.",
+          "evidence_status": "NOT_INDEPENDENTLY_MEASURED",
+          "partial_quest_id": null,
+          "planning_policy": "ASSUMED_FOR_PLANNING_ONLY",
+          "quest_id": "desert_treasure_i",
+          "source_wikitext_sha256": "510786a8d9ddb4658d6ecfce804d93e3047531e43a5f4948ffabefa6f400dd9a"
+        }
+      ],
+      "prerequisite_quest_ids": [
+        "the_dig_site",
+        "temple_of_ikov",
+        "the_tourist_trap",
+        "troll_stronghold",
+        "priest_in_peril",
+        "waterfall_quest"
+      ],
+      "quest_id": "desert_treasure_i",
+      "wiki_revision": 15374595
+    },
+    {
+      "activation_status": "NOT_ACTIVATED",
+      "approved_review_metadata": {
+        "verified_bypass_exceptions": [
+          {
+            "alternative_route": "Another player mines the elemental rock, allowing the quest participant to obtain elemental ore without personally meeting 20 Mining.",
+            "alternative_skill_requirements": {},
+            "evidence_refs": [
+              "https://oldschool.runescape.wiki/w/Elemental_Workshop_I"
+            ],
+            "non_skill_conditions": [
+              "Another player must mine the elemental rock",
+              "Obtain the elemental ore",
+              "Complete the required level 35 earth elemental encounter"
+            ],
+            "quest_id": "elemental_workshop_i",
+            "skill": "mining",
+            "source_boostability": "yes",
+            "source_level": 20,
+            "source_line": 1,
+            "source_text": "* {{SCP|Mining|20|link=yes}} {{Boostable|yes}} {{Questreqstart|no}} {{Refn|This requirement can be bypassed if another player mines the rock.|group=t}}",
+            "source_wikitext_sha256": "a463af574ffb22a36af46f37f1d1bc0dde48c067041d6c9a64063a3863f009d6",
+            "verification_decision": "VERIFIED_ACCESSIBLE_BYPASS",
+            "wiki_revision": 15360762
+          }
+        ]
+      },
+      "direct_skill_boostability": {
+        "crafting": "yes",
+        "smithing": "yes"
+      },
+      "direct_skill_requirements": {
+        "crafting": 20,
+        "smithing": 20
+      },
+      "display_name": "Elemental Workshop I",
+      "non_skill_conditions": [
+        {
+          "alternative_skill_route": [
+            "mining",
+            20,
+            "yes"
+          ],
+          "condition_id": "assisted_elemental_rock_mining",
+          "condition_kind": "ALTERNATIVE_SKILL_OR_NON_SKILL",
+          "detail": "20 Mining (boostable), or the verified alternative: Another player mines the elemental rock, allowing the quest participant to obtain elemental ore without personally meeting 20 Mining. Unmeasured conditions: Another player must mine the elemental rock; Obtain the elemental ore; Complete the required level 35 earth elemental encounter.",
+          "evidence_status": "NOT_INDEPENDENTLY_MEASURED",
+          "partial_quest_id": null,
+          "planning_policy": "ASSUMED_FOR_PLANNING_ONLY",
+          "quest_id": "elemental_workshop_i",
+          "source_wikitext_sha256": "a463af574ffb22a36af46f37f1d1bc0dde48c067041d6c9a64063a3863f009d6"
+        }
+      ],
+      "prerequisite_quest_ids": [],
+      "quest_id": "elemental_workshop_i",
+      "wiki_revision": 15360762
+    },
+    {
+      "activation_status": "NOT_ACTIVATED",
+      "approved_review_metadata": {},
+      "direct_skill_boostability": {
+        "farming": "no"
+      },
+      "direct_skill_requirements": {
+        "farming": 25
+      },
+      "display_name": "Garden of Tranquillity",
+      "non_skill_conditions": [],
+      "prerequisite_quest_ids": [
+        "creature_of_fenkenstrain"
+      ],
+      "quest_id": "garden_of_tranquillity",
+      "wiki_revision": 15379032
+    },
+    {
+      "activation_status": "NOT_ACTIVATED",
+      "approved_review_metadata": {
+        "verified_quest_template_exceptions": [
+          {
+            "evidence_refs": [
+              "https://oldschool.runescape.wiki/w/Horror_from_the_Deep"
+            ],
+            "parser_warning_type": "NON_NUMERIC_SCP",
+            "prerequisite_quest_id": "miniquest_alfred_grimhands_barcrawl",
+            "quest_id": "horror_from_the_deep",
+            "source_line": 2,
+            "source_text": "* Completion of {{SCP|Quest}} [[Alfred Grimhand's Barcrawl]] {{Questreqstart|yes}}",
+            "source_wikitext_sha256": "bf0d892f37911e43ec2846376513bf746b0b5b254fcd117314c74c8ea130838c",
+            "verification_decision": "VERIFIED_DIRECT_QUEST_PREREQUISITE",
+            "wiki_revision": 15375082
+          }
+        ]
+      },
+      "direct_skill_boostability": {
+        "agility": "yes"
+      },
+      "direct_skill_requirements": {
+        "agility": 35
+      },
+      "display_name": "Horror from the Deep",
+      "non_skill_conditions": [],
+      "prerequisite_quest_ids": [
+        "miniquest_alfred_grimhands_barcrawl"
+      ],
+      "quest_id": "horror_from_the_deep",
+      "wiki_revision": 15375082
+    },
+    {
+      "activation_status": "NOT_ACTIVATED",
+      "approved_review_metadata": {},
+      "direct_skill_boostability": {
+        "ranged": "no",
+        "thieving": "no"
+      },
+      "direct_skill_requirements": {
+        "ranged": 60,
+        "thieving": 50
+      },
+      "display_name": "Mourning's End Part I",
+      "non_skill_conditions": [],
+      "prerequisite_quest_ids": [
+        "roving_elves",
+        "big_chompy_bird_hunting",
+        "sheep_herder"
+      ],
+      "quest_id": "mournings_end_part_i",
+      "wiki_revision": 15366066
+    },
+    {
+      "activation_status": "NOT_ACTIVATED",
+      "approved_review_metadata": {},
+      "direct_skill_boostability": {},
+      "direct_skill_requirements": {},
+      "display_name": "Recruitment Drive",
+      "non_skill_conditions": [],
+      "prerequisite_quest_ids": [
+        "black_knights_fortress",
+        "druidic_ritual"
+      ],
+      "quest_id": "recruitment_drive",
+      "wiki_revision": 15372696
+    },
+    {
+      "activation_status": "NOT_ACTIVATED",
+      "approved_review_metadata": {
+        "verified_exceptional_requirement": {
+          "authorised_by": "CLANBEACON_ORGANISER_STEP_275_32",
+          "condition_id": "charter_ship_to_elven_woods",
+          "condition_kind": "ALTERNATIVE_SKILL_OR_NON_SKILL",
+          "evidence_refs": [
+            "https://oldschool.runescape.wiki/w/Roving_Elves"
+          ],
+          "quest_id": "roving_elves",
+          "source_line": 8,
+          "source_text": "* {{SCP|Agility|56|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}, unless travelling with a [[charter ship]] to the elven woods",
+          "source_wikitext_sha256": "8a9f7b5e4201b0527743c67f21dce046040213edab78a8e2fb41f1d320865d25",
+          "verification_decision": "VERIFIED_EXCEPTIONAL_QUEST_REQUIREMENT",
+          "wiki_revision": 15374498
+        }
+      },
+      "direct_skill_boostability": {},
+      "direct_skill_requirements": {},
+      "display_name": "Roving Elves",
+      "non_skill_conditions": [
+        {
+          "alternative_skill_route": [
+            "agility",
+            56,
+            "yes"
+          ],
+          "condition_id": "charter_ship_to_elven_woods",
+          "condition_kind": "ALTERNATIVE_SKILL_OR_NON_SKILL",
+          "detail": "Charter-ship travel is an alternative to the direct 56 Agility travel requirement. All inherited Regicide requirements remain.",
+          "evidence_status": "NOT_INDEPENDENTLY_MEASURED",
+          "partial_quest_id": null,
+          "planning_policy": "ASSUMED_FOR_PLANNING_ONLY",
+          "quest_id": "roving_elves",
+          "source_wikitext_sha256": "8a9f7b5e4201b0527743c67f21dce046040213edab78a8e2fb41f1d320865d25"
+        }
+      ],
+      "prerequisite_quest_ids": [
+        "regicide",
+        "waterfall_quest"
+      ],
+      "quest_id": "roving_elves",
+      "wiki_revision": 15374498
+    },
+    {
+      "activation_status": "NOT_ACTIVATED",
+      "approved_review_metadata": {
+        "verified_conditional_skill_annotations": [
+          {
+            "annotation_kind": "COMMENT_ONLY_RECOMMENDATION",
+            "condition_kind": "COMMENT_ONLY",
+            "evidence_refs": [
+              "https://oldschool.runescape.wiki/w/Tai_Bwo_Wannai_Trio"
+            ],
+            "quest_id": "tai_bwo_wannai_trio",
+            "skill": "agility",
+            "source_boostability": "yes",
+            "source_level": 15,
+            "source_line": 1,
+            "source_text": "* <!--DO NOT ADD 30 FIREMAKING, IT IS ONLY RECOMMENDED AND ALTERNATIVES ARE MENTIONED ON THIS PAGE-->{{SCP|Agility|15|link=yes}} {{Boostable|Yes}} {{Questreqstart|no}}",
+            "source_wikitext_sha256": "a368fae2ae247d61d690bbf78bb0ca822c44713a1d87a14fbf0f865742051e9a",
+            "verification_decision": "VERIFIED_CONDITIONAL_SKILL_ANNOTATION",
+            "verified_interpretation": "15 Agility remains mandatory and boostable. 30 Firemaking is recommended only and is not a mandatory skill requirement.",
+            "wiki_revision": 15376159
+          },
+          {
+            "annotation_kind": "OPTIONAL_PERSONAL_CATCH",
+            "condition_kind": "CONTEXTUAL_REVIEW",
+            "evidence_refs": [
+              "https://oldschool.runescape.wiki/w/Tai_Bwo_Wannai_Trio"
+            ],
+            "quest_id": "tai_bwo_wannai_trio",
+            "skill": "fishing",
+            "source_boostability": "yes",
+            "source_level": 5,
+            "source_line": 3,
+            "source_text": "* {{SCP|Fishing|5|link=yes}} {{Boostable|Yes}} {{Questreqstart|no}} <ref>Level 65 is required if you wish to catch the [[Raw karambwan]] yourself.</ref><!--Do not add 30 Firemaking-->",
+            "source_wikitext_sha256": "a368fae2ae247d61d690bbf78bb0ca822c44713a1d87a14fbf0f865742051e9a",
+            "verification_decision": "VERIFIED_CONDITIONAL_SKILL_ANNOTATION",
+            "verified_interpretation": "5 Fishing remains mandatory and boostable. 65 Fishing is required only when personally catching raw karambwan. Obtaining or replacing the item may impose practical restrictions, especially for restricted accounts.",
+            "wiki_revision": 15376159
+          }
+        ]
+      },
+      "direct_skill_boostability": {
+        "agility": "yes",
+        "cooking": "no",
+        "fishing": "yes"
+      },
+      "direct_skill_requirements": {
+        "agility": 15,
+        "cooking": 30,
+        "fishing": 5
+      },
+      "display_name": "Tai Bwo Wannai Trio",
+      "non_skill_conditions": [],
+      "prerequisite_quest_ids": [
+        "jungle_potion"
+      ],
+      "quest_id": "tai_bwo_wannai_trio",
+      "wiki_revision": 15376159
+    },
+    {
+      "activation_status": "NOT_ACTIVATED",
+      "approved_review_metadata": {
+        "quest_point_assumption": {
+          "authorised_by": "CLANBEACON_ORGANISER_STEP_267_16",
+          "decision": "ASSUMED_NOT_INDEPENDENTLY_VERIFIED",
+          "independent_evidence_refs": [
+            "https://oldschool.runescape.wiki/w/Tears_of_Guthix",
+            "https://oldschool.runescape.wiki/w/Quests/Requirements_by_quest"
+          ],
+          "policy": "ASSUME_QUEST_POINTS_MET",
+          "policy_notes": "Tears of Guthix genuinely requires 43 Quest Points to start. The organiser's previously authorised Step 267.16 policy assumes this total is satisfied because ClanBeacon does not currently measure Quest Points. The threshold remains documented and is not independently verified or enforced. This assumption does not waive skills, item-specific Crafting boostability, prerequisites or practical conditions.",
+          "source_requirements": [
+            {
+              "level": 43,
+              "required_to_start": "yes",
+              "source_line": 1,
+              "source_text": "* {{SCP|Quest|43|link=yes}} {{Questreqstart|yes}}"
+            }
+          ],
+          "wiki_revision": 15292296
+        },
+        "verified_conditional_skill_annotations": [
+          {
+            "annotation_kind": "ROUTE_SPECIFIC_BOOSTABILITY",
+            "condition_kind": "CONTEXTUAL_REVIEW",
+            "evidence_refs": [
+              "https://oldschool.runescape.wiki/w/Tears_of_Guthix"
+            ],
+            "quest_id": "tears_of_guthix",
+            "skill": "crafting",
+            "source_boostability": "yes",
+            "source_level": 20,
+            "source_line": 3,
+            "source_text": "* {{SCP|Crafting|20|link=yes}} {{Boostable|yes}} {{Questreqstart|no}} <ref>Adding the sapphire lens to a [[Bullseye lantern (unf)]] is boostable. Adding it to a [[Bullseye lantern (empty)]] or [[Bullseye lantern]] is not boostable.</ref>",
+            "source_wikitext_sha256": "37072c4bd88688a4be16458741f41995593e7f75823de32db58927be225d6302",
+            "verification_decision": "VERIFIED_CONDITIONAL_SKILL_ANNOTATION",
+            "verified_interpretation": "20 Crafting remains mandatory. Boosting is valid when adding the sapphire lens to a bullseye lantern (unf). Adding the lens to a bullseye lantern (empty) or a completed bullseye lantern is not boostable. The route-specific item restriction remains documented and must not be generalised.",
+            "wiki_revision": 15292296
+          }
+        ]
+      },
+      "direct_skill_boostability": {
+        "crafting": "yes",
+        "firemaking": "yes",
+        "mining": "yes"
+      },
+      "direct_skill_requirements": {
+        "crafting": 20,
+        "firemaking": 49,
+        "mining": 20
+      },
+      "display_name": "Tears of Guthix",
+      "non_skill_conditions": [],
+      "prerequisite_quest_ids": [],
+      "quest_id": "tears_of_guthix",
+      "wiki_revision": 15292296
+    },
+    {
+      "activation_status": "NOT_ACTIVATED",
+      "approved_review_metadata": {},
+      "direct_skill_boostability": {
+        "agility": "yes",
+        "mining": "yes",
+        "thieving": "yes"
+      },
+      "direct_skill_requirements": {
+        "agility": 13,
+        "mining": 17,
+        "thieving": 13
+      },
+      "display_name": "The Lost Tribe",
+      "non_skill_conditions": [],
+      "prerequisite_quest_ids": [
+        "goblin_diplomacy",
+        "rune_mysteries"
+      ],
+      "quest_id": "the_lost_tribe",
+      "wiki_revision": 15370928
+    }
+  ],
+  "schema_version": 1,
+  "source_files_sha256": {
+    "data\\osrs_requirement_proposals_v1.json": "b6ade6c79881550bb6ea58aab7d78833736f3c60395f53640429e04c1141b416",
+    "data\\osrs_requirement_reviews_v1.json": "710d7aa06e02e28d37a2393d7b9a90dfdae21705eb1d72231c993479a1a81656"
+  }
+}

@@ -1,0 +1,198 @@
+{
+  "schema_version": 1,
+  "catalogue_source": {
+    "wiki_page": "Quests/List",
+    "wiki_revision": 15366661,
+    "retrieved_at_utc": "2026-10-29T21:54:15.839487+00:00"
+  },
+  "requirements_source": {
+    "wiki_api": "https://oldschool.runescape.wiki/api.php",
+    "retrieved_at_utc": "2026-10-29T22:02:56.538100+00:00",
+    "page_count": 20
+  },
+  "requirements_status_counts": {
+    "FIELD_PRESENT": 20
+  },
+  "requirements_records": [
+    {
+      "quest_id": "miniquest_alfred_grimhands_barcrawl",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "Alfred Grimhand's Barcrawl",
+      "wiki_revision": 15366023,
+      "wiki_revision_timestamp": "2026-10-05T20:29:48Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "None"
+    },
+    {
+      "quest_id": "miniquest_enter_the_abyss",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "Enter the Abyss",
+      "wiki_revision": 15292255,
+      "wiki_revision_timestamp": "2026-08-10T23:03:42Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of [[Rune Mysteries]]"
+    },
+    {
+      "quest_id": "miniquest_the_generals_shadow",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "The General's Shadow",
+      "wiki_revision": 15380704,
+      "wiki_revision_timestamp": "2026-10-23T22:39:31Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*[[Curse of the Empty Lord]], for full [[ghostly robes]]\n**Started [[Desert Treasure I]], for the [[ring of visibility]]\n*[[Fight Arena]]"
+    },
+    {
+      "quest_id": "miniquest_barbarian_training",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "Barbarian Training",
+      "wiki_revision": 15371361,
+      "wiki_revision_timestamp": "2026-10-12T17:12:50Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of [[Tai Bwo Wannai Trio]] {{Questreqstart|no}}\n* {{SCP|Fishing|55|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}\n* {{SCP|Firemaking|35|link=yes}} {{Boostable|no}} {{Questreqstart|no}}\n* {{SCP|Strength|35|link=yes}} {{Boostable|no}} {{Questreqstart|no}}\n* {{SCP|Agility|15|link=yes}} {{Boostable|no}} {{Questreqstart|no}}\n* {{SCP|Farming|15|link=yes}} {{Boostable|no}} {{Questreqstart|no}}\n* {{SCP|Crafting|11|link=yes}} {{Boostable|no}} {{Questreqstart|no}}\n* {{SCP|Smithing|5|link=yes}} {{Boostable|no}} {{Questreqstart|no}}\n* {{SCP|Herblore|4|link=yes}} {{Boostable|no}} {{Questreqstart|no}}"
+    },
+    {
+      "quest_id": "miniquest_skippy_and_the_mogres",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "Skippy and the Mogres",
+      "wiki_revision": 15292393,
+      "wiki_revision_timestamp": "2026-08-11T00:16:02Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Cooking|20|link=yes}} {{Boostable|yes}} {{Questreqstart|no}}"
+    },
+    {
+      "quest_id": "miniquest_curse_of_the_empty_lord",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "Curse of the Empty Lord",
+      "wiki_revision": 15365488,
+      "wiki_revision_timestamp": "2026-10-05T16:16:40Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Started [[Desert Treasure I]] and [[The Restless Ghost]]\n**{{SCP|Thieving|53|link=yes}} {{Boostable|no}} {{Questreqstart|yes}} to obtain the [[Ring of visibility]]\n*{{SCP|Prayer|31|link=yes}} {{Boostable|no}} {{Questreqstart|no}} (Some players will need this to access the 2nd floor of the [[Edgeville Monastery]])"
+    },
+    {
+      "quest_id": "miniquest_lair_of_tarn_razorlor",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "Lair of Tarn Razorlor",
+      "wiki_revision": 15365600,
+      "wiki_revision_timestamp": "2026-10-05T16:42:43Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Slayer|40|link=yes}} {{Boostable|no}} {{Questreqstart|}}\n*The [[Haunted Mine]] quest is required to access [[Tarn's Lair]]."
+    },
+    {
+      "quest_id": "miniquest_bear_your_soul",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "Bear Your Soul",
+      "wiki_revision": 15311949,
+      "wiki_revision_timestamp": "2026-08-20T00:38:28Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "None"
+    },
+    {
+      "quest_id": "miniquest_the_enchanted_key",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "The Enchanted Key",
+      "wiki_revision": 15336907,
+      "wiki_revision_timestamp": "2026-09-09T08:48:56Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "Finished [[Making History]]"
+    },
+    {
+      "quest_id": "miniquest_mage_arena_i",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "Mage Arena I",
+      "wiki_revision": 15237146,
+      "wiki_revision_timestamp": "2026-06-21T16:33:08Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*{{SCP|Magic|60|link=yes}} {{Boostable|No}}  {{Questreqstart|yes}}"
+    },
+    {
+      "quest_id": "miniquest_family_pest",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "Family Pest",
+      "wiki_revision": 15237154,
+      "wiki_revision_timestamp": "2026-06-21T16:34:53Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "Completion of [[Family Crest]]"
+    },
+    {
+      "quest_id": "miniquest_mage_arena_ii",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "Mage Arena II",
+      "wiki_revision": 15368856,
+      "wiki_revision_timestamp": "2026-10-08T21:59:20Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of [[Mage Arena I]]\n*{{SCP|Magic|75|link=yes}} {{Boostable|no}} {{Questreqstart|yes}}\n*Cast [[Claws of Guthix]], [[Flames of Zamorak]], and [[Saradomin Strike]] each 100 times inside the Mage Arena."
+    },
+    {
+      "quest_id": "miniquest_in_search_of_knowledge",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "In Search of Knowledge",
+      "wiki_revision": 15378368,
+      "wiki_revision_timestamp": "2026-10-21T00:58:56Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "None - but a high [[combat level]] is recommended."
+    },
+    {
+      "quest_id": "miniquest_daddys_home",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "Daddy's Home",
+      "wiki_revision": 15337234,
+      "wiki_revision_timestamp": "2026-09-09T12:30:37Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "None"
+    },
+    {
+      "quest_id": "miniquest_the_frozen_door",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "The Frozen Door",
+      "wiki_revision": 15166745,
+      "wiki_revision_timestamp": "2026-04-06T16:36:55Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completion of [[Desert Treasure I]]\n* {{SCP|Agility|70|link=yes}} {{Boostable|no}} {{Questreqstart|No}}\n* {{SCP|Hitpoints|70|link=yes}} {{Boostable|yes}} {{Questreqstart|No}}\n* {{SCP|Ranged|70|link=yes}} {{Boostable|no}} {{Questreqstart|No}}\n* {{SCP|Strength|70|link=yes}} {{Boostable|no}} {{Questreqstart|No}}"
+    },
+    {
+      "quest_id": "miniquest_hopespears_will",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "Hopespear's Will",
+      "wiki_revision": 15335611,
+      "wiki_revision_timestamp": "2026-09-08T18:45:54Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Started [[The Restless Ghost]]\n* Completion of [[Desert Treasure I]]\n* Completion of [[Fairytale II - Cure a Queen]]\n* Completion of [[Land of the Goblins]]\n* {{SCP|Prayer|50|link=yes}} {{Boostable|no}} {{Questreqstart|}}"
+    },
+    {
+      "quest_id": "miniquest_into_the_tombs",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "Into the Tombs",
+      "wiki_revision": 15218542,
+      "wiki_revision_timestamp": "2026-05-28T04:29:56Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*Completion of the following quests:\n**[[Beneath Cursed Sands]]\n***[[Contact!]]\n****[[Prince Ali Rescue]]\n****[[Icthlarin's Little Helper]]\n*****[[Gertrude's Cat]]"
+    },
+    {
+      "quest_id": "miniquest_his_faithful_servants",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "His Faithful Servants",
+      "wiki_revision": 15167680,
+      "wiki_revision_timestamp": "2026-04-07T04:43:52Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "*[[Priest in Peril]]"
+    },
+    {
+      "quest_id": "miniquest_vale_totems",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "Vale Totems (miniquest)",
+      "wiki_revision": 15319442,
+      "wiki_revision_timestamp": "2026-08-25T06:09:01Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "* Completions of the following quests:\n** [[Children of the Sun]]\n* {{SCP|Fletching|20|link=yes}}"
+    },
+    {
+      "quest_id": "miniquest_the_fractured_archive",
+      "record_type": "MINIQUEST",
+      "wiki_page_title": "The Fractured Archive (miniquest)",
+      "wiki_revision": 15383862,
+      "wiki_revision_timestamp": "2026-10-27T13:42:55Z",
+      "requirements_status": "FIELD_PRESENT",
+      "requirements_wikitext": "{{Questreqstart|}}\n*Completion of [[While Guthix Sleeps]], which requires the following quests:\n**[[Defender of Varrock]]\n***[[Shield of Arrav]]\n***[[Temple of Ikov]]\n***[[Below Ice Mountain]]\n***[[Family Crest]]\n***[[What Lies Below]]\n***[[Romeo & Juliet]]\n***[[Demon Slayer]]\n***[[Garden of Tranquillity]]\n****[[Creature of Fenkenstrain]]\n*****[[Priest in Peril]]\n*****[[The Restless Ghost]]\n**[[The Path of Glouphrie]]\n*** [[The Eyes of Glouphrie]]\n**** [[The Grand Tree]]\n*** [[Waterfall Quest]]\n*** [[Tree Gnome Village]]\n**[[Fight Arena]]\n**[[Dream Mentor]]\n***[[Eadgar's Ruse]]\n****[[Druidic Ritual]]\n****[[Troll Stronghold]]\n*****[[Death Plateau]]\n***[[Lunar Diplomacy]]\n****[[The Fremennik Trials]]\n****[[Lost City]]\n****[[Rune Mysteries]]\n****[[Shilo Village]]\n*****[[Jungle Potion]]\n**[[The Hand in the Sand]]\n**[[Wanted!]]\n***[[Recruitment Drive]]\n****[[Black Knights' Fortress]]\n****[[Druidic Ritual]]\n***[[The Lost Tribe]]\n****[[Goblin Diplomacy]]\n**[[Temple of the Eye]]\n***[[Enter the Abyss]]\n****[[Rune Mysteries]]\n**[[Tears of Guthix]]\n**[[Nature Spirit]]\n***[[Priest in Peril]]\n***[[The Restless Ghost]]\n**[[A Tail of Two Cats]]\n***[[Icthlarin's Little Helper]]\n****[[Gertrude's Cat]]"
+    }
+  ]
+}

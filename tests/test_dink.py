@@ -3160,6 +3160,144 @@ def test_n_of_unique_does_not_count_same_item_twice(
     ]
 
 
+def test_vorkath_repeatable_quantity_counts_same_item_across_dink_events(
+    client,
+    monkeypatch,
+):
+    from utils.osrs_drop_tile_effort_preview import (
+        build_drop_tile_effort_preview_rows,
+    )
+    from utils.osrs_generated_drop_tile_candidates import (
+        build_generated_repeatable_drop_tile_candidate,
+    )
+    from utils.osrs_generated_board_live_tiles import (
+        build_live_tile_payload_from_candidate,
+    )
+
+    row = next(
+        row
+        for row in build_drop_tile_effort_preview_rows()
+        if row.source_id == "vorkath"
+        and row.drop_group_id == "vorkath_uniques"
+        and row.target == 2
+    )
+
+    candidate = build_generated_repeatable_drop_tile_candidate(
+        row,
+        target=3,
+        point_value=4,
+    )
+
+    payload = build_live_tile_payload_from_candidate(candidate)
+
+    assert payload["completion_paths"][0]["require_unique"] is False
+
+    database.add_team(
+        "Vorkath Quantity Test Team",
+        0,
+        "",
+    )
+
+    team = db_entities.Team(
+        database.get_team_by_name("Vorkath Quantity Test Team")
+    )
+
+    database.add_player(
+        "Vorkath Quantity Tester",
+        0,
+        0,
+        0,
+        team.team_id,
+        0,
+    )
+
+    tile_id = database.add_tile_with_conditions(**payload)
+
+    dink_account_hash = "test-dink-vorkath-repeatable-quantity"
+
+    for boss in ("Goblin", "Man", "Spider"):
+        link_result = dink.ingest_dink_event({
+            "playerName": "Vorkath Quantity Tester",
+            "dinkAccountHash": dink_account_hash,
+            "type": "KILL_COUNT",
+            "extra": {
+                "boss": boss,
+                "killCount": 1,
+            },
+        })
+
+    assert link_result["status"] == "LINKED"
+
+    monkeypatch.setenv("TRACKING", "TRUE")
+
+    from utils import completion_notifications
+
+    notified_completions = []
+
+    def fake_notify_progress_completions(progress_results):
+        for result in progress_results:
+            if result.get("completed", False):
+                notified_completions.append(
+                    (result["team_id"], result["tile_id"])
+                )
+
+    monkeypatch.setattr(
+        completion_notifications,
+        "notify_progress_completions",
+        fake_notify_progress_completions,
+    )
+
+    for quantity, expected_progress in ((1, 1), (2, 3)):
+        response = client.post(
+            TEST_DINK_ENDPOINT,
+            json={
+                "playerName": "Vorkath Quantity Tester",
+                "dinkAccountHash": dink_account_hash,
+                "type": "LOOT",
+                "extra": {
+                    "items": [
+                        {
+                            "name": "Dragonbone necklace",
+                            "quantity": quantity,
+                        },
+                    ],
+                },
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.get_json()["processing_status"] == "PROCESSED"
+
+        condition_progress = database.get_tile_condition_progress(
+            team.team_id,
+            tile_id,
+        )
+
+        progress_by_trigger = {
+            progress_row[3]: progress_row[5]
+            for progress_row in condition_progress
+        }
+
+        assert progress_by_trigger["Dragonbone necklace"] == (
+            expected_progress
+        )
+
+        completed = (
+            database.get_completed_tiles_by_team_id_and_tile_id(
+                team.team_id,
+                tile_id,
+            )
+        )
+
+        assert len(completed) == (
+            1 if expected_progress == 3 else 0
+        )
+
+    assert notified_completions == [
+        (team.team_id, tile_id),
+    ]
+
+
 def test_counted_drop_amount_caps_at_route_requirements():
     all_counted = database._calculate_counted_drop_amount(
         condition_type="DROP",

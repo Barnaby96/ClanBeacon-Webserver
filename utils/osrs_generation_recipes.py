@@ -322,7 +322,11 @@ def build_single_drop_route(component, target, display_text=None):
         ),
         target=target,
         tracking_source=component.tracking_source,
-        contribution_mode=ContributionMode.TEAM_SUM,
+        contribution_mode=(
+            ContributionMode.N_OF_UNIQUES
+            if component.drop_group_id and not component.drop_id
+            else ContributionMode.TEAM_SUM
+        ),
         source_id=source_id,
         boss_id=component.boss_id,
         drop_id=component.drop_id,

@@ -12,7 +12,12 @@ def test_difficulty_mode_pet_rules(mode, primary, secondary):
     rules = build_board_generation_rules_for_difficulty(mode)
     assert rules.board_size == 25
     assert rules.points_distribution == {tier: 5 for tier in range(1, 6)}
-    assert (rules.primary_pet_tiles_min, rules.primary_pet_tiles_target, rules.primary_pet_tiles_max) == (primary,) * 3
+    expected_primary_limits = (0, 0, 1) if mode == "relaxed" else (primary,) * 3
+    assert (
+        rules.primary_pet_tiles_min,
+        rules.primary_pet_tiles_target,
+        rules.primary_pet_tiles_max,
+    ) == expected_primary_limits
     assert (rules.secondary_pet_routes_min, rules.secondary_pet_routes_target, rules.secondary_pet_routes_max) == secondary
     assert sum(slot.required_category == TileCategory.PET for slot in rules.build_slots()) == primary
 
@@ -22,6 +27,163 @@ def test_default_difficulty_is_competitive():
 def test_unknown_difficulty_is_rejected():
     with pytest.raises(ValueError):
         build_board_generation_rules_for_difficulty("impossible")
+
+@pytest.mark.parametrize("declares_fallback", [False, True])
+def test_relaxed_rejects_primary_pet_without_grindable_fallback(declares_fallback):
+    from dataclasses import replace
+    from utils.board_generation import validate_generated_board_candidates
+    from utils.osrs_tile_templates import make_pet_candidate
+
+    rules = replace(
+        build_board_generation_rules_for_difficulty("relaxed"),
+        board_size=1,
+        points_distribution={3: 1},
+        required_categories_by_point={3: ()},
+        flex_slots_by_point={3: 1},
+        minimum_primary_categories_per_tier=None,
+        target_primary_categories_per_tier=None,
+        maximum_primary_category_tiles_per_tier=None,
+        minimum_primary_category_counts={},
+    )
+
+    pet_only = make_pet_candidate(
+        title="Obtain Beaver",
+        point_value=3,
+        pet_id="beaver",
+    )
+    pet_only = replace(
+        pet_only,
+        has_fallback=declares_fallback,
+    )
+
+    errors = validate_generated_board_candidates(
+        (pet_only,),
+        rules=rules,
+    )
+
+    assert any(
+        "primary pet" in error.lower()
+        and "fallback" in error.lower()
+        for error in errors
+    )
+
+def test_relaxed_accepts_primary_pet_with_grindable_fallback():
+    from dataclasses import replace
+    from utils.board_generation import (
+        PetRole,
+        candidate_fits_pet_limits,
+        count_primary_pet_tiles,
+        count_secondary_pet_routes,
+        validate_generated_board_candidates,
+    )
+    from utils.osrs_tile_templates import make_skill_xp_or_pet_candidate
+
+    rules = replace(
+        build_board_generation_rules_for_difficulty("relaxed"),
+        board_size=1,
+        points_distribution={3: 1},
+        required_categories_by_point={3: ()},
+        flex_slots_by_point={3: 1},
+        minimum_primary_categories_per_tier=None,
+        target_primary_categories_per_tier=None,
+        maximum_primary_category_tiles_per_tier=None,
+        minimum_primary_category_counts={},
+    )
+
+    candidate = make_skill_xp_or_pet_candidate(
+        title="Obtain Beaver OR gain 100,000 Woodcutting XP",
+        point_value=3,
+        skill_id="woodcutting",
+        xp_target=100_000,
+        pet_id="beaver",
+    )
+
+    candidate = replace(
+        candidate,
+        primary_category=TileCategory.PET,
+        secondary_categories=frozenset({TileCategory.SKILL}),
+        pet_role=PetRole.PRIMARY,
+    )
+
+    assert candidate.has_fallback is True
+    assert count_primary_pet_tiles((candidate,)) == 1
+    assert count_secondary_pet_routes((candidate,)) == 0
+    assert candidate_fits_pet_limits(candidate, (), rules)
+    assert validate_generated_board_candidates(
+        (candidate,),
+        rules=rules,
+    ) == []
+
+
+def test_secondary_pet_quota_counts_distinct_tiles():
+    from dataclasses import replace
+    from utils.board_generation import (
+        PetRole,
+        count_secondary_pet_routes,
+        secondary_pet_route_count,
+    )
+    from utils.osrs_tile_templates import make_skill_xp_or_pet_candidate
+
+    candidate = make_skill_xp_or_pet_candidate(
+        title="Gain Farming XP OR obtain Tangleroot or Beaver",
+        point_value=3,
+        skill_id="farming",
+        xp_target=100_000,
+        pet_id="tangleroot",
+    )
+
+    second_pet_route = replace(
+        candidate.routes[1],
+        display_text="Obtain Beaver",
+        pet_id="beaver",
+        metric_id="pet_beaver",
+        source_id="woodcutting",
+        skill_id="woodcutting",
+    )
+
+    candidate = replace(
+        candidate,
+        routes=(*candidate.routes, second_pet_route),
+    )
+
+    other_candidate = make_skill_xp_or_pet_candidate(
+        title="Gain Fishing XP OR obtain Heron",
+        point_value=3,
+        skill_id="fishing",
+        xp_target=100_000,
+        pet_id="heron",
+    )
+
+    assert candidate.pet_role == PetRole.SECONDARY
+    assert secondary_pet_route_count(candidate) == 1
+    assert count_secondary_pet_routes((candidate,)) == 1
+    assert count_secondary_pet_routes(
+        (candidate, other_candidate)
+    ) == 2
+
+
+@pytest.mark.parametrize("title, extra_route, allowed", [
+    ("Obtain Beaver", False, False),
+    ("Obtain Abyssal orphan", True, False),
+    ("Obtain Abyssal orphan", False, True),
+])
+def test_competitive_primary_pet_requirements(title, extra_route, allowed):
+    from dataclasses import replace
+    from utils.board_generation import RouteMode, candidate_fits_pet_limits, validate_generated_board_candidates
+    from utils.osrs_tile_catalogue import get_curated_tile_generation_candidates
+    from utils.osrs_tile_templates import make_skill_xp_candidate
+    rules = replace(build_board_generation_rules_for_difficulty("competitive"), board_size=1, points_distribution={5: 1}, required_categories_by_point={5: (TileCategory.PET,)}, flex_slots_by_point={5: 0}, minimum_primary_categories_per_tier=None, target_primary_categories_per_tier=None, maximum_primary_category_tiles_per_tier=None, minimum_primary_category_counts={}, secondary_pet_routes_min=0, secondary_pet_routes_target=0, secondary_pet_routes_max=0)
+    candidate = next(c for c in get_curated_tile_generation_candidates() if c.title == title)
+    if extra_route:
+        xp = make_skill_xp_candidate("Gain 100,000 Woodcutting XP", 5, "woodcutting", 100_000)
+        candidate = replace(candidate, route_mode=RouteMode.OR, routes=(*candidate.routes, xp.routes[0]), has_fallback=True)
+    assert candidate_fits_pet_limits(candidate, (), rules) is allowed
+    errors = validate_generated_board_candidates((candidate,), rules=rules)
+    if allowed:
+        assert errors == []
+    else:
+        assert any("boss" in error.lower() or "pet-only" in error.lower() for error in errors)
+
 
 def test_primary_pet_subtypes():
     from utils.osrs_board_difficulty import classify_primary_pet_candidate
@@ -376,3 +538,73 @@ def test_standard_pet_target_for_known_feasible_seeds(seed):
     assert count_secondary_pet_routes(control.candidates) >= rules.secondary_pet_routes_target
     board = assemble_board_candidates(pool, rules=rules)
     assert count_secondary_pet_routes(board.candidates) >= rules.secondary_pet_routes_target
+
+
+@pytest.mark.parametrize("names, valid", [ (("Beaver","Heron","Rock golem"),False), (("Beaver","Abyssal orphan","Youngllef"),False), (("Beaver","Heron","Abyssal protector"),False), (("Beaver","Heron","Abyssal orphan"),True), (("Abyssal orphan","Beaver","Heron"),True), (("Beaver","Beaver","Abyssal orphan"),False), (("Beaver","Heron","Abyssal orphan","fallback"),False) ])
+def test_brutal_primary_pet_compositions(names, valid):
+    from dataclasses import replace
+    from utils.board_generation import candidate_fits_pet_limits, validate_generated_board_candidates
+    from utils.osrs_tile_catalogue import get_curated_tile_generation_candidates
+    catalogue = {c.title: c for c in get_curated_tile_generation_candidates()}
+
+    tiles = tuple(replace(catalogue["Obtain " + name], point_value=tier) for tier, name in zip((3, 4, 5), names))
+    if len(names) == 4:
+        from utils.board_generation import RouteMode
+        from utils.osrs_tile_templates import make_skill_xp_candidate
+        xp = make_skill_xp_candidate("Gain 100,000 Woodcutting XP", 5, "woodcutting", 100_000)
+        tiles = (*tiles[:2], replace(tiles[2], route_mode=RouteMode.OR, routes=(*tiles[2].routes, xp.routes[0]), has_fallback=True))
+    rules = replace(build_board_generation_rules_for_difficulty("brutal"), board_size=3, points_distribution={3: 1, 4: 1, 5: 1}, required_categories_by_point={tier: (TileCategory.PET,) for tier in (3, 4, 5)}, flex_slots_by_point={3: 0, 4: 0, 5: 0}, minimum_primary_categories_per_tier=None, target_primary_categories_per_tier=None, maximum_primary_category_tiles_per_tier=None, minimum_primary_category_counts={}, secondary_pet_routes_min=0, secondary_pet_routes_target=0, secondary_pet_routes_max=0)
+    assert all(candidate_fits_pet_limits(t, tiles[:i], rules) for i, t in enumerate(tiles)) is valid
+    errors = validate_generated_board_candidates(tiles, rules=rules)
+    assert (not errors) is valid
+
+def test_procedural_primary_skilling_pet_fallback():
+    from utils.osrs_tile_catalogue import build_procedural_primary_skilling_pet_candidates
+    from utils.board_generation import PetRole, RouteMode, primary_pet_has_grindable_fallback, count_secondary_pet_routes, candidate_fits_pet_limits
+    tiles = build_procedural_primary_skilling_pet_candidates({"woodcutting": {3: 100_000}})
+    assert len(tiles) == 1
+    tile = tiles[0]
+    assert tile.point_value == 3
+    assert tile.primary_category == TileCategory.PET
+    assert tile.pet_role == PetRole.PRIMARY
+    assert tile.route_mode == RouteMode.OR
+    assert primary_pet_has_grindable_fallback(tile)
+    assert count_secondary_pet_routes(tiles) == 0
+    assert any(r.pet_id == "beaver" for r in tile.routes)
+    assert any(r.skill_id == "woodcutting" and r.target == 100_000 for r in tile.routes)
+    assert candidate_fits_pet_limits(tile, (), build_board_generation_rules_for_difficulty("relaxed"))
+
+def test_procedural_primary_pet_pool_integration():
+    from utils.osrs_tile_catalogue import build_procedural_primary_skilling_pet_candidates, get_procedural_tile_generation_candidates
+    generated = build_procedural_primary_skilling_pet_candidates({"woodcutting": {3: 100_000}})
+    pool = get_procedural_tile_generation_candidates(primary_skilling_pet_candidates=generated)
+    assert [t for t in pool if any(r.pet_id == "beaver" for r in t.routes)] == list(generated)
+    assert any(t.title == "Obtain Heron" for t in pool)
+    assert not any(t.primary_category == TileCategory.SKILL and len(t.routes) == 1 and t.routes[0].skill_id == "woodcutting" for t in pool)
+
+@pytest.mark.parametrize("skill, pet", [("hunter","baby_chinchompa"),("woodcutting","beaver"),("agility","giant_squirrel"),("fishing","heron"),("runecraft","rift_guardian"),("mining","rock_golem"),("thieving","rocky"),("sailing","soup"),("farming","tangleroot")])
+def test_all_primary_skilling_pet_mappings(skill, pet):
+    from utils.osrs_tile_catalogue import build_procedural_primary_skilling_pet_candidates, get_procedural_tile_generation_candidates
+    from utils.osrs_board_difficulty import classify_primary_pet_candidate
+    from utils.board_generation import primary_pet_has_grindable_fallback
+    tile, = build_procedural_primary_skilling_pet_candidates({skill: {3: 100_000}})
+    assert classify_primary_pet_candidate(tile) == "skilling"
+    assert primary_pet_has_grindable_fallback(tile)
+    assert any(r.pet_id == pet for r in tile.routes)
+    assert any(r.skill_id == skill and r.target == 100_000 for r in tile.routes)
+    pool = get_procedural_tile_generation_candidates(primary_skilling_pet_candidates=(tile,))
+    assert sum(any(r.pet_id == pet for r in c.routes) for c in pool) == 1
+
+
+def test_primary_skilling_pet_multi_tier_uniqueness():
+    from utils.osrs_tile_catalogue import build_procedural_primary_skilling_pet_candidates, get_procedural_tile_generation_candidates
+    from utils.board_generation import find_conflicting_tags, reserve_candidate_tags
+    variants = build_procedural_primary_skilling_pet_candidates({"woodcutting": {2: 75_000, 3: 150_000}})
+    assert {tile.point_value for tile in variants} == {2, 3}
+    pool = get_procedural_tile_generation_candidates(primary_skilling_pet_candidates=variants)
+    assert sum(any(r.pet_id == "beaver" for r in tile.routes) for tile in pool) == 2
+    first, second = variants
+    used = reserve_candidate_tags(first, frozenset())
+    assert "pet:beaver" in find_conflicting_tags(second, used)
+    with pytest.raises(ValueError, match="pet:beaver"):
+        reserve_candidate_tags(second, used)

@@ -1,4 +1,5 @@
 from utils.board_generation import (
+    ContributionMode,
     RouteMode,
     TileCategory,
     canonical_id,
@@ -19,6 +20,9 @@ from utils.osrs_tile_template_expansion import (
 )
 
 
+from utils.osrs_drop_group_data import DROP_ROW_DATA
+
+
 def _get_drop_name(drop_id):
     matching_names = {
         drop_name
@@ -29,6 +33,18 @@ def _get_drop_name(drop_id):
         )
         if definition_drop_id == drop_id
     }
+
+    # Non-unique items may be absent from unique-drop definitions.
+    # Resolve their names from the complete imported drop records.
+    # This does not approve an item for procedural generation.
+    if not matching_names:
+        matching_names = {
+            row["drop_name"]
+            for row in DROP_ROW_DATA
+            if row.get("drop_id") == drop_id
+            and isinstance(row.get("drop_name"), str)
+            and row["drop_name"].strip()
+        }
 
     if not matching_names:
         raise ValueError(
@@ -155,12 +171,27 @@ def _build_drop_group_conditions(route, completion_path):
             "does not contain Dink-facing drop names."
         )
 
+    if route.contribution_mode not in (
+        ContributionMode.N_OF_UNIQUES,
+        ContributionMode.TEAM_SUM,
+    ):
+        raise ValueError(
+            "Unsupported drop group contribution mode: "
+            f"{route.contribution_mode}"
+        )
+
+    condition_target = (
+        int(route.target)
+        if route.contribution_mode == ContributionMode.TEAM_SUM
+        else 1
+    )
+
     return [
         {
             "completion_path": completion_path,
             "condition_type": "DROP",
             "condition_trigger": drop_name,
-            "target": 1,
+            "target": condition_target,
         }
         for drop_name in definition.distinct_drop_names
     ]
@@ -184,7 +215,9 @@ def build_live_tile_payload_from_candidate(candidate):
                     "completion_path": 1,
                     "route_mode": "N_OF",
                     "route_target": int(route.target),
-                    "require_unique": True,
+                    "require_unique": (
+                        route.contribution_mode == ContributionMode.N_OF_UNIQUES
+                    ),
                 }
             ]
         else:
@@ -213,20 +246,45 @@ def build_live_tile_payload_from_candidate(candidate):
             candidate.routes,
             start=1,
         ):
-            conditions.append(
-                _build_live_condition(
-                    route,
-                    completion_path=path_number,
+            if (
+                route.route_type == TileCategory.DROP
+                and route.drop_id is None
+                and route.drop_group_id is not None
+            ):
+                conditions.extend(
+                    _build_drop_group_conditions(
+                        route,
+                        completion_path=path_number,
+                    )
                 )
-            )
-            completion_paths.append(
-                {
-                    "completion_path": path_number,
-                    "route_mode": "ALL",
-                    "route_target": None,
-                    "require_unique": False,
-                }
-            )
+
+                completion_paths.append(
+                    {
+                        "completion_path": path_number,
+                        "route_mode": "N_OF",
+                        "route_target": int(route.target),
+                        "require_unique": (
+                            route.contribution_mode
+                            == ContributionMode.N_OF_UNIQUES
+                        ),
+                    }
+                )
+            else:
+                conditions.append(
+                    _build_live_condition(
+                        route,
+                        completion_path=path_number,
+                    )
+                )
+
+                completion_paths.append(
+                    {
+                        "completion_path": path_number,
+                        "route_mode": "ALL",
+                        "route_target": None,
+                        "require_unique": False,
+                    }
+                )
 
         tile_rules = " OR ".join(
             route.display_text

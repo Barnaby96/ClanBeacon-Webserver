@@ -105,3 +105,138 @@ def test_build_generated_group_drop_tile_candidate_singularises_uniques():
 
     assert candidate.title == "Obtain 1 Phantom Muspah Unique"
     assert candidate.routes[0].display_text == "Obtain 1 Phantom Muspah Unique"
+
+
+def test_build_repeatable_vorkath_unique_quantity_candidate():
+    from utils.board_generation import (
+        ContributionMode,
+        RouteMode,
+        TileCategory,
+    )
+    from utils.osrs_drop_tile_effort_preview import (
+        build_drop_tile_effort_preview_rows,
+    )
+    from utils.osrs_generated_drop_tile_candidates import (
+        build_generated_repeatable_drop_tile_candidate,
+    )
+    from utils.osrs_generated_board_live_tiles import (
+        build_live_tile_payload_from_candidate,
+    )
+
+    row = next(
+        (
+            row
+            for row in build_drop_tile_effort_preview_rows()
+            if row.source_id == "vorkath"
+            and row.drop_group_id == "vorkath_uniques"
+            and row.target == 2
+        ),
+        None,
+    )
+    assert row is not None
+
+    candidate = build_generated_repeatable_drop_tile_candidate(
+        row,
+        target=2,
+        point_value=4,
+    )
+
+    assert candidate.primary_category == TileCategory.DROP
+    assert candidate.route_mode == RouteMode.SINGLE
+    assert "duplicates allowed" in candidate.title.lower()
+    assert len(candidate.routes) == 1
+
+    route = candidate.routes[0]
+
+    assert route.contribution_mode == ContributionMode.TEAM_SUM
+    assert route.target == 2
+    assert route.source_id == "vorkath"
+    assert route.drop_group_id == "vorkath_uniques"
+    assert "source:vorkath" in candidate.all_hard_unique_tags
+
+    payload = build_live_tile_payload_from_candidate(candidate)
+
+    assert payload["completion_paths"] == [
+        {
+            "completion_path": 1,
+            "route_mode": "N_OF",
+            "route_target": 2,
+            "require_unique": False,
+        },
+    ]
+
+    assert {
+        condition["condition_trigger"]
+        for condition in payload["conditions"]
+    } == {
+        "Skeletal visage",
+        "Dragonbone necklace",
+        "Jar of decay",
+    }
+
+    assert all(
+        condition["target"] == 2
+        for condition in payload["conditions"]
+    )
+
+
+def test_repeatable_vorkath_quantity_exceeds_distinct_item_count():
+    from utils.board_generation import ContributionMode
+    from utils.osrs_drop_groups import get_drop_group_definition
+    from utils.osrs_drop_tile_effort_preview import (
+        build_drop_tile_effort_preview_rows,
+    )
+    from utils.osrs_generated_drop_tile_candidates import (
+        build_generated_repeatable_drop_tile_candidate,
+    )
+    from utils.osrs_generated_board_live_tiles import (
+        build_live_tile_payload_from_candidate,
+    )
+
+    definition = get_drop_group_definition("vorkath_uniques")
+    assert definition is not None
+    assert definition.max_distinct_drop_count == 3
+
+    row = next(
+        (
+            row
+            for row in build_drop_tile_effort_preview_rows()
+            if row.source_id == "vorkath"
+            and row.drop_group_id == "vorkath_uniques"
+            and row.target == 2
+        ),
+        None,
+    )
+    assert row is not None
+
+    quantity = definition.max_distinct_drop_count + 1
+
+    candidate = build_generated_repeatable_drop_tile_candidate(
+        row,
+        target=quantity,
+        point_value=4,
+    )
+
+    route = candidate.routes[0]
+
+    assert route.target == 4
+    assert route.contribution_mode == ContributionMode.TEAM_SUM
+    assert route.expected_rolls is None
+    assert "source:vorkath" in candidate.all_hard_unique_tags
+
+    payload = build_live_tile_payload_from_candidate(candidate)
+
+    assert payload["completion_paths"] == [
+        {
+            "completion_path": 1,
+            "route_mode": "N_OF",
+            "route_target": 4,
+            "require_unique": False,
+        },
+    ]
+
+    assert len(payload["conditions"]) == 3
+    assert all(
+        condition["target"] == 4
+        for condition in payload["conditions"]
+    )

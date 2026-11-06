@@ -230,6 +230,154 @@ def get_candidate_by_generated_board_key(candidates):
     }
 
 
+def build_candidate_access_by_team(
+    candidates,
+    *,
+    capability_result,
+    participating_team_names,
+    route_access_profiles_by_candidate,
+):
+    """Build per-team access assessments for candidate filtering.
+
+    Reuses rostered WOM evidence and the existing team-level
+    route evaluator. Does not fetch additional player data.
+
+    Missing route metadata stays unknown. DROP routes remain
+    unapproved until verified acquisition-source assessment
+    is connected separately.
+    """
+    from collections.abc import Mapping
+
+    from utils.osrs_player_access import (
+        assess_team_candidate_route_access,
+    )
+
+    if not isinstance(
+        participating_team_names,
+        (tuple, list),
+    ):
+        return {}
+
+    team_names = tuple(participating_team_names)
+
+    # An empty or invalid participating-team list cannot
+    # establish access for the board.
+    if not team_names:
+        return {}
+
+    if any(
+        not isinstance(name, str)
+        or not name
+        or name != name.strip()
+        for name in team_names
+    ):
+        return {}
+
+    if len(set(team_names)) != len(team_names):
+        return {}
+
+    if not isinstance(
+        route_access_profiles_by_candidate,
+        Mapping,
+    ):
+        route_access_profiles_by_candidate = {}
+
+    candidate_entries = []
+    seen_candidate_keys = set()
+
+    for candidate in candidates:
+        candidate_key = build_generated_board_candidate_key(
+            candidate
+        )
+
+        # Refuse ambiguous duplicate candidate identities.
+        if candidate_key in seen_candidate_keys:
+            return {}
+
+        seen_candidate_keys.add(candidate_key)
+
+        candidate_entries.append(
+            (candidate_key, candidate)
+        )
+
+    assessments_by_team = {}
+
+    for team_name in team_names:
+        team_assessments = {}
+
+        for candidate_key, candidate in candidate_entries:
+            route_profiles = (
+                route_access_profiles_by_candidate.get(
+                    candidate_key
+                )
+            )
+
+            status = assess_team_candidate_route_access(
+                candidate,
+                team_name=team_name,
+                capability_result=capability_result,
+                route_access_profiles=route_profiles,
+            )
+
+            team_assessments[candidate_key] = status
+
+        assessments_by_team[team_name] = team_assessments
+
+    return assessments_by_team
+
+
+def build_access_filtered_generation_candidates(
+    candidates,
+    *,
+    candidate_access_by_team,
+):
+    """Retain candidates accessible to every supplied team.
+
+    This function consumes completed candidate-level access
+    assessments. It does not infer route eligibility from a
+    TileCandidate's single access profile.
+
+    Missing, unknown, invalid and inaccessible assessments
+    all prevent a candidate from entering the board pool.
+    """
+    from collections.abc import Mapping
+
+    if (
+        not isinstance(candidate_access_by_team, Mapping)
+        or not candidate_access_by_team
+    ):
+        return ()
+
+    team_assessments = []
+
+    for team_name, assessments in (
+        candidate_access_by_team.items()
+    ):
+        if (
+            not isinstance(team_name, str)
+            or not team_name.strip()
+            or not isinstance(assessments, Mapping)
+        ):
+            return ()
+
+        team_assessments.append(assessments)
+
+    eligible_candidates = []
+
+    for candidate in candidates:
+        candidate_key = build_generated_board_candidate_key(
+            candidate
+        )
+
+        if all(
+            assessments.get(candidate_key) == "accessible"
+            for assessments in team_assessments
+        ):
+            eligible_candidates.append(candidate)
+
+    return tuple(eligible_candidates)
+
+
 def build_filtered_generation_candidates(
     candidates,
     kept_tile_keys=(),
@@ -289,6 +437,7 @@ def get_curated_generated_board_preview_summary(
     banned_tile_keys=(),
     generation_candidates=None,
     random_seed=None,
+    candidate_access_by_team=None,
 ):
     candidate_order_key = None
     capability_ordering_applied = False
@@ -303,6 +452,17 @@ def get_curated_generated_board_preview_summary(
 
     if generation_candidates is None:
         generation_candidates = get_curated_tile_generation_candidates()
+
+    # Access checks precede both kept-tile selection and bans.
+    # No assessments supplied means legacy preview behaviour.
+    if candidate_access_by_team is not None:
+        generation_candidates = (
+            build_access_filtered_generation_candidates(
+                generation_candidates,
+                candidate_access_by_team=candidate_access_by_team,
+            )
+        )
+
     preselected_candidates = get_preselected_generation_candidates(
         generation_candidates,
         kept_tile_keys=kept_tile_keys,

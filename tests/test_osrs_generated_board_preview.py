@@ -507,3 +507,163 @@ def test_capability_randomised_fallback_stays_randomised(monkeypatch):
     assert board is completed
     assert calls == [(42, True), (42, False)]
     assert metadata["capability_ordering_fell_back"] is True
+
+
+def _make_access_filter_test_candidates():
+    return (
+        make_capability_order_test_candidate(
+            "Accessible source",
+            "synthetic_accessible",
+        ),
+        make_capability_order_test_candidate(
+            "Inaccessible source",
+            "synthetic_inaccessible",
+        ),
+        make_capability_order_test_candidate(
+            "Unknown source",
+            "synthetic_unknown",
+        ),
+        make_capability_order_test_candidate(
+            "Missing assessment source",
+            "synthetic_missing",
+        ),
+    )
+
+
+def test_access_filter_requires_every_team_to_be_accessible():
+    from utils.osrs_generated_board_preview import (
+        build_access_filtered_generation_candidates,
+        build_generated_board_candidate_key,
+    )
+
+    candidates = _make_access_filter_test_candidates()
+
+    ready, blocked, unknown, missing = candidates
+
+    keys = {
+        candidate.title: build_generated_board_candidate_key(
+            candidate
+        )
+        for candidate in candidates
+    }
+
+    assessments = {
+        "Zamorak": {
+            key: "accessible"
+            for key in keys.values()
+        },
+        "Saradomin": {
+            keys[ready.title]: "accessible",
+            keys[blocked.title]: "inaccessible",
+            keys[unknown.title]: "unknown",
+            # Deliberately no assessment for 'missing'.
+        },
+    }
+
+    filtered = build_access_filtered_generation_candidates(
+        candidates,
+        candidate_access_by_team=assessments,
+    )
+
+    assert filtered == (ready,)
+
+
+def test_access_filter_fails_closed_without_team_evidence():
+    from utils.osrs_generated_board_preview import (
+        build_access_filtered_generation_candidates,
+        build_generated_board_candidate_key,
+    )
+
+    candidate = _make_access_filter_test_candidates()[0]
+    key = build_generated_board_candidate_key(candidate)
+
+    # No participating-team assessments cannot establish access.
+    assert build_access_filtered_generation_candidates(
+        (candidate,),
+        candidate_access_by_team={},
+    ) == ()
+
+    # A missing team assessment cannot be treated as accessible.
+    assert build_access_filtered_generation_candidates(
+        (candidate,),
+        candidate_access_by_team={
+            "Zamorak": {key: "accessible"},
+            "Saradomin": {},
+        },
+    ) == ()
+
+    # Unexpected status values cannot grant access.
+    assert build_access_filtered_generation_candidates(
+        (candidate,),
+        candidate_access_by_team={
+            "Zamorak": {key: True},
+        },
+    ) == ()
+
+
+def test_access_filter_precedes_kept_tile_selection_and_assembly(
+    monkeypatch,
+):
+    import pytest
+
+    from utils.board_generation import BoardAssemblyError
+    from utils import osrs_generated_board_preview as preview
+
+    allowed, blocked = (
+        _make_access_filter_test_candidates()[:2]
+    )
+
+    allowed_key = preview.build_generated_board_candidate_key(
+        allowed
+    )
+    blocked_key = preview.build_generated_board_candidate_key(
+        blocked
+    )
+
+    assessments = {
+        "Zamorak": {
+            allowed_key: "accessible",
+            blocked_key: "inaccessible",
+        },
+    }
+
+    assembled_pools = []
+
+    def fake_assemble(candidates, **kwargs):
+        assembled_pools.append(tuple(candidates))
+        return "synthetic assembled board"
+
+    monkeypatch.setattr(
+        preview,
+        "assemble_preview_board",
+        fake_assemble,
+    )
+
+    monkeypatch.setattr(
+        preview,
+        "build_generated_board_preview_summary",
+        lambda board, **kwargs: board,
+    )
+
+    result = preview.get_curated_generated_board_preview_summary(
+        generation_candidates=(allowed, blocked),
+        candidate_access_by_team=assessments,
+    )
+
+    assert result == "synthetic assembled board"
+    assert assembled_pools == [(allowed,)]
+
+    # An organiser must not be able to retain an ineligible
+    # candidate through the kept-tile mechanism.
+    with pytest.raises(
+        BoardAssemblyError,
+        match="Kept tile",
+    ):
+        preview.get_curated_generated_board_preview_summary(
+            generation_candidates=(allowed, blocked),
+            candidate_access_by_team=assessments,
+            kept_tile_keys=(blocked_key,),
+        )
+
+    # No second assembly attempt may bypass the access gate.
+    assert assembled_pools == [(allowed,)]

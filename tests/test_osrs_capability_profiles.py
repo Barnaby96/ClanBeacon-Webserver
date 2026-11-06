@@ -250,3 +250,140 @@ def test_build_capability_profiles_from_rostered_players_records_failures():
     assert profile.score_for(
         "solo_boss_score"
     ) == 3
+
+
+def test_rostered_capabilities_preserve_individual_access_evidence():
+    from utils.osrs_capability_profiles import (
+        build_capability_profiles_from_rostered_players,
+    )
+
+    fetched_names = []
+
+    player_data = {
+        "Alice": {
+            "displayName": "Alice",
+            "latestSnapshot": {
+                "data": {
+                    "skills": {
+                        "overall": {"level": 1900},
+                        "slayer": {"level": 72},
+                        "sailing": {"level": 87},
+                        "attack": {"level": 1},
+                    },
+                },
+            },
+        },
+        "Bob": {
+            "displayName": "Bob",
+            # No snapshot: all individual skill levels unknown.
+        },
+    }
+
+    def fake_fetch_player(name):
+        fetched_names.append(name)
+        return player_data[name]
+
+    def fake_score_player(data):
+        return {
+            "player_name": data["displayName"],
+            "skilling_score": (
+                100 if data["displayName"] == "Alice" else 50
+            ),
+        }
+
+    result = build_capability_profiles_from_rostered_players(
+        {
+            "Zamorak": (
+                (1, "Alice"),
+                (2, "Bob"),
+            ),
+        },
+        fetch_player=fake_fetch_player,
+        score_player=fake_score_player,
+    )
+
+    # No additional WOM lookups for access information.
+    assert fetched_names == ["Alice", "Bob"]
+
+    # Existing capability aggregation must be unchanged.
+    assert result.profile_set.profiles[0].player_count == 2
+    assert (
+        result.profile_set.profiles[0].score_for(
+            "skilling_score"
+        )
+        == 150
+    )
+    assert result.failed_players == ()
+
+    assert result.player_access_evidence == (
+        {
+            "team_name": "Zamorak",
+            "player_name": "Alice",
+            "skill_levels": {
+                "slayer": 72,
+                "sailing": 87,
+                "attack": 1,
+            },
+        },
+        {
+            "team_name": "Zamorak",
+            "player_name": "Bob",
+            "skill_levels": {},
+        },
+    )
+
+
+def test_rostered_access_evidence_excludes_failed_lookups():
+    from utils.osrs_capability_profiles import (
+        build_capability_profiles_from_rostered_players,
+    )
+
+    def fake_fetch_player(name):
+        if name == "Broken":
+            raise RuntimeError("WOM failed")
+
+        return {
+            "displayName": name,
+            "latestSnapshot": {
+                "data": {
+                    "skills": {
+                        "slayer": {"level": 75},
+                        "sailing": {"level": None},
+                    },
+                },
+            },
+        }
+
+    def fake_score_player(data):
+        return {
+            "player_name": data["displayName"],
+            "solo_boss_score": 3,
+        }
+
+    result = build_capability_profiles_from_rostered_players(
+        {
+            "Armadyl": (
+                (1, "Working"),
+                (2, "Broken"),
+            ),
+        },
+        fetch_player=fake_fetch_player,
+        score_player=fake_score_player,
+    )
+
+    assert result.player_access_evidence == (
+        {
+            "team_name": "Armadyl",
+            "player_name": "Working",
+            "skill_levels": {"slayer": 75},
+        },
+    )
+
+    assert len(result.failed_players) == 1
+    assert result.failed_players[0]["player_name"] == "Broken"
+
+    # Existing scores still count only successfully retrieved players.
+    profile = result.profile_set.profiles[0]
+
+    assert profile.player_count == 1
+    assert profile.score_for("solo_boss_score") == 3

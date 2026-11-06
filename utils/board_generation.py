@@ -131,6 +131,9 @@ class BoardGenerationRules:
     target_primary_categories_per_tier: int | None = None
     maximum_primary_category_tiles_per_tier: int | None = None
     minimum_primary_category_counts: dict[TileCategory, int] = field(default_factory=dict)
+    primary_pet_requires_grindable_fallback: bool = False
+    primary_pet_requires_boss_pet_only: bool = False
+    primary_pet_requires_brutal_composition: bool = False
 
     def __post_init__(self):
         errors = self.validation_errors()
@@ -309,6 +312,14 @@ class AccessProfile:
     recommended_skill_requirements: dict[str, int] = field(default_factory=dict)
     access_flags: FrozenSet[AccessFlag] = field(default_factory=frozenset)
     access_confidence: AccessConfidence = AccessConfidence.HIGH
+    skill_boostability_thresholds: dict[str, dict[str, int]] = field(
+        default_factory=dict
+    )
+    # Genuine quest requirements that WOM cannot independently
+    # verify. These are not confirmed player unlocks.
+    non_skill_conditions: tuple[object, ...] = field(
+        default_factory=tuple
+    )
 
     def __post_init__(self):
         object.__setattr__(
@@ -333,6 +344,115 @@ class AccessProfile:
             frozenset(
                 self.access_flags
             )
+        )
+
+        # Optional metadata. Empty for existing legacy profiles.
+        raw_thresholds = self.skill_boostability_thresholds
+
+        if not isinstance(raw_thresholds, dict):
+            raise ValueError(
+                "Skill boostability thresholds must be a dictionary."
+            )
+
+        normalised_thresholds = {}
+
+        for skill_id, categories in raw_thresholds.items():
+            if (
+                not isinstance(skill_id, str)
+                or skill_id not in self.effective_skill_requirements
+            ):
+                raise ValueError(
+                    "Boostability references an unknown effective "
+                    f"skill requirement: {skill_id}"
+                )
+
+            if not isinstance(categories, dict) or not categories:
+                raise ValueError(
+                    "Boostability categories must be a non-empty "
+                    f"dictionary for {skill_id}."
+                )
+
+            normalised_categories = {}
+
+            for boostability, required_level in categories.items():
+                if boostability not in ("yes", "no", "unknown"):
+                    raise ValueError(
+                        "Boostability must be yes, no or unknown."
+                    )
+
+                if (
+                    type(required_level) is not int
+                    or not 1 <= required_level <= 99
+                ):
+                    raise ValueError(
+                        "Boostability thresholds must be integer "
+                        "skill levels from 1 to 99."
+                    )
+
+                if (
+                    required_level
+                    > self.effective_skill_requirements[skill_id]
+                ):
+                    raise ValueError(
+                        "Boostability threshold exceeds effective "
+                        f"skill requirement: {skill_id}"
+                    )
+
+                normalised_categories[
+                    boostability
+                ] = required_level
+
+            normalised_thresholds[
+                skill_id
+            ] = normalised_categories
+
+        object.__setattr__(
+            self,
+            "skill_boostability_thresholds",
+            normalised_thresholds
+        )
+
+        conditions = self.non_skill_conditions
+
+        if not isinstance(conditions, (tuple, list)):
+            raise ValueError(
+                "Access-profile non-skill conditions "
+                "must be a sequence"
+            )
+
+        if conditions:
+            # Local import avoids a module-level circular import:
+            # osrs_quest_requirements imports board_generation.
+            from utils.osrs_quest_requirements import (
+                QuestUnmeasuredCondition,
+            )
+
+        identities = set()
+
+        for condition in conditions:
+            if not isinstance(
+                condition, QuestUnmeasuredCondition
+            ):
+                raise ValueError(
+                    "Invalid access-profile non-skill condition"
+                )
+
+            identity = (
+                condition.quest_id,
+                condition.condition_id,
+            )
+
+            if identity in identities:
+                raise ValueError(
+                    "Duplicate access-profile non-skill condition"
+                )
+
+            identities.add(identity)
+
+        object.__setattr__(
+            self,
+            "non_skill_conditions",
+            tuple(conditions)
         )
 
 
@@ -574,13 +694,12 @@ def secondary_pet_route_count(candidate):
     if candidate.pet_role != PetRole.SECONDARY:
         return 0
 
-    return sum(
-        1
-        for route in candidate.routes
-        if route.pet_id is not None
+    return int(any(
+        route.pet_id is not None
         or route.pet_group_id is not None
         or route.route_type == TileCategory.PET
-    )
+        for route in candidate.routes
+    ))
 
 
 def count_primary_pet_tiles(candidates):
@@ -598,7 +717,86 @@ def count_secondary_pet_routes(candidates):
     )
 
 
+def primary_pet_has_grindable_fallback(candidate):
+    if candidate.pet_role != PetRole.PRIMARY:
+        return False
+
+    if not candidate.has_fallback or candidate.route_mode != RouteMode.OR:
+        return False
+
+    has_pet_route = any(
+        route.route_type == TileCategory.PET
+        and route.tracking_source == TrackingSource.DINK
+        and (route.pet_id is not None or route.pet_group_id is not None)
+        for route in candidate.routes
+    )
+
+    has_grind_route = any(
+        route.route_type in (TileCategory.SKILL, TileCategory.KILLCOUNT)
+        and route.tracking_source == TrackingSource.WOM
+        and route.metric_id is not None
+        and route.target is not None
+        and route.target > 0
+        for route in candidate.routes
+    )
+
+    return has_pet_route and has_grind_route
+
+
+def primary_pet_is_boss_pet_only(candidate):
+    if (
+        candidate.pet_role != PetRole.PRIMARY
+        or candidate.primary_category != TileCategory.PET
+        or candidate.route_mode != RouteMode.SINGLE
+        or len(candidate.routes) != 1
+        or candidate.has_fallback
+    ):
+        return False
+    route = candidate.routes[0]
+    if (
+        route.route_type != TileCategory.PET
+        or route.tracking_source != TrackingSource.DINK
+        or route.pet_id is None
+        or route.pet_group_id is not None
+        or route.target != 1
+    ):
+        return False
+    from utils.osrs_board_difficulty import classify_primary_pet_candidate
+    return classify_primary_pet_candidate(candidate) == "boss"
+
+def candidate_fits_brutal_pet_composition(candidate, selected):
+    if candidate.pet_role != PetRole.PRIMARY:
+        return True
+    if candidate.primary_category != TileCategory.PET or candidate.route_mode != RouteMode.SINGLE or candidate.has_fallback or len(candidate.routes) != 1:
+        return False
+    route = candidate.routes[0]
+    if route.route_type != TileCategory.PET or route.tracking_source != TrackingSource.DINK or not route.pet_id or route.pet_group_id is not None or route.target != 1:
+        return False
+    from utils.osrs_board_difficulty import classify_primary_pet_candidate
+    subtype = classify_primary_pet_candidate(candidate)
+    if subtype not in ("skilling", "boss"):
+        return False
+    earlier = [t for t in selected if t.pet_role == PetRole.PRIMARY]
+    if any(r.pet_id == route.pet_id for t in earlier for r in t.routes):
+        return False
+    limit = 2 if subtype == "skilling" else 1
+    return sum(classify_primary_pet_candidate(t) == subtype for t in earlier) < limit
+
 def candidate_fits_pet_limits(candidate, selected_candidates, rules):
+    if rules.primary_pet_requires_brutal_composition and not candidate_fits_brutal_pet_composition(candidate, selected_candidates):
+        return False
+    if (
+        rules.primary_pet_requires_grindable_fallback
+        and candidate.pet_role == PetRole.PRIMARY
+        and not primary_pet_has_grindable_fallback(candidate)
+    ):
+        return False
+    if (
+        rules.primary_pet_requires_boss_pet_only
+        and candidate.pet_role == PetRole.PRIMARY
+        and not primary_pet_is_boss_pet_only(candidate)
+    ):
+        return False
     primary_pet_count = count_primary_pet_tiles(
         selected_candidates
     )
@@ -707,6 +905,35 @@ def validate_generated_board_candidates(candidates, rules=None):
             f"{rules.secondary_pet_routes_min} and "
             f"{rules.secondary_pet_routes_max}."
         )
+
+    if rules.primary_pet_requires_grindable_fallback:
+        for candidate in candidates:
+            if (
+                candidate.pet_role == PetRole.PRIMARY
+                and not primary_pet_has_grindable_fallback(candidate)
+            ):
+                errors.append(
+                    "Relaxed primary pet tile requires a valid grindable fallback."
+                )
+
+    if rules.primary_pet_requires_boss_pet_only:
+        for candidate in candidates:
+            if (
+                candidate.pet_role == PetRole.PRIMARY
+                and not primary_pet_is_boss_pet_only(candidate)
+            ):
+                errors.append(
+                    "Competitive primary pet tile must be a boss pet-only objective."
+                )
+
+    if rules.primary_pet_requires_brutal_composition:
+        from utils.osrs_board_difficulty import classify_primary_pet_candidate
+        primary = tuple(t for t in candidates if t.pet_role == PetRole.PRIMARY)
+        counts = Counter(classify_primary_pet_candidate(t) for t in primary)
+        if len(primary) != 3 or counts["skilling"] != 2 or counts["boss"] != 1:
+            errors.append("Brutal requires exactly two skilling pets and one boss pet.")
+        if any(not candidate_fits_brutal_pet_composition(t, primary[:i]) for i, t in enumerate(primary)):
+            errors.append("Brutal requires distinct pet-only objectives without fallback.")
 
     return errors
 

@@ -48,6 +48,7 @@ class CapabilityProfileSet:
 class CapabilityProfileBuildResult:
     profile_set: CapabilityProfileSet
     failed_players: tuple[dict, ...] = ()
+    player_access_evidence: tuple[dict, ...] = ()
 
 
 def _safe_float(value):
@@ -221,8 +222,13 @@ def build_capability_profiles_from_rostered_players(
     fetch_player,
     score_player=calculate_player_balance_scores,
 ):
+    from utils.osrs_player_access import (
+        extract_player_access_skill_levels,
+    )
+
     teams = []
     failed_players = []
+    player_access_evidence = []
 
     for team_name, player_rows in (
         players_by_team or {}
@@ -238,13 +244,25 @@ def build_capability_profiles_from_rostered_players(
                 continue
 
             try:
-                scored_players.append(
-                    score_player(
-                        fetch_player(
-                            player_name
-                        )
-                    )
+                # Reuse the same WOM response for both purposes.
+                player_data = fetch_player(player_name)
+
+                scored_player = score_player(player_data)
+
+                skill_levels = extract_player_access_skill_levels(
+                    player_data
                 )
+
+                scored_players.append(scored_player)
+
+                player_access_evidence.append(
+                    {
+                        "team_name": str(team_name),
+                        "player_name": player_name,
+                        "skill_levels": skill_levels,
+                    }
+                )
+
             except Exception as error:
                 failed_players.append(
                     {
@@ -295,5 +313,8 @@ def build_capability_profiles_from_rostered_players(
         ),
         failed_players=tuple(
             failed_players
+        ),
+        player_access_evidence=tuple(
+            player_access_evidence
         ),
     )

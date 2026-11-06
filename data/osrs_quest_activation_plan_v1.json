@@ -1,0 +1,128 @@
+{
+  "activation_record_requirements": {
+    "actor_and_timestamp": "Must reflect a real, authorised future action; no placeholder activation records.",
+    "required_fields": [
+      "scope",
+      "wiki_revision",
+      "activated_by",
+      "activated_at_utc",
+      "decision_notes"
+    ],
+    "required_scope": "CURATED_QUEST_RESOLVER_ONLY"
+  },
+  "approval_or_activation_records_created": false,
+  "automated_ci_changes_in_scope": false,
+  "baseline": {
+    "activated_reviews": 115,
+    "already_curated_inactive": 8,
+    "approved_inactive_reviews": 20,
+    "last_verified_passing_osrs_tests": 1041,
+    "live_catalogue": 136,
+    "osrs_test_modules": 66,
+    "review_records": 135,
+    "staged_only_inactive": 12,
+    "staging_manifest_sha256": "671a9e93aec27c4bf7f6d8211086f5c913203da97b677afae52a10e4481a8888"
+  },
+  "catalogue_modification_authorised": false,
+  "execution_authorised": false,
+  "execution_rules": [
+    "This file is a plan, not an activation instruction.",
+    "Never auto-activate an approved quest.",
+    "Never insert staged quests without corresponding authorised activation.",
+    "Never infer authorisation from successful tests.",
+    "Stop and diagnose a failed validation before proceeding.",
+    "No deployment, Git push or database migration is authorised."
+  ],
+  "mandatory_pre_activation_preparation": [
+    "Preserve the original staging manifest as a historical, inactive snapshot.",
+    "Resolve the staging-only loader lifecycle before changing any review record. It currently requires the original review-file fingerprint and all twelve staged quests to remain inactive.",
+    "Replace or adapt staging-loader regression tests without weakening exceptional-condition checks.",
+    "Identify and update only genuine baseline-count assertions; numeric literals such as 20 may represent skill requirements rather than inactive-review counts.",
+    "Preserve mandatory skill, boostability, prerequisite and non-skill-condition requirements.",
+    "Demonstrate each proposed catalogue/review state in memory using the existing review validator.",
+    "Obtain explicit user authorisation separately before each execution phase."
+  ],
+  "mandatory_validation_for_each_phase": [
+    "Existing validator must pass every review.",
+    "All OSRS regression tests must pass.",
+    "Synthetic activation must pass before any real change.",
+    "Catalogue and review counts must match the phase.",
+    "All direct and inherited exceptional conditions must remain valid.",
+    "Staging and source provenance must remain auditable.",
+    "No unrelated requirements or review statuses may change."
+  ],
+  "ordered_phases": [
+    {
+      "action": "REVIEW_LEDGER_ONLY",
+      "must_pass_validation_before_next_phase": true,
+      "name": "Activate eight already-curated reviews",
+      "phase": 1,
+      "planned_activated_review_count": 123,
+      "planned_inactive_review_count": 12,
+      "planned_live_catalogue_count": 136,
+      "quest_ids": [
+        "eadgars_ruse",
+        "ghosts_ahoy",
+        "icthlarins_little_helper",
+        "in_search_of_the_myreque",
+        "nature_spirit",
+        "priest_in_peril",
+        "the_fremennik_trials",
+        "troll_stronghold"
+      ],
+      "requires_separate_explicit_authorisation": true,
+      "status": "NOT_AUTHORISED"
+    },
+    {
+      "action": "CATALOGUE_AND_REVIEW_LEDGER_TOGETHER",
+      "must_pass_validation_before_next_phase": true,
+      "name": "Add and activate ten first-layer staged quests",
+      "phase": 2,
+      "planned_activated_review_count": 133,
+      "planned_inactive_review_count": 2,
+      "planned_live_catalogue_count": 146,
+      "quest_ids": [
+        "between_a_rock",
+        "creature_of_fenkenstrain",
+        "desert_treasure_i",
+        "elemental_workshop_i",
+        "horror_from_the_deep",
+        "recruitment_drive",
+        "roving_elves",
+        "tai_bwo_wannai_trio",
+        "tears_of_guthix",
+        "the_lost_tribe"
+      ],
+      "requires_separate_explicit_authorisation": true,
+      "status": "NOT_AUTHORISED"
+    },
+    {
+      "action": "CATALOGUE_AND_REVIEW_LEDGER_TOGETHER",
+      "must_pass_validation_before_next_phase": true,
+      "name": "Add and activate two dependent staged quests",
+      "phase": 3,
+      "planned_activated_review_count": 135,
+      "planned_inactive_review_count": 0,
+      "planned_live_catalogue_count": 148,
+      "quest_ids": [
+        "garden_of_tranquillity",
+        "mournings_end_part_i"
+      ],
+      "requires_separate_explicit_authorisation": true,
+      "status": "NOT_AUTHORISED"
+    }
+  ],
+  "purpose": "CONTROLLED_OSRS_QUEST_ACTIVATION_PLAN",
+  "review_activation_authorised": false,
+  "schema_version": 1,
+  "source_files_sha256": {
+    "data\\osrs_quest_staging_v1.json": "671a9e93aec27c4bf7f6d8211086f5c913203da97b677afae52a10e4481a8888",
+    "data\\osrs_requirement_proposals_v1.json": "b6ade6c79881550bb6ea58aab7d78833736f3c60395f53640429e04c1141b416",
+    "data\\osrs_requirement_reviews_v1.json": "710d7aa06e02e28d37a2393d7b9a90dfdae21705eb1d72231c993479a1a81656",
+    "scripts\\osrs_quest_staging_loader.py": "0d883dac8affb01fe3ede6fb685182f07808005f9fd1f02149a2f7304f706972",
+    "scripts\\validate_osrs_requirement_reviews.py": "e119ef21f9e26c2b18b318c97807073d310a60564be60e3c7cbfd6433584fd8f",
+    "utils\\osrs_quest_data.py": "e46d74610eb7664b36c7998b6ba4cac29e223a4e303d34473f06e87ac48e5608"
+  },
+  "status": "PREPARATION_ONLY",
+  "workflow_policy": "MANUAL_EXISTING_VALIDATION"
+}

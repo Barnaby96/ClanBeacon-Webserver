@@ -2,7 +2,7 @@
 
 from dataclasses import replace
 
-from utils.board_generation import AccessProfile, TileCategory, TrackingSource
+from utils.board_generation import AccessProfile, ContributionMode, TileCategory, TrackingSource
 from utils.osrs_drop_tile_effort import (
     DROP_TILE_EFFORT_MODE_GROUP_UNIQUES,
     DROP_TILE_EFFORT_MODE_SPECIFIC_DROP,
@@ -177,6 +177,65 @@ def build_generated_drop_tile_candidate(row):
     )
 
 
+def build_generated_repeatable_drop_tile_candidate(
+    row,
+    *,
+    target,
+    point_value,
+):
+    # Explicit opt-in recipe; not included in the active candidate pool.
+    if (
+        row.tile_mode != DROP_TILE_EFFORT_MODE_GROUP_UNIQUES
+        or not is_supported_generated_drop_effort_row(row)
+    ):
+        raise ValueError(
+            "Repeatable quantity recipes require a supported drop-group row."
+        )
+
+    if type(target) is not int or target < 1:
+        raise ValueError("Quantity target must be a positive integer.")
+
+    if type(point_value) is not int or not 1 <= point_value <= 5:
+        raise ValueError("Point value must be an integer from 1 to 5.")
+
+    component = build_generated_drop_component(row)
+
+    target_model = StaticPointTargetModel(
+        target_model_id=component.target_model_id,
+        target_by_point_value=((point_value, target),),
+    )
+
+    title = (
+        f"Obtain {target} {row.source_name} unique drops "
+        "(duplicates allowed)"
+    )
+
+    candidate = build_single_tile_candidate(
+        component,
+        point_value,
+        target_model,
+        title=title,
+        display_text=title,
+        explanation=(
+            "Repeatable quantity recipe; effort calibration pending.",
+        ),
+        include_generation_note=False,
+    )
+
+    route = candidate.routes[0]
+
+    return replace(
+        candidate,
+        routes=(
+            replace(
+                route,
+                contribution_mode=ContributionMode.TEAM_SUM,
+                expected_rolls=None,
+            ),
+        ),
+    )
+
+
 def build_generated_drop_tile_candidates(rows=None):
     rows = (
         build_drop_tile_effort_preview_rows()
@@ -191,7 +250,133 @@ def build_generated_drop_tile_candidates(rows=None):
     )
 
 
+def build_provisional_verified_nonunique_drop_candidate(
+    *,
+    drop_id,
+    source_id,
+    target,
+    point_value,
+    drop_rows,
+    verification_records,
+):
+    """Build an opt-in, source-verified non-unique DROP candidate.
 
+    This is a provisional recipe, not an active catalogue entry.
 
+    Verification records declare acquisition-source coverage but their
+    underlying OSRS evidence must be independently reviewed.
 
+    Difficulty, access, tracking and recipe activation still require
+    separate validation before this candidate can become active.
+    """
+    from utils.board_generation import (
+        ContributionMode,
+        Route,
+        RouteMode,
+        TileCandidate,
+        TileCategory,
+        TrackingSource,
+        build_tag,
+    )
+    from utils.osrs_drop_source_coverage import (
+        select_source_verified_nonunique_drops,
+    )
 
+    if not isinstance(drop_id, str) or not drop_id.strip():
+        raise ValueError("A valid drop ID is required.")
+
+    if not isinstance(source_id, str) or not source_id.strip():
+        raise ValueError("A valid acquisition source ID is required.")
+
+    if type(target) is not int or target < 1:
+        raise ValueError("Target must be a positive integer.")
+
+    if type(point_value) is not int or not 1 <= point_value <= 5:
+        raise ValueError("Point value must be an integer from 1 to 5.")
+
+    if drop_id != drop_id.strip():
+        raise ValueError("Drop ID must not contain surrounding whitespace.")
+
+    if source_id != source_id.strip():
+        raise ValueError("Source ID must not contain surrounding whitespace.")
+
+    rows = tuple(drop_rows)
+
+    eligible = select_source_verified_nonunique_drops(
+        rows,
+        verification_records,
+    )
+
+    verified_source_ids = eligible.get(drop_id)
+
+    if not verified_source_ids:
+        raise ValueError(
+            f"No complete, verified non-unique source coverage "
+            f"for {drop_id}."
+        )
+
+    if source_id not in verified_source_ids:
+        raise ValueError(
+            f"Source {source_id} is not verified for {drop_id}."
+        )
+
+    matching_rows = tuple(
+        row
+        for row in rows
+        if row.get("drop_id") == drop_id
+    )
+
+    if not matching_rows:
+        raise ValueError(
+            f"No recorded drop metadata found for {drop_id}."
+        )
+
+    drop_names = {
+        row.get("drop_name")
+        for row in matching_rows
+    }
+
+    if (
+        len(drop_names) != 1
+        or not all(
+            isinstance(name, str) and name.strip()
+            for name in drop_names
+        )
+    ):
+        raise ValueError(
+            f"Missing or inconsistent drop names for {drop_id}."
+        )
+
+    drop_name = next(iter(drop_names)).strip()
+
+    source_tags = frozenset(
+        build_tag("source", verified_source_id)
+        for verified_source_id in verified_source_ids
+    )
+
+    if None in source_tags:
+        raise ValueError("Invalid verified acquisition-source tag.")
+
+    title = f"Obtain {target} {drop_name}"
+
+    route = Route(
+        route_type=TileCategory.DROP,
+        display_text=title,
+        target=target,
+        tracking_source=TrackingSource.DINK,
+        contribution_mode=ContributionMode.TEAM_SUM,
+        # This is an item objective, not a boss-specific objective.
+        # All acquisition sources are instead reserved below.
+        source_id=None,
+        drop_id=drop_id,
+        hard_unique_tags=source_tags,
+        expected_rolls=None,
+    )
+
+    return TileCandidate(
+        title=title,
+        point_value=point_value,
+        primary_category=TileCategory.DROP,
+        route_mode=RouteMode.SINGLE,
+        routes=(route,),
+    )

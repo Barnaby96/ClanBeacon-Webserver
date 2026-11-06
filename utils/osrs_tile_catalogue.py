@@ -68,6 +68,20 @@ def make_pet_candidate_from_option(option):
         option
     )
 
+    if pet_name == "Vorki":
+        from dataclasses import replace
+        from utils.osrs_tile_templates import access_profile_for_content
+
+        if component.source_id != "vorkath":
+            raise ValueError(
+                "Vorki must resolve to Vorkath as its acquisition source."
+            )
+
+        component = replace(
+            component,
+            access_profile=access_profile_for_content("vorkath"),
+        )
+
     return build_single_tile_candidate(
         component,
         5,
@@ -303,9 +317,9 @@ def get_curated_tile_generation_candidates():
 
 
 
-def get_procedural_tile_generation_candidates(skill_xp_candidates=(), skill_xp_or_pet_candidates=()):
+def get_procedural_tile_generation_candidates(skill_xp_candidates=(), skill_xp_or_pet_candidates=(), primary_skilling_pet_candidates=()):
     """Replace selected static XP tiles with procedural candidates."""
-    pet_replacements = tuple(skill_xp_or_pet_candidates)
+    pet_replacements = tuple((*skill_xp_or_pet_candidates, *primary_skilling_pet_candidates))
     replacements = tuple((*skill_xp_candidates, *pet_replacements))
     skills = {route.skill_id for tile in replacements for route in tile.routes if route.skill_id}
     retained = (tile for tile in get_curated_tile_generation_candidates() if not (tile.primary_category == TileCategory.SKILL and len(tile.routes) == 1 and tile.routes[0].skill_id in skills and tile.routes[0].tracking_source.value == "WOM"))
@@ -325,3 +339,22 @@ def build_procedural_skill_xp_or_pet_candidates(targets_by_skill):
             title = "Gain " + format(xp_target, ",") + " " + skill_id.title() + " XP OR obtain " + pets[skill_id]
             generated.append(make_skill_xp_or_pet_candidate(title, tier, skill_id, xp_target, pets[skill_id]))
     return tuple(generated)
+
+
+def build_procedural_primary_skilling_pet_candidates(targets_by_skill):
+    """Generate primary skilling PET objectives with WOM XP fallbacks."""
+    from dataclasses import replace
+    from utils.board_generation import PetRole
+    generated = build_procedural_skill_xp_or_pet_candidates(targets_by_skill)
+    candidates = []
+    for tile in generated:
+        pet = next(r for r in tile.routes if r.pet_id is not None)
+        xp = next(r for r in tile.routes if r.route_type == TileCategory.SKILL)
+        candidates.append(replace(
+            tile,
+            title=f"{pet.display_text} OR {xp.display_text}",
+            primary_category=TileCategory.PET,
+            secondary_categories=frozenset({TileCategory.SKILL}),
+            pet_role=PetRole.PRIMARY,
+        ))
+    return assert_valid_tile_candidate_pool(candidates)

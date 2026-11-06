@@ -168,3 +168,54 @@ def test_build_drop_group_data_records_exports_drop_metadata():
     assert records[0]["notes"] == (
         "Quantity drop, not N-of-set by default.",
     )
+
+
+def test_export_preserves_all_drop_rows_separately_from_unique_groups():
+    database = build_sample_database()
+
+    module_text = format_drop_group_data_module(database)
+
+    namespace = {}
+    exec(module_text, namespace)
+
+    assert "DROP_GROUP_DATA" in namespace
+    assert "DROP_ROW_DATA" in namespace
+
+    groups = namespace["DROP_GROUP_DATA"]
+    rows = namespace["DROP_ROW_DATA"]
+
+    assert len(rows) == 3
+
+    # The existing unique-group export must remain unchanged.
+    assert all(
+        "ring_of_wealth" not in group["drop_ids"]
+        for group in groups
+    )
+
+    excluded = [
+        row
+        for row in rows
+        if not row["include_in_unique_group"]
+    ]
+
+    assert len(excluded) == 1
+
+    ring = excluded[0]
+
+    assert ring["drop_id"] == "ring_of_wealth"
+    assert ring["drop_name"] == "Ring of wealth"
+    assert ring["source_ids"] == ("dagannoth_rex",)
+    assert ring["source_names"] == ("Dagannoth Rex",)
+    assert ring["group_ids"] == ("dagannoth_rex_uniques",)
+    assert ring["include_in_unique_group"] is False
+    assert ring["drop_counting_mode"] == "distinct_drops"
+
+    # Included rows must also remain available as individual records.
+    assert {
+        row["drop_id"]
+        for row in rows
+        if row["include_in_unique_group"]
+    } == {
+        "ancestral_hat",
+        "scythe_of_vitur",
+    }
